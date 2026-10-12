@@ -1522,7 +1522,7 @@ if __name__ == "__main__":
 - [ ] **Step 5: Chạy test CLI để thấy thành công**
 
 Run: `uv run pytest tests/routing/test_cli.py -v`
-Expected: 4 passed. Nếu `test_main_json_output` báo `trips` khác 11, in `plan.at_risk` ra để xem đơn nào bị loại. Chỉ D012 được phép nằm trong `at_risk`. Nếu có đơn khác bị loại, sửa tọa độ hoặc khung giờ trong JSON mẫu (không sửa test), vì mỗi đơn trừ D012 đều phải phục vụ được.
+Expected: 5 passed. Nếu `test_main_json_output` báo `trips` khác 11, in `plan.at_risk` ra để xem đơn nào bị loại. Chỉ D012 được phép nằm trong `at_risk`. Nếu có đơn khác bị loại, sửa tọa độ hoặc khung giờ trong JSON mẫu (không sửa test), vì mỗi đơn trừ D012 đều phải phục vụ được.
 
 - [ ] **Step 6: Tạo `docker-compose.yml` ở gốc repo**
 
@@ -1578,7 +1578,7 @@ Run: `uv run pytest -m integration -v`
 Expected: 1 passed
 
 Run: `uv run pytest -v`
-Expected: 35 passed, 1 deselected (integration test bị loại mặc định qua `addopts`)
+Expected: 36 passed, 1 deselected (integration test bị loại mặc định qua `addopts`)
 
 - [ ] **Step 8: Chạy CLI thật**
 
@@ -1730,4 +1730,4 @@ git commit -m "chore(routing): probe PACO runtime by batch size and record limit
 - **Đối chiếu spec mục 6:** UTM 48N (Task 1), hệ số 1.3 (Task 1), gom theo đợt và ≤ 100 đơn (Task 2, Task 7), mỗi cửa hàng là một depot (Task 5), ánh xạ type 1/2/3 (Task 2–3), quầy cửa hàng làm điểm nhận (Task 2), giới hạn và cache khi demo (giới hạn ở Task 7; **cache để lại cho plan API/UI**, vì cache chỉ có ý nghĩa khi có server), benchmark solver (baseline thủ công ở Task 5–6; **SA/ALNS để lại cho plan polish**, lý do ghi ở Global Constraints).
 - **Mục 2.3 luồng 3:** CLI tạo ra lộ trình, km, số xe, đơn có nguy cơ trễ. Bản đồ và nút xác nhận thuộc plan UI.
 - **Nhất quán tên:** `screen_orders`, `Screening`, `RoutableOrder`, `LockerNode`, `build_instance`, `SolverClient.solve`, `SolverResponse`, `optimize_routes`, `solver_size`, `one_trip_per_order`, `BaselineResult`, `batch_from_dict`, `format_plan`, `main`: dùng giống nhau ở mọi task.
-- **Số lượng test:** geo 4 + validate 10 + instance 2 + client 6 + planner 8 + baseline 1 + cli 4 = 35 unit test, cộng 1 integration test.
+- **Số lượng test:** geo 4 + validate 10 + instance 2 + client 6 + planner 8 + baseline 1 + cli 5 = 36 unit test, cộng 1 integration test.

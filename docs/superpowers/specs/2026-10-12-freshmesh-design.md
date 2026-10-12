@@ -69,7 +69,7 @@ Chủ hoặc quản lý một **chuỗi mini-mart nhỏ độc lập** (3–15 c
 │  (+ công cụ hành động dạng nháp: create_purchase_order, apply_markdown,       │
 │     dispatch_routes — chỉ thực thi khi người dùng bấm Duyệt)                   │
 └───────────────────────────────────────────────────────────────────────────────┘
-        Dữ liệu giả lập (source = SIMULATED)          routing-PL (container riêng, POST /solve/manual)
+        Dữ liệu giả lập (source = SIMULATED)          routing-PL (container riêng, POST /solve)
 ```
 
 ### 2.2 Nguyên tắc
@@ -131,14 +131,14 @@ Chủ hoặc quản lý một **chuỗi mini-mart nhỏ độc lập** (3–15 c
 - Agent trình bày so sánh bằng tiền giữa giảm giá và điều chuyển.
 
 ## 6. Định tuyến (`routing/`)
-- routing-PL là git submodule, không sửa, chạy trong container riêng; gọi `POST /solve/manual` (depot, customers với earliest/latest/service_time/type, lockers, num_vehicles, vehicle_capacity, solver).
+- routing-PL là git submodule, không sửa, chạy trong container riêng. Gọi `POST /solve` với instance text do adapter tự sinh. Không dùng `/solve/manual`, vì `backend/utils.py` gán tủ cho cả khách type 1 nên parser báo lỗi.
 - Giới hạn của solver: một depot, khoảng cách Euclid. Vì vậy:
   - Gom đơn theo đợt 30–60 phút, mỗi cửa hàng là một depot.
   - Adapter: lat/lng → tọa độ phẳng tính bằng km (UTM zone 48N), nhân hệ số đường vòng khoảng 1,3; khung giờ tính bằng phút từ đầu ca.
   - Lựa chọn nhận: tận nhà → type 1; điểm nhận → type 2; linh hoạt (giảm phí ship) → type 3.
   - Điểm nhận / tủ: sảnh chung cư hoặc tại cửa hàng.
 - Giới hạn khoảng 100 đơn mỗi đợt, có time limit cho solver; cache kết quả cho demo.
-- Benchmark: PACO / SA / ALNS (có sẵn trong repo) / "mỗi đơn một chuyến", trên các chỉ số km, số xe, số đơn trễ, runtime.
+- Benchmark: PACO / SA (qua API) / ALNS (chỉ chạy được qua CLI trong container, API không hỗ trợ) / "mỗi đơn một chuyến", trên các chỉ số km, số xe, số đơn trễ, runtime.
 - Hướng nâng cấp: ma trận khoảng cách OSRM (cần sửa C++).
 
 ## 7. Agent (`agent/`)

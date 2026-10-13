@@ -1,12 +1,14 @@
-import { expect, login, runFlow, test } from "./fixtures";
+import { createPanelDraft, expect, login, runTool, test } from "./fixtures";
+
+// Proposal cards (Duyệt / Sửa / Bỏ) created from the 3-plan table via POST /api/drafts.
 
 test.beforeEach(async ({ page }) => {
   await login(page, "owner_a");
+  await runTool(page, "inventory");
 });
 
 test("Sửa số lượng rồi mới duyệt", async ({ page }) => {
-  const turn = await runFlow(page, 1);
-  const card = turn.getByTestId("proposal-card").first();
+  const card = await createPanelDraft(page, "inventory", "draft-purchase");
   await card.getByTestId("proposal-edit").click();
   const qty = card.getByTestId("proposal-qty-input").first();
   await expect(qty).toBeVisible();
@@ -21,12 +23,19 @@ test("Sửa số lượng rồi mới duyệt", async ({ page }) => {
   await expect(card.locator("table")).toContainText(new Intl.NumberFormat("vi-VN").format(original + step));
   await card.getByTestId("proposal-approve").click();
   await expect(card.getByTestId("draft-status")).toHaveText("Đã duyệt");
+  await expect(card.getByTestId("proposal-approve")).toHaveCount(0);
 });
 
 test("Bỏ đề xuất", async ({ page }) => {
-  const turn = await runFlow(page, 1);
-  const card = turn.getByTestId("proposal-card").first();
+  const card = await createPanelDraft(page, "inventory", "draft-purchase");
   await card.getByTestId("proposal-reject").click();
   await expect(card.getByTestId("draft-status")).toHaveText("Đã bỏ");
   await expect(card.getByTestId("proposal-approve")).toHaveCount(0);
+});
+
+test("Chọn phương án khác trước khi tạo bản nháp", async ({ page }) => {
+  const panel = page.getByTestId("plan-table");
+  await panel.getByTestId("draft-plan-select").selectOption("safe");
+  const card = await createPanelDraft(page, "inventory", "draft-purchase");
+  await expect(card).toContainText("An toàn");
 });

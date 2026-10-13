@@ -8,7 +8,7 @@ import { memo, useEffect, useMemo } from "react";
 import { CircleMarker, MapContainer, Polyline, Popup, TileLayer, Tooltip, useMap } from "react-leaflet";
 import { fmtKm } from "@/lib/format";
 import { prefersReducedMotion, useThemeTokens } from "@/lib/theme";
-import type { LatLng, RoutePlanView } from "@/lib/types";
+import type { LatLng, RoutePlanView, Store } from "@/lib/types";
 import { VEHICLE_COLORS } from "./routeColors";
 
 function FitAndResize({ bounds }: { bounds: LatLngBoundsExpression | null }) {
@@ -34,12 +34,16 @@ const MARKER_TOKENS = {
   surface: ["--surface", "#fbfcfb"],
 } as const;
 
+/** Ho Chi Minh City centre (Bến Thành), used until the plan's own points are fitted. */
+const HCMC: LatLng = [10.7725, 106.698];
+
 interface Props {
   plan: RoutePlanView;
   storeName: string;
+  stores?: Store[];
 }
 
-function RouteMap({ plan, storeName }: Props) {
+function RouteMap({ plan, storeName, stores }: Props) {
   const colors = useThemeTokens(MARKER_TOKENS);
 
   const points = useMemo(() => {
@@ -55,7 +59,11 @@ function RouteMap({ plan, storeName }: Props) {
   // Leaflet computes the bounding box of a point list itself.
   const bounds: LatLngBoundsExpression | null = points.length ? points : null;
 
-  const center: LatLng = plan.store ? [plan.store.lat, plan.store.lng] : (points[0] ?? [10.78, 106.7]);
+  const center: LatLng = plan.store ? [plan.store.lat, plan.store.lng] : (points[0] ?? HCMC);
+  // The other stores of the chain give the route its neighbourhood context; they do not move the fit.
+  const otherStores = (stores ?? []).filter(
+    (st) => st.store_id !== plan.store_id && Number.isFinite(st.lat) && Number.isFinite(st.lng),
+  );
 
   return (
     <MapContainer
@@ -67,10 +75,23 @@ function RouteMap({ plan, storeName }: Props) {
     >
       <TileLayer
         url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        attribution='Bản đồ &copy; <a href="https://www.openstreetmap.org/copyright">Những người đóng góp OpenStreetMap</a>'
         maxZoom={19}
       />
       <FitAndResize bounds={bounds} />
+
+      {otherStores.map((st) => (
+        <CircleMarker
+          key={`store-${st.store_id}`}
+          center={[st.lat, st.lng]}
+          radius={6}
+          pathOptions={{ color: colors.store, weight: 2, fillColor: colors.surface, fillOpacity: 0.9 }}
+        >
+          <Tooltip direction="top" offset={[0, -6]}>
+            {st.name}
+          </Tooltip>
+        </CircleMarker>
+      ))}
 
       {plan.routes.map((r, i) =>
         r.path.length > 1 ? (

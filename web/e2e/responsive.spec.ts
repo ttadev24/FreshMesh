@@ -1,10 +1,10 @@
-import { expect, login, runFlow, test } from "./fixtures";
+import { expect, login, runTool, test } from "./fixtures";
 
 test("Bố cục: hai khung trên desktop, khung xếp chồng có công tắc trên điện thoại", async ({ page }, testInfo) => {
   await login(page, "owner_a");
   const chat = page.getByTestId("chat-input");
   const dashTab = page.getByTestId("tab-dashboard");
-  await expect(page.getByTestId("simulated-badge")).toBeVisible();
+  await expect(page.getByTestId("provenance-badge")).toBeVisible();
 
   if (testInfo.project.name === "desktop") {
     await expect(page.getByTestId("pane-chat")).toBeHidden();
@@ -20,13 +20,17 @@ test("Bố cục: hai khung trên desktop, khung xếp chồng có công tắc t
     await page.getByTestId("pane-dashboard").click();
     await expect(dashTab).toBeVisible();
     await expect(chat).toBeHidden();
-    // No horizontal page scroll on phones, including with a full dashboard (flow 3: map, tables, tooltips).
+    // No horizontal page scroll on phones, including with a full dashboard (route map, tables, tooltips).
     const overflow = () => page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     expect(await overflow()).toBeLessThanOrEqual(1);
-    await runFlow(page, 3);
-    expect(await overflow()).toBeLessThanOrEqual(1);
-    await page.getByTestId("pane-dashboard").click();
+    await runTool(page, "route");
     await expect(page.getByTestId("route-map")).toBeVisible();
+    expect(await overflow()).toBeLessThanOrEqual(1);
+    await runTool(page, "stock");
+    await runTool(page, "inventory");
+    expect(await overflow()).toBeLessThanOrEqual(1);
+    await page.getByTestId("provenance-badge").click();
+    await expect(page.getByTestId("sources-panel")).toBeVisible();
     expect(await overflow()).toBeLessThanOrEqual(1);
   }
 });

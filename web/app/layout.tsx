@@ -18,7 +18,7 @@ const mono = JetBrains_Mono({
 
 export const metadata: Metadata = {
   title: "FreshMesh · Trợ lý quyết định hàng tươi",
-  description: "Dự báo, nhập hàng, xử lý tồn và giao hàng cho chuỗi mini-mart. Dữ liệu giả lập (SIMULATED).",
+  description: "Dự báo, nhập hàng, xử lý tồn và giao hàng cho chuỗi mini-mart, mỗi số liệu ghi rõ nguồn dữ liệu.",
 };
 
 export const viewport: Viewport = {

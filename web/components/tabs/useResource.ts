@@ -1,12 +1,18 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ApiError, errorMessage } from "@/lib/api";
 
-type State<T> = { status: "loading" } | { status: "error"; message: string; code: string } | { status: "ready"; data: T };
+export type ResourceState<T> = { status: "loading" } | { status: "error"; message: string; code: string } | { status: "ready"; data: T };
+type State<T> = ResourceState<T>;
+
+export interface Resource<T> {
+  state: ResourceState<T>;
+  retry: () => void;
+}
 
 /** Fetch-on-mount with abort, retry and a reload key. */
-export function useResource<T>(fetcher: (signal: AbortSignal) => Promise<T>, reloadKey: unknown = 0) {
+export function useResource<T>(fetcher: (signal: AbortSignal) => Promise<T>, reloadKey: unknown = 0): Resource<T> {
   const [state, setState] = useState<State<T>>({ status: "loading" });
   const [attempt, setAttempt] = useState(0);
 
@@ -23,5 +29,5 @@ export function useResource<T>(fetcher: (signal: AbortSignal) => Promise<T>, rel
   }, [fetcher, reloadKey, attempt]);
 
   const retry = useCallback(() => setAttempt((n) => n + 1), []);
-  return { state, retry };
+  return useMemo(() => ({ state, retry }), [state, retry]);
 }

@@ -1,11 +1,11 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { memo } from "react";
+import { memo, type ReactNode } from "react";
 import type { Sourced as SourcedData } from "@/lib/dashboard";
-import { fmtKm, fmtNum, fmtPct } from "@/lib/format";
-import type { RoutePlanView } from "@/lib/types";
-import { Badge, Panel, Skeleton, Sourced } from "@/components/ui/primitives";
+import { fmtDateTime, fmtKm, fmtNum, fmtPct } from "@/lib/format";
+import type { RoutePlanView, Store } from "@/lib/types";
+import { Badge, Panel, Skeleton, Sourced, SourcesLine } from "@/components/ui/primitives";
 import { VEHICLE_COLORS } from "./routeColors";
 import s from "./dashboard.module.css";
 
@@ -17,11 +17,14 @@ const RouteMap = dynamic(() => import("./RouteMap"), {
 interface Props {
   route: SourcedData<RoutePlanView>;
   storeNames: ReadonlyMap<string, string>;
+  /** Every store of the chain, drawn as context markers on the map. */
+  stores?: Store[];
+  footer?: ReactNode;
 }
 
-function RoutePanel({ route, storeNames }: Props) {
+function RoutePanel({ route, storeNames, stores, footer }: Props) {
   const plan = route.value;
-  const src = { tool: route.tool, citations: route.citations };
+  const src = { tool: route.tool, citations: route.citations, sources: route.sources };
   const storeName = storeNames.get(plan.store_id) ?? plan.store?.name ?? plan.store_id;
   const saving =
     plan.saving_pct ?? (plan.baseline_km && plan.baseline_km > 0 ? 100 * (1 - plan.km / plan.baseline_km) : null);
@@ -36,6 +39,11 @@ function RoutePanel({ route, storeNames }: Props) {
       testId="route-panel"
       actions={plan.exceeds_fleet ? <Badge tone="red">Vượt số xe hiện có</Badge> : null}
     >
+      <p className={s.solveNote} data-testid="route-solve-note">
+        {plan.cached ? "Từ bộ nhớ đệm" : "Vừa giải"}
+        {plan.solved_at ? `, giải lúc ${fmtDateTime(plan.solved_at)}` : plan.cached ? ", không ghi thời điểm giải" : ""}.
+        {plan.cached ? " Cùng đợt đơn và cấu hình đã được bộ giải tính trước đó." : null}
+      </p>
       <dl className={s.stats} data-testid="route-summary">
         <div>
           <dt>Số xe</dt>
@@ -73,15 +81,20 @@ function RoutePanel({ route, storeNames }: Props) {
 
       <div className={s.map} data-testid="route-map">
         {hasGeometry ? (
-          <RouteMap plan={plan} storeName={storeName} />
+          <RouteMap plan={plan} storeName={storeName} stores={stores} />
         ) : (
           <p className={s.mapEmpty}>Máy chủ chưa gửi tọa độ lộ trình nên không vẽ được bản đồ.</p>
         )}
       </div>
       <ul className={s.legend} aria-label="Chú giải bản đồ">
         <li>
-          <span className={s.dot} style={{ background: "var(--green-strong)" }} /> Cửa hàng
+          <span className={s.dot} style={{ background: "var(--green-strong)" }} /> Cửa hàng xuất phát
         </li>
+        {stores && stores.length > 1 ? (
+          <li>
+            <span className={s.dot} style={{ background: "var(--surface)", boxShadow: "inset 0 0 0 2px var(--green-strong)" }} /> Cửa hàng khác
+          </li>
+        ) : null}
         <li>
           <span className={s.dot} style={{ background: "var(--blue)" }} /> Điểm nhận / tủ
         </li>
@@ -131,6 +144,8 @@ function RoutePanel({ route, storeNames }: Props) {
         </div>
       ) : null}
       <p className={s.muted}>Giả định: tốc độ trung bình và hệ số đường vòng là ước tính; bạn duyệt trước khi gửi cho shipper.</p>
+      <SourcesLine sources={route.sources} computedBy={route.tool} />
+      {footer}
     </Panel>
   );
 }

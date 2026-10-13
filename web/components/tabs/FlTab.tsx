@@ -101,7 +101,7 @@ export default function FlTab() {
       </Panel>
 
       {methods.length ? (
-        <Panel title="So sánh phương pháp" sub="Trung bình các seed, dữ liệu giữ lại để kiểm tra (SIMULATED)" labelId="fl-methods">
+        <Panel title="So sánh phương pháp" sub="Trung bình các seed, trên dữ liệu giữ lại để kiểm tra" labelId="fl-methods">
           <div className={s.mdTableWrap}>
             <table className={s.mdTable}>
               <thead>

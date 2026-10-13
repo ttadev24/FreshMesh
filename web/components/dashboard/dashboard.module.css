@@ -87,37 +87,6 @@
 
 /* ---------- shared bits ---------- */
 
-.flowGuide {
-  margin: 4px 0 0;
-  display: grid;
-  gap: 0;
-  max-width: 640px;
-}
-
-.flowGuide > div {
-  display: grid;
-  grid-template-columns: 150px 1fr;
-  gap: 12px;
-  padding: 8px 0;
-  border-top: 1px solid var(--line);
-}
-
-.flowGuide dt {
-  font-weight: 600;
-  color: var(--ink);
-}
-
-.flowGuide dd {
-  margin: 0;
-}
-
-@media (max-width: 520px) {
-  .flowGuide > div {
-    grid-template-columns: 1fr;
-    gap: 2px;
-  }
-}
-
 .muted {
   color: var(--ink-3);
   font-size: 12px;
@@ -690,4 +659,170 @@
 
 .nonCashLabel {
   font-style: italic;
+}
+
+/* ---------- direct tool toolbar ---------- */
+
+.toolbar {
+  display: grid;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  min-width: 0;
+}
+
+.toolbarHead {
+  display: grid;
+  gap: 2px;
+}
+
+.toolbarHead h2 {
+  font-size: 14px;
+}
+
+.toolGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+@media (max-width: 1279px) {
+  .toolGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.toolBtn {
+  position: relative;
+  display: grid;
+  gap: 2px;
+  align-content: start;
+  text-align: left;
+  padding: 9px 11px 9px 13px;
+  border-radius: var(--radius);
+  border: 1px solid var(--line-strong);
+  background: var(--surface-2);
+  min-width: 0;
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease,
+    transform 0.1s ease;
+}
+
+/* Status rail on the left edge: green once the result is on screen, red on error. */
+.toolBtn::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  border-radius: 0 2px 2px 0;
+  background: transparent;
+}
+
+.toolBtn[data-state="ready"]::before {
+  background: var(--green);
+}
+
+.toolBtn[data-state="error"]::before {
+  background: var(--red);
+}
+
+.toolBtn:hover:not(:disabled) {
+  border-color: var(--green);
+  background: var(--green-tint);
+}
+
+.toolBtn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.toolBtn:disabled {
+  opacity: 0.6;
+}
+
+.toolLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.toolHint {
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--ink-3);
+}
+
+.contextBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  padding: 8px 12px;
+  border-radius: var(--radius);
+  background: var(--blue-tint);
+  border: 1px solid color-mix(in srgb, var(--blue) 30%, transparent);
+  font-size: 13px;
+  color: var(--ink-2);
+}
+
+.contextBar b {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.solveNote {
+  font-size: 12px;
+  color: var(--ink-2);
+}
+
+/* ---------- drafts created from a panel ---------- */
+
+.panelDrafts {
+  display: grid;
+  gap: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+
+.draftBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px 12px;
+}
+
+.draftBtnWrap {
+  display: grid;
+  gap: 2px;
+  justify-items: start;
+}
+
+.draftWhy {
+  font-size: 11px;
+  color: var(--ink-3);
+  max-width: 220px;
+}
+
+.draftPick {
+  display: grid;
+  gap: 2px;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+
+.draftError {
+  color: var(--red);
+  font-size: 13px;
+}
+
+.panelProposals {
+  display: grid;
+  gap: 10px;
 }

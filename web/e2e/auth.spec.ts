@@ -7,16 +7,19 @@ test.describe("Đăng nhập", () => {
     await expect(page.getByTestId("login-submit")).toBeVisible();
   });
 
-  test("đăng nhập hợp lệ mở không gian làm việc của chuỗi", async ({ page }) => {
+  test("đăng nhập hợp lệ mở không gian làm việc của chuỗi, không còn nhãn SIMULATED hay chế độ kịch bản", async ({ page }) => {
     await login(page, "owner_a");
-    await expect(page.getByTestId("simulated-badge")).toHaveText("SIMULATED");
-    await expect(page.getByTestId("mode-badge")).toHaveText(/LLM|Kịch bản/);
+    await expect(page.getByTestId("provenance-badge")).toContainText("Nguồn dữ liệu");
     await expect(page.getByTestId("store-select")).toBeVisible();
+    await expect(page.locator("body")).not.toContainText("SIMULATED");
+    await expect(page.locator("body")).not.toContainText(/kịch bản/i);
+    await expect(page.getByTestId("mode-badge")).toHaveCount(0);
     // Reload keeps the session (sessionStorage mirror).
     await page.reload();
-    await expect(page.getByTestId("flow-1")).toBeVisible();
+    await expect(page.getByTestId("provenance-badge")).toBeVisible();
     await page.getByTestId("logout").click();
     await expect(page).toHaveURL(/\/login$/);
+    await expect(page.locator("body")).not.toContainText("SIMULATED");
   });
 
   test("sai mật khẩu hiện lỗi tiếng Việt và ở lại trang đăng nhập", async ({ page, failures }) => {

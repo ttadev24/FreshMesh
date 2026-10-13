@@ -7,18 +7,17 @@ import {
   normalizeDraft,
   normalizeDrafts,
   normalizeFl,
-  normalizeTurn,
   type TurnEvent,
 } from "./normalize";
+import { normalizeProvenance } from "./provenance";
 import type {
-  AgentMode,
-  AgentTurn,
   Assumptions,
   AuditEntry,
   Draft,
   FlNetwork,
   Health,
   LoginResponse,
+  Provenance,
   Sku,
   Store,
   User,
@@ -66,7 +65,11 @@ const CODE_FALLBACK_VI: Record<string, string> = {
   model_not_ready:
     "Mô hình dự báo của chuỗi chưa sẵn sàng (chưa huấn luyện). Người vận hành cần chạy scripts/bootstrap.sh rồi thử lại.",
   solver_unavailable: "Bộ giải định tuyến PACO chưa sẵn sàng, chưa lập được lộ trình. Vui lòng thử lại sau.",
+  llm_unavailable: "Chưa cấu hình khóa LLM: đặt ANTHROPIC_API_KEY cho API rồi khởi động lại.",
 };
+
+/** Exact setup message shown whenever the gateway has no LLM key (health.llm false or 503 llm_unavailable). */
+export const LLM_SETUP_VI = CODE_FALLBACK_VI.llm_unavailable;
 
 interface RequestOptions {
   method?: "GET" | "POST" | "PATCH";
@@ -177,24 +180,56 @@ export async function editDraft(id: string, payload: Record<string, unknown>): P
   );
 }
 
-// ---------------------------------------------------------------- agent
+// ---------------------------------------------------------------- direct tool endpoints (no LLM)
+// Real computations on the gateway (forecast model, Monte Carlo plans, PACO routing). The dashboard
+// calls them from explicit buttons; they work whether or not an LLM key is configured.
 
-export async function runScenario(flow: 1 | 2 | 3, storeId: string | null, signal?: AbortSignal): Promise<AgentTurn> {
-  const body = storeId ? { store_id: storeId } : {};
-  return normalizeTurn(await request<unknown>(`/api/agent/scenario/${flow}`, { method: "POST", body, signal }));
+export interface StockArgs {
+  store_id: string;
+  categories?: string[];
+  now_hour?: number;
 }
+
+export const getForecast = (
+  args: { store_id: string; categories?: string[]; horizon_days?: number },
+  signal?: AbortSignal,
+) => {
+  const q = new URLSearchParams({ store_id: args.store_id, horizon_days: String(args.horizon_days ?? 1) });
+  if (args.categories?.length) q.set("categories", args.categories.join(","));
+  return request<unknown>(`/api/forecast?${q}`, { signal });
+};
+
+export const planInventory = (
+  args: { store_id: string; categories?: string[]; horizon_days?: number },
+  signal?: AbortSignal,
+) => request<unknown>("/api/inventory/plan", { method: "POST", body: args, signal });
+
+export const planTransfer = (args: StockArgs, signal?: AbortSignal) =>
+  request<unknown>("/api/transfer/plan", { method: "POST", body: args, signal });
+
+export const planRoutes = (args: { store_id: string; now_minute?: number }, signal?: AbortSignal) =>
+  request<unknown>("/api/routing/plan", { method: "POST", body: args, signal });
+
+/** POST /api/drafts: the payload is the draft tool's input; the server recomputes everything from the DB. */
+export async function createDraft(kind: string, payload: Record<string, unknown>): Promise<Draft> {
+  return normalizeDraft(await request<unknown>("/api/drafts", { method: "POST", body: { kind, payload } }));
+}
+
+// ---------------------------------------------------------------- agent
 
 /**
  * POST /api/agent/chat answers with an SSE stream. EventSource cannot POST or send an
  * Authorization header, so the stream is read from fetch and split on blank lines.
+ * The mode is always "llm": the agent chooses its tools itself. Without a key the gateway answers
+ * 503 llm_unavailable (never a canned reply).
  */
 export async function streamChat(
   message: string,
-  opts: { mode?: AgentMode; storeId?: string | null; signal?: AbortSignal; onEvent: (event: TurnEvent) => void },
+  opts: { storeId?: string | null; signal?: AbortSignal; onEvent: (event: TurnEvent) => void },
 ): Promise<void> {
   const req: RequestOptions = {
     method: "POST",
-    body: { message, ...(opts.mode ? { mode: opts.mode } : {}), ...(opts.storeId ? { store_id: opts.storeId } : {}) },
+    body: { message, mode: "llm", ...(opts.storeId ? { store_id: opts.storeId } : {}) },
     signal: opts.signal,
     accept: "text/event-stream",
   };
@@ -256,4 +291,8 @@ export async function getFlNetwork(signal?: AbortSignal): Promise<FlNetwork> {
 
 export async function getAssumptions(signal?: AbortSignal): Promise<Assumptions> {
   return normalizeAssumptions(await request<unknown>("/api/assumptions", { signal }));
+}
+
+export async function getProvenance(signal?: AbortSignal): Promise<Provenance> {
+  return normalizeProvenance(await request<unknown>("/api/provenance", { signal }));
 }

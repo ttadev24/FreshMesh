@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import LoginForm from "@/components/auth/LoginForm";
 import s from "@/components/auth/login.module.css";
-import { SimulatedBadge } from "@/components/ui/primitives";
 
 export const metadata: Metadata = { title: "Đăng nhập · FreshMesh" };
 
@@ -13,7 +12,6 @@ export default function LoginPage() {
           <span className={s.logo} aria-hidden="true">
             FM
           </span>
-          <SimulatedBadge />
         </div>
         <div className={s.brandBody}>
           <h1 id="brand-title">FreshMesh</h1>
@@ -33,7 +31,9 @@ export default function LoginPage() {
             </li>
           </ul>
         </div>
-        <p className={s.brandFoot}>Dữ liệu trong bản demo là dữ liệu giả lập, đã ghi rõ giả định.</p>
+        <p className={s.brandFoot}>
+          Mọi con số đều ghi rõ nguồn dữ liệu (công khai, AI sinh, chương trình mô phỏng hoặc tính toán) và giả định.
+        </p>
       </section>
       <section className={s.formWrap} aria-labelledby="login-title">
         <LoginForm />

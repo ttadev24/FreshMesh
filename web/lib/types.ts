@@ -3,7 +3,6 @@
 // turns, route geometry) are normalised in lib/normalize.ts before the UI touches them.
 
 export type Role = "owner" | "store_manager";
-export type AgentMode = "llm" | "scripted";
 export type Confidence = "Cao" | "Trung bình" | "Thấp";
 
 export interface User {
@@ -23,8 +22,39 @@ export interface LoginResponse {
 export interface Health {
   status: string;
   solver: boolean;
+  /** False when the gateway has no LLM key: chat is unavailable, direct tool panels still work. */
   llm: boolean;
-  mode: AgentMode;
+}
+
+// ---------------------------------------------------------------- data provenance
+
+/** Kinds of data source (GET /api/provenance), shown as chips: Công khai / AI sinh / Chương trình mô phỏng / Tính toán. */
+export type SourceKind = "public" | "ai_generated" | "simulated" | "computed" | "other";
+
+/** One data source a payload or number is derived from (`sources` / `source_labels_vi`). */
+export interface SourceRef {
+  id: string;
+  label_vi: string;
+  kind: SourceKind | null;
+}
+
+export interface ProvenanceDataset {
+  id: string;
+  name: string;
+  kind: SourceKind;
+  kind_raw: string;
+  /** Only http(s) URLs survive normalisation; anything else is null and rendered as text. */
+  url: string | null;
+  url_text: string | null;
+  licence: string | null;
+  retrieved_at: string | null;
+  description: string | null;
+  prompt_ids: string[];
+}
+
+export interface Provenance {
+  datasets: ProvenanceDataset[];
+  notes: string[];
 }
 
 export interface Store {
@@ -71,7 +101,6 @@ export interface DriftStatus {
 export interface ForecastResponse {
   rows: ForecastRow[];
   drift: DriftStatus | null;
-  source: string;
 }
 
 export interface PlanLine {
@@ -106,7 +135,6 @@ export interface InventoryPlanResponse {
   confidence_reason: string | null;
   confidence?: Confidence | null;
   assumptions_vi: string[];
-  source: string;
 }
 
 export interface MarkdownSlot {
@@ -164,6 +192,9 @@ export interface TransferPlan {
   stockout_avoided_value_vnd: number | null;
   unserved_store_ids: string[];
   rationale_vi: string;
+  /** The trip's route came from the routing cache; null when no route was solved. */
+  route_cached: boolean | null;
+  route_solved_at: string | null;
 }
 
 export interface Comparison {
@@ -230,6 +261,7 @@ export interface PickupNode {
 }
 
 export interface RoutePlanView {
+  route_plan_id: string | null;
   store_id: string;
   store: { lat: number; lng: number; name: string } | null;
   solver: string;
@@ -242,6 +274,10 @@ export interface RoutePlanView {
   routes: VehicleRoute[];
   at_risk: AtRiskOrder[];
   pickup_points: PickupNode[];
+  /** Served from the routing cache (same batch + config already solved). */
+  cached: boolean;
+  /** When the solver produced this plan (ISO), for "giải lúc …". */
+  solved_at: string | null;
 }
 
 export type DraftStatus = "draft" | "approved" | "rejected" | "dispatched";
@@ -256,6 +292,8 @@ export interface Draft {
   created_at?: string;
   decided_at?: string | null;
   decided_by?: string | null;
+  /** Datasets behind the draft's figures (`sources` / `source_labels_vi`). */
+  sources: SourceRef[];
 }
 
 export interface AuditEntry {
@@ -264,6 +302,7 @@ export interface AuditEntry {
   actor: string;
   event: string;
   payload: unknown;
+  sources: SourceRef[];
 }
 
 export interface FlMetrics {
@@ -300,7 +339,6 @@ export interface AssumptionParameter {
 }
 
 export interface Assumptions {
-  label: string;
   sections: AssumptionSection[];
   roadmap: string[];
   parameters: AssumptionParameter[];
@@ -309,6 +347,8 @@ export interface Assumptions {
 /** Five fixed answer sections (agent/template.py). */
 export const ANSWER_SECTIONS = ["Đề xuất", "Vì sao", "Độ tin cậy", "Giả định", "Việc cần bạn duyệt"] as const;
 export type AnswerSection = (typeof ANSWER_SECTIONS)[number];
+/** Optional sixth heading: which data the answer rests on. Never required for the template to parse. */
+export const SOURCES_SECTION = "Nguồn dữ liệu";
 
 export type StepStatus = "running" | "done" | "error";
 
@@ -322,6 +362,8 @@ export interface ToolStep {
   data: unknown;
   error: string | null;
   citations: string[];
+  /** Data sources named by the tool output (`sources` / `source_labels_vi`). */
+  sources: SourceRef[];
 }
 
 /** Agent turn as streamed by agent/loop.py (plan → tool calls → answer). */
@@ -333,6 +375,10 @@ export interface AgentTurn {
   tools: ToolStep[];
   answer: string | null;
   sections: Record<AnswerSection, string> | null;
+  /** Text of the optional "Nguồn dữ liệu" heading, when the answer has one. */
+  sources_text: string | null;
+  /** Datasets behind the turn's tool outputs (answer / final `sources` + `source_labels_vi`). */
+  sources: SourceRef[];
   unverified: string[];
   drafts: string[];
   citations: string[];

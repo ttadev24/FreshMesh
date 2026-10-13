@@ -3,8 +3,10 @@
 // as `undefined` numbers. Nothing here invents values: missing numbers stay `null` and are rendered
 // as "không có dữ liệu".
 
+import { sourcesOf } from "./provenance";
 import {
   ANSWER_SECTIONS,
+  SOURCES_SECTION,
   type AgentTurn,
   type AnswerSection,
   type Assumptions,
@@ -87,7 +89,6 @@ export function normalizeForecast(raw: unknown): ForecastResponse {
   return {
     rows: arr(o.rows ?? o.forecasts).map(toForecastRow).filter((r): r is ForecastRow => r !== null),
     drift: toDrift(o.drift),
-    source: str(o.source, "SIMULATED"),
   };
 }
 
@@ -137,7 +138,6 @@ export function normalizeInventory(raw: unknown): InventoryPlanResponse {
     confidence_reason: str(o.confidence_reason) || null,
     confidence: conf === "Cao" || conf === "Trung bình" || conf === "Thấp" ? conf : null,
     assumptions_vi: assumptions.length ? assumptions : [...new Set(plans.flatMap((p) => p.assumptions_vi ?? []))],
-    source: str(o.source, "SIMULATED"),
   };
 }
 
@@ -193,6 +193,8 @@ function toTransfer(v: unknown): TransferPlan | null {
     stockout_avoided_value_vnd: num(v.stockout_avoided_value_vnd),
     unserved_store_ids: strList(v.unserved_store_ids),
     rationale_vi: str(v.rationale_vi),
+    route_cached: typeof v.route_cached === "boolean" ? v.route_cached : null,
+    route_solved_at: str(v.route_solved_at) || null,
   };
 }
 
@@ -359,6 +361,7 @@ export function normalizeRoutePlan(raw: unknown): RoutePlanView | null {
   });
 
   return {
+    route_plan_id: str(pick(plan, "route_plan_id", "batch_hash")) || null,
     store_id: str(plan.store_id),
     store,
     solver: str(plan.solver),
@@ -371,6 +374,8 @@ export function normalizeRoutePlan(raw: unknown): RoutePlanView | null {
     routes,
     at_risk: atRisk,
     pickup_points: pickupPoints,
+    cached: plan.cached === true || outer.cached === true,
+    solved_at: str(pick(plan, "solved_at") ?? pick(outer, "solved_at")) || null,
   };
 }
 
@@ -408,6 +413,7 @@ export function normalizeDraft(raw: unknown): Draft {
     created_at: str(o.created_at) || undefined,
     decided_at: str(o.decided_at) || null,
     decided_by: str(o.decided_by) || null,
+    sources: sourcesOf(o).length ? sourcesOf(o) : sourcesOf(payload),
   };
 }
 
@@ -433,6 +439,7 @@ export function normalizeAudit(raw: unknown): AuditEntry[] {
       actor: str(e.actor),
       event: str(e.event),
       payload,
+      sources: sourcesOf(e).length ? sourcesOf(e) : sourcesOf(payload),
     };
   });
 }
@@ -489,7 +496,6 @@ export function normalizeAssumptions(raw: unknown): Assumptions {
     }
   }
   return {
-    label: str(pick(o, "label", "source"), "SIMULATED"),
     sections,
     roadmap: strList(o.roadmap),
     parameters: arr(o.parameters).filter(isObj).map((p) => ({
@@ -503,24 +509,33 @@ export function normalizeAssumptions(raw: unknown): Assumptions {
 // ---------------------------------------------------------------- answer template
 
 // Port of agent/template.py `_HEADING` (same optional markdown heading, bold and colon handling).
+// The optional "Nguồn dữ liệu" heading is split out too, so it never ends up inside the previous section.
 const HEADING = new RegExp(
-  String.raw`^[ \t]*(?:#{1,6}[ \t]*)?\**[ \t]*(` + ANSWER_SECTIONS.join("|") + String.raw`)[ \t]*\**[ \t]*:?[ \t]*\**[ \t]*`,
+  String.raw`^[ \t]*(?:#{1,6}[ \t]*)?\**[ \t]*(` +
+    [...ANSWER_SECTIONS, SOURCES_SECTION].join("|") +
+    String.raw`)[ \t]*\**[ \t]*:?[ \t]*\**[ \t]*`,
   "gm",
 );
 
-function parseAnswer(text: string): Record<AnswerSection, string> | null {
+interface ParsedAnswer {
+  sections: Record<AnswerSection, string> | null;
+  sources: string | null;
+}
+
+function parseAnswer(text: string): ParsedAnswer {
   const normalized = text.normalize("NFC");
   const matches = [...normalized.matchAll(HEADING)];
-  const found: Partial<Record<AnswerSection, string>> = {};
+  const found: Record<string, string> = {};
   for (let i = 0; i < matches.length; i++) {
     const m = matches[i];
-    const name = m[1] as AnswerSection;
-    if (found[name] !== undefined) return null;
+    const name = m[1];
+    if (found[name] !== undefined) return { sections: null, sources: null };
     const end = i + 1 < matches.length ? matches[i + 1].index : normalized.length;
     found[name] = normalized.slice(m.index + m[0].length, end).trim();
   }
-  if (ANSWER_SECTIONS.some((s) => !found[s])) return null;
-  return found as Record<AnswerSection, string>;
+  const sources = found[SOURCES_SECTION] || null;
+  if (ANSWER_SECTIONS.some((s) => !found[s])) return { sections: null, sources };
+  return { sections: Object.fromEntries(ANSWER_SECTIONS.map((s) => [s, found[s]])) as Record<AnswerSection, string>, sources };
 }
 
 function toSections(v: unknown): Record<AnswerSection, string> | null {
@@ -545,6 +560,8 @@ export function emptyTurn(userMessage: string): AgentTurn {
     tools: [],
     answer: null,
     sections: null,
+    sources_text: null,
+    sources: [],
     unverified: [],
     drafts: [],
     citations: [],
@@ -574,6 +591,7 @@ export function applyTurnEvent(turn: AgentTurn, event: TurnEvent): AgentTurn {
         data: null,
         error: null,
         citations: [],
+        sources: [],
       };
       return { ...turn, tools: [...turn.tools, step] };
     }
@@ -586,11 +604,12 @@ export function applyTurnEvent(turn: AgentTurn, event: TurnEvent): AgentTurn {
         data: d.data ?? null,
         error,
         citations: strList(d.citations),
+        sources: sourcesOf(d.data).length ? sourcesOf(d.data) : sourcesOf(d),
       });
       const exists = turn.tools.some((t) => t.id === id);
       const tools = exists
         ? turn.tools.map((t) => (t.id === id ? patch(t) : t))
-        : [...turn.tools, patch({ id, name: str(d.name), kind: str(d.kind), args: {}, status: "running", data: null, error: null, citations: [] })];
+        : [...turn.tools, patch({ id, name: str(d.name), kind: str(d.kind), args: {}, status: "running", data: null, error: null, citations: [], sources: [] })];
       return { ...turn, tools };
     }
     case "unverified_flag": {
@@ -612,10 +631,14 @@ export function applyTurnEvent(turn: AgentTurn, event: TurnEvent): AgentTurn {
 function finishTurn(turn: AgentTurn, d: Obj): AgentTurn {
   const text = str(d.text ?? d.answer_text);
   const unverified = strList(d.unverified);
+  const parsed = text ? parseAnswer(text) : { sections: null, sources: null };
+  const sectionSources = isObj(d.sections) && typeof d.sections[SOURCES_SECTION] === "string" ? str(d.sections[SOURCES_SECTION]) : "";
   return {
     ...turn,
     answer: text || turn.answer,
-    sections: toSections(d.sections) ?? (text ? parseAnswer(text) : null),
+    sections: toSections(d.sections) ?? parsed.sections ?? turn.sections,
+    sources_text: sectionSources || parsed.sources || turn.sources_text,
+    sources: sourcesOf(d).length ? sourcesOf(d) : turn.sources,
     unverified: unverified.length ? unverified : turn.unverified,
     drafts: strList(d.drafts).length ? strList(d.drafts) : turn.drafts,
     citations: strList(d.citations).length ? strList(d.citations) : turn.citations,
@@ -625,7 +648,7 @@ function finishTurn(turn: AgentTurn, d: Obj): AgentTurn {
   };
 }
 
-/** Merges an AgentTurn.to_dict() payload (scenario endpoint or final SSE event). */
+/** Merges an AgentTurn.to_dict() payload (final SSE event). */
 function mergeTurnDict(turn: AgentTurn, d: Obj): AgentTurn {
   const inner = isObj(d.turn) ? d.turn : d;
   const events = arr(inner.events ?? d.events);
@@ -647,6 +670,7 @@ function mergeTurnDict(turn: AgentTurn, d: Obj): AgentTurn {
         data: c.data ?? null,
         error: typeof c.error === "string" && c.error ? c.error : null,
         citations: strList(c.citations),
+        sources: sourcesOf(c.data).length ? sourcesOf(c.data) : sourcesOf(c),
       })),
     };
   }
@@ -659,8 +683,4 @@ function mergeTurnDict(turn: AgentTurn, d: Obj): AgentTurn {
       ? arr(inner.plan_steps).filter(isObj).map((s) => ({ tool: str(s.tool), description_vi: str(s.description_vi) }))
       : next.plan_steps,
   };
-}
-
-export function normalizeTurn(raw: unknown): AgentTurn {
-  return mergeTurnDict(emptyTurn(""), isObj(raw) ? raw : {});
 }

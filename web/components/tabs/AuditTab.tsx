@@ -5,7 +5,7 @@ import { getAudit } from "@/lib/api";
 import { fmtDateTime } from "@/lib/format";
 import { toPlainText } from "@/lib/inline";
 import type { AuditEntry } from "@/lib/types";
-import { Badge, EmptyState, ErrorState, Panel, Skeleton, type Tone } from "@/components/ui/primitives";
+import { Badge, EmptyState, ErrorState, Panel, Skeleton, SourcesLine, type Tone } from "@/components/ui/primitives";
 import { useResource } from "./useResource";
 import s from "./tabs.module.css";
 
@@ -85,7 +85,7 @@ export default function AuditTab({ version }: { version: number }) {
       {state.status === "error" ? <ErrorState message={state.message} onRetry={retry} /> : null}
       {state.status === "ready" && entries.length === 0 ? (
         <EmptyState title="Chưa có mục nào">
-          <p>Chạy một luồng và bấm Duyệt hoặc Bỏ, quyết định sẽ được ghi tại đây.</p>
+          <p>Tạo một bản nháp từ bảng điều khiển hoặc hỏi trợ lý, rồi bấm Duyệt hoặc Bỏ: quyết định sẽ được ghi tại đây.</p>
         </EmptyState>
       ) : null}
       {entries.length ? (
@@ -105,6 +105,7 @@ export default function AuditTab({ version }: { version: number }) {
                     <code className={s.eventCode}>{e.event}</code>
                   </div>
                   {text ? <p className={s.payload}>{text}</p> : null}
+                  {e.sources.length ? <SourcesLine sources={e.sources} testId="audit-sources" /> : null}
                   {e.payload && typeof e.payload === "object" ? (
                     <details className={s.raw}>
                       <summary>Chi tiết</summary>

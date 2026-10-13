@@ -18,12 +18,16 @@ interface Props {
   /** "time": one SKU over several days (band). "sku": several SKUs on one day (horizontal range bars). */
   layout: "time" | "sku";
   skuNames: ReadonlyMap<string, string>;
+  /** Plain-text provenance shown in the chart tooltip ("Nguồn: …"). */
+  sourceNote: string;
 }
+
+const escapeHtml = (v: string) => v.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 
 const ROW_H = 30;
 const chartHeight = (rows: number, layout: Props["layout"]) => (layout === "sku" ? Math.max(180, rows * ROW_H + 56) : 260);
 
-function buildOption(rows: ForecastRow[], layout: Props["layout"], skuNames: Props["skuNames"]): echarts.EChartsCoreOption {
+function buildOption(rows: ForecastRow[], layout: Props["layout"], skuNames: Props["skuNames"], sourceNote: string): echarts.EChartsCoreOption {
   const green = cssVar("--green", "#1d6a46");
   const ink2 = cssVar("--ink-2", "#44554c");
   const line = cssVar("--line", "#d3dcd6");
@@ -100,7 +104,7 @@ function buildOption(rows: ForecastRow[], layout: Props["layout"], skuNames: Pro
           `P50: ${fmtNum(r.p50)}`,
           `P10: ${fmtNum(r.p10)}`,
           `Độ tin cậy: ${r.confidence}`,
-          `<span style="opacity:.7">Nguồn: forecast_demand, SIMULATED</span>`,
+          `<span style="opacity:.7">${escapeHtml(sourceNote)}</span>`,
         ].join("<br/>");
       },
     },
@@ -110,7 +114,7 @@ function buildOption(rows: ForecastRow[], layout: Props["layout"], skuNames: Pro
   };
 }
 
-function ForecastChart({ rows, layout, skuNames }: Props) {
+function ForecastChart({ rows, layout, skuNames, sourceNote }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const chartRef = useRef<echarts.ECharts | null>(null);
   // Colours are resolved from CSS tokens: rebuild the option when the system theme flips.
@@ -132,8 +136,8 @@ function ForecastChart({ rows, layout, skuNames }: Props) {
   }, []);
 
   useEffect(() => {
-    chartRef.current?.setOption(buildOption(rows, layout, skuNames), true);
-  }, [rows, layout, skuNames, scheme]);
+    chartRef.current?.setOption(buildOption(rows, layout, skuNames, sourceNote), true);
+  }, [rows, layout, skuNames, sourceNote, scheme]);
 
   return (
     <div

@@ -1,37 +1,43 @@
 "use client";
 
-import { useRef, useState, type KeyboardEvent } from "react";
-import type { DashboardData } from "@/lib/dashboard";
-import type { ConversationEntry } from "@/components/workspace/useConversation";
+import { useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import type { Provenance } from "@/lib/types";
 import AuditTab from "@/components/tabs/AuditTab";
 import FlTab from "@/components/tabs/FlTab";
-import AssumptionsTab from "@/components/tabs/AssumptionsTab";
-import DashboardOverview from "./DashboardOverview";
+import SourcesTab from "@/components/tabs/SourcesTab";
+import type { Resource } from "@/components/tabs/useResource";
 import s from "./dashboard.module.css";
 
 const TABS = [
   { id: "dashboard", label: "Bảng điều khiển", testId: "tab-dashboard" },
   { id: "audit", label: "Lịch sử quyết định", testId: "tab-audit" },
   { id: "fl", label: "Mạng lưới FL", testId: "tab-fl" },
-  { id: "assumptions", label: "Giả định dữ liệu", testId: "tab-assumptions" },
+  { id: "sources", label: "Nguồn & giả định dữ liệu", testId: "tab-sources" },
 ] as const;
-type TabId = (typeof TABS)[number]["id"];
+export type TabId = (typeof TABS)[number]["id"];
 
 interface Props {
-  data: DashboardData;
-  entry: ConversationEntry | null;
-  skuNames: ReadonlyMap<string, string>;
-  storeNames: ReadonlyMap<string, string>;
+  tab: TabId;
+  onTab: (id: TabId) => void;
+  dashboard: ReactNode;
+  provenance: Resource<Provenance>;
 }
 
-export default function RightPane({ data, entry, skuNames, storeNames }: Props) {
-  const [tab, setTab] = useState<TabId>("dashboard");
-  const [opened, setOpened] = useState<ReadonlySet<TabId>>(new Set(["dashboard"]));
+export default function RightPane({ tab, onTab, dashboard, provenance }: Props) {
+  // Tabs mount on first open and then stay mounted (hidden), so their state survives switching.
+  const [opened, setOpened] = useState<ReadonlySet<TabId>>(new Set([tab]));
   const [auditVersion, setAuditVersion] = useState(0);
+  const [shownTab, setShownTab] = useState(tab);
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
+  // Opened from outside (header provenance badge): mount the target tab too.
+  if (tab !== shownTab) {
+    setShownTab(tab);
+    if (!opened.has(tab)) setOpened(new Set(opened).add(tab));
+  }
+
   function select(id: TabId) {
-    setTab(id);
+    onTab(id);
     setOpened((prev) => (prev.has(id) ? prev : new Set(prev).add(id)));
     // The audit log grows with every approval: reload it each time it is opened.
     if (id === "audit") setAuditVersion((v) => v + 1);
@@ -85,13 +91,13 @@ export default function RightPane({ data, entry, skuNames, storeNames }: Props) 
               className={s.panelWrap}
             >
               {t.id === "dashboard" ? (
-                <DashboardOverview data={data} entry={entry} skuNames={skuNames} storeNames={storeNames} />
+                dashboard
               ) : t.id === "audit" ? (
                 <AuditTab version={auditVersion} />
               ) : t.id === "fl" ? (
                 <FlTab />
               ) : (
-                <AssumptionsTab />
+                <SourcesTab provenance={provenance} />
               )}
             </div>
           ) : null,

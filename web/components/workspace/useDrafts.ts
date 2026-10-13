@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { approveDraft, editDraft, errorMessage, listDrafts, rejectDraft } from "@/lib/api";
+import { approveDraft, createDraft, editDraft, errorMessage, listDrafts, rejectDraft } from "@/lib/api";
 import type { Draft } from "@/lib/types";
 
 export type DraftAction = "approve" | "reject" | "edit";
@@ -12,9 +12,11 @@ export interface DraftsApi {
   loadError: string | null;
   refresh: () => void;
   act: (id: string, action: DraftAction, payload?: Record<string, unknown>) => Promise<{ ok: true } | { ok: false; message: string; forbidden: boolean }>;
+  /** POST /api/drafts from a dashboard tool panel; the server recomputes the payload from the DB. */
+  create: (kind: string, payload: Record<string, unknown>) => Promise<{ ok: true; id: string } | { ok: false; message: string }>;
 }
 
-/** Drafts are created by agent turns and only change through the approval endpoints. */
+/** Drafts are created by agent turns or by the dashboard tool panels, and only change through the approval endpoints. */
 export function useDrafts(wantedIds: readonly string[]): DraftsApi {
   const [byId, setById] = useState<ReadonlyMap<string, Draft>>(new Map());
   const [loading, setLoading] = useState(false);
@@ -61,6 +63,7 @@ export function useDrafts(wantedIds: readonly string[]): DraftsApi {
           ...updated,
           draft_id: id,
           kind: updated.kind || before?.kind || "",
+          sources: updated.sources.length ? updated.sources : (before?.sources ?? []),
           payload: updatedPayload ?? (action === "edit" && payload ? payload : (before?.payload ?? {})),
         });
         return next;
@@ -72,5 +75,16 @@ export function useDrafts(wantedIds: readonly string[]): DraftsApi {
     }
   }, []);
 
-  return useMemo(() => ({ byId, loading, loadError, refresh, act }), [byId, loading, loadError, refresh, act]);
+  const create = useCallback<DraftsApi["create"]>(async (kind, payload) => {
+    try {
+      const draft = await createDraft(kind, payload);
+      if (!draft.draft_id) return { ok: false, message: "Máy chủ không trả mã bản nháp." };
+      setById((prev) => new Map(prev).set(draft.draft_id, draft));
+      return { ok: true, id: draft.draft_id };
+    } catch (err) {
+      return { ok: false, message: errorMessage(err) };
+    }
+  }, []);
+
+  return useMemo(() => ({ byId, loading, loadError, refresh, act, create }), [byId, loading, loadError, refresh, act, create]);
 }

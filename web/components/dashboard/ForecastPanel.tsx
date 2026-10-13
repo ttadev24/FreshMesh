@@ -4,8 +4,9 @@ import dynamic from "next/dynamic";
 import { memo, useMemo, useState } from "react";
 import type { Sourced as SourcedData } from "@/lib/dashboard";
 import { fmtDate, fmtNum, fmtPct } from "@/lib/format";
+import { KIND_VI, resolveSources, useProvenanceIndex } from "@/lib/provenance";
 import type { Confidence, ForecastResponse } from "@/lib/types";
-import { ConfidenceBadge, Panel, Skeleton, Sourced } from "@/components/ui/primitives";
+import { ConfidenceBadge, Panel, Skeleton, Sourced, SourcesLine } from "@/components/ui/primitives";
 import s from "./dashboard.module.css";
 
 const ForecastChart = dynamic(() => import("./ForecastChart"), {
@@ -19,6 +20,12 @@ function ForecastPanel({ forecast, skuNames }: { forecast: SourcedData<ForecastR
   const { rows, drift } = forecast.value;
   const skus = useMemo(() => [...new Set(rows.map((r) => r.sku_id))], [rows]);
   const dates = useMemo(() => [...new Set(rows.map((r) => r.date))].sort(), [rows]);
+  const index = useProvenanceIndex();
+  const sourceNote = useMemo(() => {
+    const refs = resolveSources(forecast.sources, index);
+    const labels = refs.map((r) => `${r.label_vi}${r.kind ? ` (${KIND_VI[r.kind]})` : ""}`).join("; ");
+    return `${labels ? `Nguồn: ${labels}. ` : ""}Tính bởi ${forecast.tool}`;
+  }, [forecast.sources, forecast.tool, index]);
   const [sku, setSku] = useState<string>("");
   const [date, setDate] = useState<string>("");
   const layout: "time" | "sku" = dates.length > 1 && (skus.length === 1 || sku) ? "time" : "sku";
@@ -40,6 +47,7 @@ function ForecastPanel({ forecast, skuNames }: { forecast: SourcedData<ForecastR
     return (
       <Panel title="Dự báo nhu cầu" labelId="forecast-title" testId="forecast-chart">
         <p className={s.muted}>Công cụ dự báo không trả về dòng nào cho lựa chọn này.</p>
+        <SourcesLine sources={forecast.sources} computedBy={forecast.tool} />
       </Panel>
     );
   }
@@ -58,7 +66,7 @@ function ForecastPanel({ forecast, skuNames }: { forecast: SourcedData<ForecastR
           {drift.coverage_7d != null ? (
             <>
               {" "}
-              Độ phủ 7 ngày: <Sourced tool={forecast.tool}>{fmtPct(drift.coverage_7d <= 1 ? drift.coverage_7d * 100 : drift.coverage_7d)}</Sourced>.
+              Độ phủ 7 ngày: <Sourced tool={forecast.tool} sources={forecast.sources}>{fmtPct(drift.coverage_7d <= 1 ? drift.coverage_7d * 100 : drift.coverage_7d)}</Sourced>.
             </>
           ) : null}{" "}
           Nên cân nhắc phương án <b>An toàn</b>.
@@ -95,7 +103,7 @@ function ForecastPanel({ forecast, skuNames }: { forecast: SourcedData<ForecastR
         </div>
       ) : null}
 
-      <ForecastChart rows={shown} layout={layout} skuNames={skuNames} />
+      <ForecastChart rows={shown} layout={layout} skuNames={skuNames} sourceNote={sourceNote} />
 
       <details className={s.details}>
         <summary>Bảng số liệu dự báo</summary>
@@ -115,13 +123,13 @@ function ForecastPanel({ forecast, skuNames }: { forecast: SourcedData<ForecastR
                 <tr key={`${r.sku_id}-${r.date}`}>
                   <th scope="row">{layout === "time" ? fmtDate(r.date) : (skuNames.get(r.sku_id) ?? r.sku_id)}</th>
                   <td>
-                    <Sourced tool={forecast.tool} citations={forecast.citations}>{fmtNum(r.p10)}</Sourced>
+                    <Sourced tool={forecast.tool} citations={forecast.citations} sources={forecast.sources}>{fmtNum(r.p10)}</Sourced>
                   </td>
                   <td>
-                    <Sourced tool={forecast.tool} citations={forecast.citations}>{fmtNum(r.p50)}</Sourced>
+                    <Sourced tool={forecast.tool} citations={forecast.citations} sources={forecast.sources}>{fmtNum(r.p50)}</Sourced>
                   </td>
                   <td>
-                    <Sourced tool={forecast.tool} citations={forecast.citations}>{fmtNum(r.p90)}</Sourced>
+                    <Sourced tool={forecast.tool} citations={forecast.citations} sources={forecast.sources}>{fmtNum(r.p90)}</Sourced>
                   </td>
                   <td title={r.reason}>{r.confidence}</td>
                 </tr>
@@ -131,6 +139,7 @@ function ForecastPanel({ forecast, skuNames }: { forecast: SourcedData<ForecastR
         </div>
       </details>
       {weakest?.reason ? <p className={s.muted}>{weakest.reason}</p> : null}
+      <SourcesLine sources={forecast.sources} computedBy={forecast.tool} />
     </Panel>
   );
 }

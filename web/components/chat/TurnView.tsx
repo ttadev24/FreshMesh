@@ -25,12 +25,17 @@ function TurnView({ entry, drafts, role, skuMoq, onDashboard, hasData, onShowDas
   return (
     <li className={s.turn} data-testid="turn">
       <div className={s.question}>
-        {entry.source === "flow" ? <span className={s.flowTag}>Luồng demo</span> : null}
-        <p>{entry.source === "flow" && turn.user_message ? turn.user_message : entry.question}</p>
+        <p>{entry.question}</p>
       </div>
       <div className={s.reply}>
         <StepList turn={turn} pending={entry.pending} />
-        {entry.error ? <ErrorState title="Không hoàn tất lượt này" message={entry.error} testId="turn-error" /> : null}
+        {entry.error ? (
+          <ErrorState
+            title={entry.errorCode === "llm_unavailable" ? "Trợ lý chưa sẵn sàng" : "Không hoàn tất lượt này"}
+            message={entry.error}
+            testId="turn-error"
+          />
+        ) : null}
         {turn.error_vi && !entry.error ? <p className={s.proposalError} role="alert">{turn.error_vi}</p> : null}
         <AnswerView turn={turn} />
         {turn.drafts.length ? (

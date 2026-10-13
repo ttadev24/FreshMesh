@@ -1,8 +1,10 @@
 "use client";
 
+import { LLM_SETUP_VI } from "@/lib/api";
 import { AREA_VI, ROLE_VI } from "@/lib/format";
-import type { Health, Store, User } from "@/lib/types";
-import { Badge, SimulatedBadge } from "@/components/ui/primitives";
+import { KIND_VI } from "@/lib/provenance";
+import type { Health, Provenance, SourceKind, Store, User } from "@/lib/types";
+import { Badge } from "@/components/ui/primitives";
 import s from "./workspace.module.css";
 
 interface Props {
@@ -11,10 +13,19 @@ interface Props {
   stores?: Store[];
   storeId?: string | null;
   onStoreChange?: (id: string) => void;
+  /** Datasets in use (GET /api/provenance); null while loading or when unavailable. */
+  provenance?: Provenance | null;
+  onOpenSources?: () => void;
   onLogout: () => void;
 }
 
-export default function TopBar({ user, health, stores, storeId, onStoreChange, onLogout }: Props) {
+function kindSummary(p: Provenance): string {
+  const counts = new Map<SourceKind, number>();
+  p.datasets.forEach((d) => counts.set(d.kind, (counts.get(d.kind) ?? 0) + 1));
+  return [...counts].map(([k, n]) => `${n} ${KIND_VI[k].toLowerCase()}`).join(", ");
+}
+
+export default function TopBar({ user, health, stores, storeId, onStoreChange, provenance, onOpenSources, onLogout }: Props) {
   const lockedStore = user.role === "store_manager" && Boolean(user.store_id);
   return (
     <header className={s.topbar}>
@@ -51,14 +62,21 @@ export default function TopBar({ user, health, stores, storeId, onStoreChange, o
       ) : null}
 
       <div className={s.meta}>
-        <SimulatedBadge testId="simulated-badge" />
-        {health ? (
-          <Badge
-            tone={health.mode === "llm" ? "green" : "neutral"}
-            testId="mode-badge"
-            title={health.mode === "llm" ? "Trợ lý dùng mô hình ngôn ngữ" : "Không có LLM: trợ lý chạy kịch bản đã ghi"}
+        {onOpenSources ? (
+          <button
+            type="button"
+            className={s.provBadge}
+            onClick={onOpenSources}
+            data-testid="provenance-badge"
+            title={provenance?.datasets.length ? `${kindSummary(provenance)}. Bấm để xem nguồn và giả định.` : "Bấm để xem nguồn và giả định dữ liệu."}
           >
-            {health.mode === "llm" ? "LLM" : "Kịch bản"}
+            <span className={s.provLabel}>Nguồn dữ liệu</span>
+            {provenance ? <span className={s.provCount}>{provenance.datasets.length}</span> : null}
+          </button>
+        ) : null}
+        {health && !health.llm ? (
+          <Badge tone="amber" testId="llm-badge" title={LLM_SETUP_VI}>
+            Chưa có LLM
           </Badge>
         ) : null}
         {health && !health.solver ? (

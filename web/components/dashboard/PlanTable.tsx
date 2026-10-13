@@ -1,18 +1,18 @@
 "use client";
 
-import { Fragment, memo, useState } from "react";
+import { Fragment, memo, useState, type ReactNode } from "react";
 import type { Sourced as SourcedData } from "@/lib/dashboard";
 import { fmtNum, fmtPct, fmtVnd } from "@/lib/format";
 import type { InventoryPlanResponse } from "@/lib/types";
-import { Badge, ConfidenceBadge, Panel, Sourced } from "@/components/ui/primitives";
+import { Badge, ConfidenceBadge, Panel, Sourced, SourcesLine } from "@/components/ui/primitives";
 import s from "./dashboard.module.css";
 
 const PLAN_TONE: Record<string, "green" | "blue" | "amber"> = { safe: "green", balanced: "blue", lean: "amber" };
 
-function PlanTable({ inventory, skuNames }: { inventory: SourcedData<InventoryPlanResponse>; skuNames: ReadonlyMap<string, string> }) {
+function PlanTable({ inventory, skuNames, footer }: { inventory: SourcedData<InventoryPlanResponse>; skuNames: ReadonlyMap<string, string>; footer?: ReactNode }) {
   const { plans, confidence, confidence_reason, assumptions_vi, recommended_plan, recommended_reason_vi } = inventory.value;
   const [open, setOpen] = useState<string | null>(null);
-  const src = { tool: inventory.tool, citations: inventory.citations };
+  const src = { tool: inventory.tool, citations: inventory.citations, sources: inventory.sources };
 
   return (
     <Panel
@@ -126,6 +126,8 @@ function PlanTable({ inventory, skuNames }: { inventory: SourcedData<InventoryPl
           </ul>
         </details>
       ) : null}
+      <SourcesLine sources={inventory.sources} computedBy={inventory.tool} />
+      {footer}
     </Panel>
   );
 }

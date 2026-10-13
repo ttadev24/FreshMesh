@@ -105,6 +105,38 @@
   flex: none;
 }
 
+.provBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 4px 0 9px;
+  border-radius: var(--radius-sm);
+  border: 1px solid color-mix(in srgb, var(--blue) 40%, var(--line));
+  background: var(--blue-tint);
+  color: var(--blue);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.provBadge:hover {
+  border-color: var(--blue);
+}
+
+.provCount {
+  display: inline-grid;
+  place-items: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 3px;
+  background: var(--blue);
+  color: var(--surface);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
 .user {
   display: grid;
   line-height: 1.2;

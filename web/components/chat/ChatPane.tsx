@@ -3,11 +3,11 @@
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import { dashboardFromTurn, hasDashboardData } from "@/lib/dashboard";
 import { prefersReducedMotion } from "@/lib/theme";
-import type { AgentMode, Role } from "@/lib/types";
-import { FLOW_IDS, FLOWS, type useConversation } from "@/components/workspace/useConversation";
+import { LLM_SETUP_VI } from "@/lib/api";
+import type { Role } from "@/lib/types";
+import { SUGGESTED_PROMPTS, type useConversation } from "@/components/workspace/useConversation";
 import type { DraftsApi } from "@/components/workspace/useDrafts";
 import { EmptyState, Spinner } from "@/components/ui/primitives";
-import { preloadForFlow } from "@/components/dashboard/lazyViews";
 import TurnView from "./TurnView";
 import s from "./chat.module.css";
 
@@ -15,16 +15,16 @@ interface Props {
   conversation: ReturnType<typeof useConversation>;
   drafts: DraftsApi;
   role: Role;
+  /** An LLM key is configured on the gateway. Without it the chat shows its setup state. */
   llm: boolean;
-  mode: AgentMode;
   storeName: string | null;
   skuMoq: ReadonlyMap<string, number>;
   dashboardEntryId: string | null;
   onShowDashboard: (entryId: string) => void;
 }
 
-export default function ChatPane({ conversation, drafts, role, llm, mode, storeName, skuMoq, dashboardEntryId, onShowDashboard }: Props) {
-  const { entries, runFlow, send, stop, busy } = conversation;
+export default function ChatPane({ conversation, drafts, role, llm, storeName, skuMoq, dashboardEntryId, onShowDashboard }: Props) {
+  const { entries, send, stop, busy } = conversation;
   const [text, setText] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
   const lastTurn = entries.at(-1);
@@ -48,9 +48,15 @@ export default function ChatPane({ conversation, drafts, role, llm, mode, storeN
   function submit(e?: FormEvent) {
     e?.preventDefault();
     const msg = text.trim();
-    if (!msg || busy) return;
+    if (!msg || busy || !llm) return;
     setText("");
     void send(msg);
+  }
+
+  /** A suggestion is an ordinary chat message: it goes to the LLM agent exactly as if typed. */
+  function ask(prompt: string) {
+    if (busy || !llm) return;
+    void send(prompt);
   }
 
   function onKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
@@ -62,23 +68,16 @@ export default function ChatPane({ conversation, drafts, role, llm, mode, storeN
 
   return (
     <div className={s.pane}>
-      <div className={s.flows} role="group" aria-label="Luồng demo, chạy không cần chat">
-        {FLOW_IDS.map((id) => (
-          <button
-            key={id}
-            type="button"
-            className={s.flowBtn}
-            disabled={busy}
-            onPointerEnter={() => preloadForFlow(id)}
-            onFocus={() => preloadForFlow(id)}
-            onClick={() => void runFlow(id)}
-            data-testid={`flow-${id}`}
-          >
-            <span className={s.flowLabel}>{FLOWS[id].label}</span>
-            <span className={s.flowHint}>{FLOWS[id].hint}</span>
-          </button>
-        ))}
-      </div>
+      {!llm ? (
+        <div className={s.setup} role="status" data-testid="llm-setup">
+          <h2>Trợ lý chưa sẵn sàng</h2>
+          <p>{LLM_SETUP_VI}</p>
+          <p className={s.muted}>
+            Trong lúc chờ, các nút <b>Tính toán trực tiếp</b> ở bảng điều khiển vẫn chạy công cụ thật trên máy chủ (không qua
+            LLM).
+          </p>
+        </div>
+      ) : null}
 
       <p className="sr-only" role="status" data-testid="chat-status">
         {status}
@@ -87,10 +86,11 @@ export default function ChatPane({ conversation, drafts, role, llm, mode, storeN
       <div ref={scrollRef} className={s.scroll}>
         {entries.length === 0 ? (
           <div className={s.intro}>
-            <EmptyState title="Bắt đầu một quyết định">
+            <EmptyState title="Hỏi trợ lý một quyết định">
               <p>
-                Chọn một luồng ở trên hoặc hỏi trợ lý{storeName ? <> về <b>{storeName}</b></> : null}. Mỗi đề xuất đều kèm lý do,
-                độ tin cậy và giả định. Không có gì được thực thi cho tới khi bạn bấm <b>Duyệt</b>.
+                Trợ lý tự chọn công cụ (dự báo, phương án nhập, giảm giá, điều chuyển, lộ trình) để trả lời câu hỏi
+                {storeName ? <> về <b>{storeName}</b></> : null}. Mỗi đề xuất kèm lý do, độ tin cậy, giả định và nguồn dữ liệu.
+                Không có gì được thực thi cho tới khi bạn bấm <b>Duyệt</b>.
               </p>
             </EmptyState>
           </div>
@@ -113,6 +113,20 @@ export default function ChatPane({ conversation, drafts, role, llm, mode, storeN
       </div>
 
       <form className={s.composer} onSubmit={submit}>
+        <div className={s.suggest}>
+          <h2 id="suggest-title" className={s.suggestTitle}>
+            Gợi ý câu hỏi
+          </h2>
+          <ul className={s.suggestList} aria-labelledby="suggest-title">
+            {SUGGESTED_PROMPTS.map((p) => (
+              <li key={p}>
+                <button type="button" className={s.suggestBtn} disabled={busy || !llm} onClick={() => ask(p)} data-testid="suggested-prompt">
+                  {p}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
         <label htmlFor="chat-input" className="sr-only">
           Câu hỏi cho trợ lý
         </label>
@@ -120,22 +134,21 @@ export default function ChatPane({ conversation, drafts, role, llm, mode, storeN
           id="chat-input"
           className={s.input}
           rows={2}
-          placeholder="Ví dụ: Nhập rau và thịt cho mai thế nào?"
+          placeholder={llm ? "Ví dụ: Nhập rau và thịt cho mai thế nào?" : "Chưa cấu hình khóa LLM, chưa thể hỏi trợ lý."}
+          disabled={!llm}
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={onKeyDown}
           data-testid="chat-input"
         />
         <div className={s.composerBar}>
-          <span className={s.muted}>
-            {mode === "llm" ? "Trợ lý LLM" : llm ? "Chế độ kịch bản" : "Không có LLM: trả lời theo kịch bản đã ghi"}. Enter để gửi.
-          </span>
+          <span className={s.muted}>{llm ? "Trợ lý LLM tự chọn công cụ. Enter để gửi, Shift+Enter xuống dòng." : "Trợ lý cần khóa LLM."}</span>
           {busy ? (
             <button type="button" className="btn btn-sm" onClick={stop} data-testid="chat-stop">
               <Spinner /> Dừng
             </button>
           ) : (
-            <button type="submit" className="btn btn-primary btn-sm" disabled={!text.trim()} data-testid="chat-send">
+            <button type="submit" className="btn btn-primary btn-sm" disabled={!text.trim() || !llm} data-testid="chat-send">
               Gửi
             </button>
           )}

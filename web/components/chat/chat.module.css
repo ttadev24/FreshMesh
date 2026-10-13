@@ -8,51 +8,73 @@
 
 /* ---------- quick flows ---------- */
 
-.flows {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--line);
-}
+/* ---------- LLM setup state ---------- */
 
-.flowBtn {
+.setup {
   display: grid;
-  gap: 2px;
-  text-align: left;
-  padding: 9px 11px;
+  gap: 6px;
+  margin: 12px 16px 0;
+  padding: 12px 14px;
   border-radius: var(--radius);
-  border: 1px solid var(--line-strong);
-  background: var(--surface-2);
-  transition:
-    border-color 0.15s ease,
-    background-color 0.15s ease,
-    transform 0.1s ease;
-  min-width: 0;
+  background: var(--amber-tint);
+  border: 1px solid color-mix(in srgb, var(--amber) 35%, transparent);
 }
 
-.flowBtn:hover:not(:disabled) {
-  border-color: var(--green);
-  background: var(--green-tint);
+.setup h2 {
+  font-size: 14px;
+  color: var(--amber);
 }
 
-.flowBtn:active:not(:disabled) {
-  transform: translateY(1px);
-}
-
-.flowBtn:disabled {
-  opacity: 0.55;
-}
-
-.flowLabel {
-  font-weight: 600;
+.setup p {
   color: var(--ink);
 }
 
-.flowHint {
-  font-size: 12px;
-  line-height: 1.35;
+/* ---------- suggested questions ---------- */
+
+.suggest {
+  display: grid;
+  gap: 6px;
+}
+
+.suggestTitle {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
   color: var(--ink-3);
+}
+
+.suggestList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.suggestBtn {
+  max-width: 100%;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line-strong);
+  background: var(--surface-2);
+  color: var(--ink-2);
+  font-size: 12px;
+  line-height: 1.4;
+  text-align: left;
+  transition:
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.suggestBtn:hover:not(:disabled) {
+  border-color: var(--green);
+  color: var(--green-strong);
+}
+
+.suggestBtn:disabled {
+  opacity: 0.55;
 }
 
 /* ---------- conversation ---------- */
@@ -94,12 +116,6 @@
   color: var(--green-ink);
   display: grid;
   gap: 2px;
-}
-
-.flowTag {
-  font-size: 11px;
-  font-weight: 600;
-  opacity: 0.85;
 }
 
 .reply {

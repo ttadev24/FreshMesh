@@ -1,14 +1,14 @@
 "use client";
 
-import { memo } from "react";
+import { memo, type ReactNode } from "react";
 import type { Sourced as SourcedData } from "@/lib/dashboard";
-import { fmtKm, fmtNum, fmtTime, fmtVnd, NON_CASH_LABEL } from "@/lib/format";
-import type { StockDecision } from "@/lib/types";
-import { Badge, Panel, Sourced } from "@/components/ui/primitives";
+import { fmtDateTime, fmtKm, fmtNum, fmtTime, fmtVnd, NON_CASH_LABEL } from "@/lib/format";
+import type { SourceRef, StockDecision } from "@/lib/types";
+import { Badge, Panel, Sourced, SourcesLine } from "@/components/ui/primitives";
 import s from "./dashboard.module.css";
 
 /** Separate line for the transfer's avoided-stockout value: shown beside, never inside, cash totals. */
-function NonCashLine({ value, src, testId, children }: { value: number; src: { tool: string; citations: string[] }; testId: string; children?: string }) {
+function NonCashLine({ value, src, testId, children }: { value: number; src: { tool: string; citations: string[]; sources: SourceRef[] }; testId: string; children?: string }) {
   return (
     <p className={s.nonCash} data-testid={testId}>
       <span className={s.nonCashLabel}>
@@ -25,11 +25,12 @@ interface Props {
   stock: SourcedData<StockDecision>;
   skuNames: ReadonlyMap<string, string>;
   storeNames: ReadonlyMap<string, string>;
+  footer?: ReactNode;
 }
 
-function StockComparison({ stock, skuNames, storeNames }: Props) {
+function StockComparison({ stock, skuNames, storeNames, footer }: Props) {
   const { markdown, transfer, comparisons, summary } = stock.value;
-  const src = { tool: stock.tool, citations: stock.citations };
+  const src = { tool: stock.tool, citations: stock.citations, sources: stock.sources };
   const sku = (id: string) => skuNames.get(id) ?? id;
   const store = (id: string) => storeNames.get(id) ?? id;
   // The comparison is cash only: the transfer's net is its cash value minus the trip, without the
@@ -208,10 +209,18 @@ function StockComparison({ stock, skuNames, storeNames }: Props) {
             <p className={s.warn}>Chưa phục vụ được: {transfer.unserved_store_ids.map(store).join(", ")}.</p>
           ) : null}
           <p className={s.muted}>{transfer.rationale_vi}</p>
+          {transfer.route_cached != null ? (
+            <p className={s.muted} data-testid="transfer-route-cache">
+              Lộ trình chuyến: {transfer.route_cached ? "từ bộ nhớ đệm" : "vừa giải"}
+              {transfer.route_solved_at ? `, giải lúc ${fmtDateTime(transfer.route_solved_at)}` : ""}.
+            </p>
+          ) : null}
         </div>
       ) : null}
 
       {!comparisons.length && !markdown.length && !transfer ? <p className={s.muted}>Không có dữ liệu so sánh.</p> : null}
+      <SourcesLine sources={stock.sources} computedBy={stock.tool} />
+      {footer}
     </Panel>
   );
 }

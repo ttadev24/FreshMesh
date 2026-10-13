@@ -1,6 +1,6 @@
-// Chooses what the right pane shows from the tool outputs of the latest agent turn. Classification is
-// by payload shape (with the tool name as a tie-breaker), so the dashboard does not depend on which
-// endpoint or tool name produced the data.
+// Chooses what the right pane shows: either the outputs of a chat turn's tools, or the results of the
+// dashboard's direct tool buttons (REST endpoints, no LLM). Classification is by payload shape, so the
+// panels do not depend on which endpoint or tool name produced the data.
 
 import {
   isForecastPayload,
@@ -13,13 +13,16 @@ import {
   normalizeRoutePlan,
   normalizeStockDecision,
 } from "./normalize";
-import type { AgentTurn, ForecastResponse, InventoryPlanResponse, RoutePlanView, StockDecision, ToolStep } from "./types";
+import { mergeSources, sourcesOf } from "./provenance";
+import type { AgentTurn, ForecastResponse, InventoryPlanResponse, RoutePlanView, SourceRef, StockDecision, ToolStep } from "./types";
 
 export interface Sourced<T> {
   value: T;
   /** Tool that produced the value and its citations: shown in the "nguồn số liệu" tooltips. */
   tool: string;
   citations: string[];
+  /** Data sources of the payload (`sources` / `source_labels_vi`), shown in tooltips and source lines. */
+  sources: SourceRef[];
 }
 
 export interface DashboardData {
@@ -46,7 +49,7 @@ function viewOfStep(t: ToolStep): StepView {
   view = {};
   // Draft tools echo plan data in their payload: the proposal card shows those, not the dashboard.
   if (t.status === "done" && t.kind !== "draft" && isObj(t.data)) {
-    const meta = { tool: t.name, citations: t.citations };
+    const meta = { tool: t.name, citations: t.citations, sources: t.sources.length ? t.sources : sourcesOf(t.data) };
     const data = t.data;
     if (isForecastPayload(data)) {
       view.forecast = { value: normalizeForecast(data), ...meta };
@@ -80,6 +83,7 @@ function mergeStock(prev: Sourced<StockDecision>, next: Sourced<StockDecision>):
     },
     tool: `${prev.tool}, ${next.tool}`,
     citations: [...prev.citations, ...next.citations],
+    sources: mergeSources(prev.sources, next.sources),
   };
 }
 
@@ -101,3 +105,8 @@ export function dashboardFromTurn(turn: AgentTurn | null): DashboardData {
 }
 
 export const hasDashboardData = (d: DashboardData) => Boolean(d.forecast || d.inventory || d.stock || d.route);
+
+/** Wraps one REST tool response for a dashboard panel (direct computation, no LLM in the loop). */
+export function sourced<T>(value: T, raw: unknown, endpoint: string): Sourced<T> {
+  return { value, tool: endpoint, citations: [], sources: sourcesOf(raw) };
+}

@@ -1,6 +1,7 @@
 import { fmtKm, fmtNum, fmtPct, fmtTime, fmtVnd, NON_CASH_LABEL } from "@/lib/format";
 import { isObj, num } from "@/lib/normalize";
 import type { Draft } from "@/lib/types";
+import { SourcesLine } from "@/components/ui/primitives";
 import { draftLines } from "./draftModel";
 import s from "./chat.module.css";
 
@@ -120,6 +121,7 @@ export default function DraftSummary({ draft }: { draft: Draft }) {
       ))}
       {typeof p.note === "string" && p.note ? <p className={s.draftMeta}>Ghi chú: {p.note}</p> : null}
       {execution ? <ExecutionRecord record={execution} /> : null}
+      {draft.sources.length ? <SourcesLine sources={draft.sources} testId="draft-sources" /> : null}
     </div>
   );
 }

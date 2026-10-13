@@ -1,5 +1,8 @@
+"use client";
+
 import type { ReactNode } from "react";
-import type { Confidence } from "@/lib/types";
+import { KIND_HELP_VI, KIND_VI, resolveSources, useProvenanceIndex } from "@/lib/provenance";
+import type { Confidence, SourceKind, SourceRef } from "@/lib/types";
 import s from "./ui.module.css";
 
 export type Tone = "neutral" | "green" | "amber" | "red" | "blue";
@@ -12,15 +15,47 @@ export function Badge({ tone = "neutral", children, testId, title }: { tone?: To
   );
 }
 
-export function SimulatedBadge({ testId }: { testId?: string }) {
+/** Data-source kind chip. The kind is always written out; colour only reinforces it. */
+export function KindChip({ kind }: { kind: SourceKind }) {
   return (
-    <span
-      className={`${s.badge} ${s.simulated}`}
-      data-testid={testId}
-      title="Toàn bộ dữ liệu là dữ liệu giả lập, chưa phải dữ liệu bán hàng thật."
-    >
-      SIMULATED
+    <span className={`${s.kind} ${s[`kind_${kind}`]}`} data-testid="kind-chip" data-kind={kind} title={KIND_HELP_VI[kind]}>
+      {KIND_VI[kind]}
     </span>
+  );
+}
+
+/** "Nguồn dữ liệu: …" line of a panel or answer, from the payload's `sources` / `source_labels_vi`. */
+export function SourcesLine({ sources, computedBy, testId = "sources-line", bare = false }: {
+  sources: readonly SourceRef[];
+  computedBy?: string;
+  testId?: string;
+  /** Without the "Nguồn dữ liệu:" label (when a heading already says it). */
+  bare?: boolean;
+}) {
+  const index = useProvenanceIndex();
+  const refs = resolveSources(sources, index);
+  if (!refs.length && !computedBy) return null;
+  return (
+    <div className={`${s.sourcesLine} ${bare ? s.sourcesBare : ""}`} data-testid={testId}>
+      {bare ? null : <span className={s.sourcesLabel}>Nguồn dữ liệu:</span>}
+      {refs.length ? (
+        <ul className={s.sourcesList}>
+          {refs.map((r) => (
+            <li key={r.id} data-testid="source-ref">
+              {r.kind ? <KindChip kind={r.kind} /> : null}
+              <span>{r.label_vi}</span>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <span className={s.sourcesMissing}>máy chủ chưa gắn nguồn cho kết quả này</span>
+      )}
+      {computedBy ? (
+        <span className={s.sourcesBy}>
+          tính bởi <code>{computedBy}</code>
+        </span>
+      ) : null}
+    </div>
   );
 }
 
@@ -34,13 +69,26 @@ export function ConfidenceBadge({ level, reason }: { level: Confidence; reason?:
   );
 }
 
-/** Number with a hover / focus tooltip naming where it comes from (spec §9). */
-export function Sourced({ children, tool, citations, note }: { children: ReactNode; tool: string; citations?: string[]; note?: string }) {
+/** Number with a hover / focus tooltip naming the data it is derived from and the tool that computed it (spec §9). */
+export function Sourced({ children, tool, citations, sources, note }: {
+  children: ReactNode;
+  tool: string;
+  citations?: string[];
+  sources?: readonly SourceRef[];
+  note?: string;
+}) {
+  const index = useProvenanceIndex();
+  const refs = resolveSources(sources ?? [], index);
   return (
     <span className={s.source} tabIndex={0}>
       {children}
       <span className={s.sourceTip} role="tooltip">
-        <b>Nguồn:</b> công cụ <code>{tool}</code>, dữ liệu SIMULATED.
+        {refs.length ? (
+          <>
+            <b>Nguồn dữ liệu:</b> {refs.map((r) => `${r.label_vi}${r.kind ? ` (${KIND_VI[r.kind]})` : ""}`).join("; ")}.{" "}
+          </>
+        ) : null}
+        <b>Tính bởi:</b> <code>{tool}</code>.
         {note ? <> {note}</> : null}
         {citations && citations.length ? <> Trích dẫn: {citations.slice(0, 3).join("; ")}.</> : null}
       </span>

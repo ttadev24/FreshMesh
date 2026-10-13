@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="420" viewBox="0 0 720 420" font-family="sans-serif" font-size="12">
+<rect width="720" height="420" fill="#ffffff"/>
+<text x="360.0" y="24" text-anchor="middle" font-size="15" font-weight="bold">ε (DP mức chuỗi, δ=1e-5) so với WAPE — SIMULATED</text>
+<text x="16" y="195.0" transform="rotate(-90 16 195.0)" text-anchor="middle">WAPE (tất cả cửa hàng)</text>
+<line x1="70" y1="340.0" x2="700" y2="340.0" stroke="#e5e5e5"/>
+<text x="64" y="344.0" text-anchor="end">0</text>
+<line x1="70" y1="282.0" x2="700" y2="282.0" stroke="#e5e5e5"/>
+<text x="64" y="286.0" text-anchor="end">0.2</text>
+<line x1="70" y1="224.0" x2="700" y2="224.0" stroke="#e5e5e5"/>
+<text x="64" y="228.0" text-anchor="end">0.4</text>
+<line x1="70" y1="166.0" x2="700" y2="166.0" stroke="#e5e5e5"/>
+<text x="64" y="170.0" text-anchor="end">0.6</text>
+<line x1="70" y1="108.0" x2="700" y2="108.0" stroke="#e5e5e5"/>
+<text x="64" y="112.0" text-anchor="end">0.8</text>
+<line x1="70" y1="50.0" x2="700" y2="50.0" stroke="#e5e5e5"/>
+<text x="64" y="54.0" text-anchor="end">1</text>
+<line x1="70" y1="340" x2="700" y2="340" stroke="#333"/>
+<line x1="70.0" y1="50" x2="70.0" y2="340" stroke="#f0f0f0"/>
+<text x="70.0" y="358" text-anchor="middle">1</text>
+<line x1="280.0" y1="50" x2="280.0" y2="340" stroke="#f0f0f0"/>
+<text x="280.0" y="358" text-anchor="middle">10</text>
+<line x1="490.0" y1="50" x2="490.0" y2="340" stroke="#f0f0f0"/>
+<text x="490.0" y="358" text-anchor="middle">100</text>
+<line x1="700.0" y1="50" x2="700.0" y2="340" stroke="#f0f0f0"/>
+<text x="700.0" y="358" text-anchor="middle">1000</text>
+<text x="385.0" y="380" text-anchor="middle">ε (thang log)</text>
+<line x1="70" y1="213.6" x2="700" y2="213.6" stroke="#c08a1e" stroke-dasharray="6 4" stroke-width="1.5"/>
+<line x1="70" y1="213.8" x2="700" y2="213.8" stroke="#3b6ea8" stroke-dasharray="6 4" stroke-width="1.5"/>
+<polyline points="70.0,50.0 170.2,50.0 280.0,183.9 380.2,206.4 490.0,208.4 700.0,211.3" fill="none" stroke="#2f6b3a" stroke-width="2"/>
+<polygon points="65.0,56.0 75.0,56.0 70.0,47.0" fill="#b23b3b"/>
+<text x="78.0" y="64.0">124 (ngoài trục)</text>
+<polygon points="165.2,56.0 175.2,56.0 170.2,47.0" fill="#b23b3b"/>
+<text x="178.2" y="64.0">3.71 (ngoài trục)</text>
+<circle cx="280.0" cy="183.9" r="3.5" fill="#2f6b3a"/>
+<text x="280.0" y="175.9" text-anchor="middle">0.538</text>
+<circle cx="380.2" cy="206.4" r="3.5" fill="#2f6b3a"/>
+<text x="380.2" y="198.4" text-anchor="middle">0.461</text>
+<circle cx="490.0" cy="208.4" r="3.5" fill="#2f6b3a"/>
+<text x="490.0" y="200.4" text-anchor="middle">0.454</text>
+<circle cx="700.0" cy="211.3" r="3.5" fill="#2f6b3a"/>
+<text x="700.0" y="203.3" text-anchor="middle">0.444</text>
+<rect x="70" y="394" width="12" height="12" fill="#2f6b3a"/>
+<text x="86" y="404">FL + DP</text>
+<rect x="143" y="394" width="12" height="12" fill="#c08a1e"/>
+<text x="159" y="404">FL không DP (0.436)</text>
+<rect x="300" y="394" width="12" height="12" fill="#3b6ea8"/>
+<text x="316" y="404">Local (0.435)</text>
+</svg>

@@ -32,7 +32,6 @@ PLAN_SPECS: tuple[tuple[str, str, float | None], ...] = (
 )
 
 ASSUMPTIONS_VI = [
-    "Dữ liệu giả lập (SIMULATED), chưa phải số liệu bán hàng thật.",
     "Phân bố nhu cầu dựng từ P10/P50/P90 bằng hàm phân vị tuyến tính từng đoạn với đuôi mũ; "
     "nhu cầu các ngày được coi là độc lập.",
     "Hàng bán theo FIFO theo hạn dùng; phần chưa bán bị bỏ vào cuối ngày hết hạn.",

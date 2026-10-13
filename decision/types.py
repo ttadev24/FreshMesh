@@ -8,8 +8,6 @@ import enum
 from dataclasses import dataclass, field
 from typing import Any
 
-SOURCE = "SIMULATED"
-
 
 def jsonable(value: Any) -> Any:
     if dataclasses.is_dataclass(value) and not isinstance(value, type):
@@ -104,7 +102,6 @@ class InventoryPlan(_Serializable):
     constrained: bool
     rationale_vi: str
     assumptions_vi: list[str] = field(default_factory=list)
-    source: str = SOURCE
 
 
 @dataclass(frozen=True)
@@ -133,7 +130,6 @@ class MarkdownPlan(_Serializable):
     cash_gain_vnd: int  # extra sales + salvage money vs no discount (used to compare with transfer)
     elasticity: float
     rationale_vi: str
-    source: str = SOURCE
 
 
 @dataclass(frozen=True)
@@ -161,7 +157,6 @@ class TransferPlan(_Serializable):
     unserved_store_ids: list[str]
     rationale_vi: str
     route_plan: dict[str, Any] | None = None
-    source: str = SOURCE
 
 
 @dataclass(frozen=True)
@@ -175,4 +170,3 @@ class Comparison(_Serializable):
     recommendation_vi: str
     # Non-cash value of avoided stockouts at the destinations (penalty × units); shown, never compared.
     transfer_stockout_value_vnd: int = 0
-    source: str = SOURCE

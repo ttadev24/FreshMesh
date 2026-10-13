@@ -5,7 +5,7 @@ import pytest
 from forecasting.fl.experiment import COMPARISON_CSV, DP_CSV, TUNING_CSV, run_all
 from forecasting.fl.summary import fl_summary
 from forecasting.fl.svg import bar_chart_svg, line_chart_svg
-from tests.forecasting.conftest import FL_CHAINS
+from tests.forecasting.conftest import FIXTURE_SOURCES, FL_CHAINS
 
 
 @pytest.fixture(scope="module")
@@ -39,14 +39,14 @@ def test_fl_summary_from_experiment_output(experiment_out, fl_dir):
     docs, _ = experiment_out
     s = fl_summary(fl_dir, docs)
     assert s["chains_participating"] == list(FL_CHAINS)
-    assert s["source"] == "SIMULATED"
+    assert s["sources"] == FIXTURE_SOURCES and len(s["source_labels_vi"]) == len(FIXTURE_SOURCES)
     assert set(s["improvement_vs_local"]) >= {"wape", "pinball", "new_store"}
     m = s["metrics"]
     expected = (m["local"]["wape"] - m["fl"]["wape"]) / m["local"]["wape"]
     assert s["improvement_vs_local"]["wape"] == pytest.approx(expected, abs=1e-3)
     assert s["rounds"] in (1, 2)
     assert [d["epsilon"] for d in s["dp_curve"]] == [pytest.approx(10.0), None]
-    assert "giả lập" in s["protocol_note_vi"]
+    assert "giả lập" not in s["protocol_note_vi"] and "FedAvg" in s["protocol_note_vi"]
 
 
 def test_fl_summary_requires_experiments(tmp_path):

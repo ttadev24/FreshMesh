@@ -19,7 +19,7 @@ from forecasting.service import (
     train_local,
     wape,
 )
-from tests.forecasting.conftest import AS_OF, CHAIN, FAST_CONFIG, SKUS, make_chain_db
+from tests.forecasting.conftest import AS_OF, CHAIN, FAST_CONFIG, FIXTURE_SOURCES, SKUS, make_chain_db
 
 SKU_IDS = [s[0] for s in SKUS]
 
@@ -50,7 +50,7 @@ def test_train_local_writes_artifacts(trained_dir):
     meta = json.loads(art.meta_path.read_text(encoding="utf-8"))
     assert len(meta["conformal_offsets"]) == MAX_HORIZON
     assert all(np.isfinite(meta["conformal_offsets"]))
-    assert meta["source"] == "SIMULATED"
+    assert meta["sources"] == FIXTURE_SOURCES  # dataset ids of the tables the model was trained on
     assert meta["test_targets"][1] == AS_OF.isoformat()
     assert meta["cal_targets"][1] < meta["test_targets"][0]
     assert meta["train_targets"][1] < meta["cal_targets"][0]
@@ -156,7 +156,8 @@ def test_cli_forecast_prints_simulated(trained_dir, capsys):
     )
     out = capsys.readouterr().out
     assert rc == 0
-    assert "SIMULATED" in out and "Độ tin cậy" in out and "P50" in out
+    assert "Nguồn dữ liệu: Mô phỏng bằng chương trình" in out and "Độ tin cậy" in out and "P50" in out
+    assert "SIMULATED" not in out
 
 
 def test_real_chain_artifact_if_present():

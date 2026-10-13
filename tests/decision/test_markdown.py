@@ -85,7 +85,9 @@ def test_no_stock_at_risk_gives_empty_outcome():
 def test_output_is_serializable_and_rationale_uses_fields():
     plan = suggest_markdown(lots(60), forecast(), SKU, 2.5, now=NOW)
     d = plan.to_dict()
-    assert d["source"] == "SIMULATED"
+    assert "source" not in d  # pure computation: provenance is attached by the service layer
     assert d["schedule"][0]["start"] == NOW.isoformat()
     assert f"{plan.recovered_revenue_vnd:,}".replace(",", ".") in plan.rationale_vi
-    assert sum(s.expected_units_sold for s in plan.schedule) == pytest.approx(plan.expected_units_sold, abs=0.5)
+    assert sum(s.expected_units_sold for s in plan.schedule) == pytest.approx(
+        plan.expected_units_sold, abs=0.5
+    )

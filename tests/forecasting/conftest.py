@@ -11,8 +11,25 @@ import pytest
 
 from forecasting.features import calendar_flags
 from forecasting.service import TrainConfig, train_local
+from provenance import write_registry
 
 CHAIN = "CHAIN_T"
+# Provenance of the fixture: row-level ids for sales/stores/skus, table-level ids for calendar/weather.
+SALES_SOURCE = "test_sales"
+TABLE_SOURCES = {"calendar": "test_calendar", "weather": "test_weather"}
+FIXTURE_SOURCES = sorted([SALES_SOURCE, *TABLE_SOURCES.values()])
+TEST_REGISTRY = {
+    ds_id: {
+        "id": ds_id,
+        "name_vi": f"Bộ thử {ds_id}",
+        "kind": "synthetic_code",
+        "url": None,
+        "license": None,
+        "retrieved_at": None,
+        "description_vi": "Dữ liệu cố định của bộ kiểm thử.",
+    }
+    for ds_id in FIXTURE_SOURCES
+}
 AS_OF = dt.date(2026, 9, 30)
 N_DAYS = 200
 NEW_STORE_DAYS = 14
@@ -57,19 +74,22 @@ def make_chain_db(data_dir: Path, *, chain_id: str = CHAIN, seed: int = 7) -> Pa
         CREATE TABLE calendar(date TEXT PRIMARY KEY, dow INT, lunar_month INT, lunar_day INT, is_tet INT,
             is_ram INT, is_mung1 INT, is_holiday INT);
         CREATE TABLE weather(date TEXT PRIMARY KEY, rain_mm REAL);
+        CREATE TABLE data_sources(table_name TEXT, dataset_id TEXT);
         """
     )
-    con.execute("INSERT INTO chains VALUES (?, ?, ?)", (chain_id, "Chuỗi thử", "SIMULATED"))
+    con.executemany("INSERT INTO data_sources VALUES (?, ?)", sorted(TABLE_SOURCES.items()))
+    write_registry(data_dir, TEST_REGISTRY)
+    con.execute("INSERT INTO chains VALUES (?, ?, ?)", (chain_id, "Chuỗi thử", SALES_SOURCE))
     for sid, area, hist, is_new in STORES:
         opened = (AS_OF - dt.timedelta(days=hist - 1)).isoformat()
         con.execute(
             "INSERT INTO stores VALUES (?,?,?,?,?,?,?,?,?,?)",
-            (sid, chain_id, sid, 10.77, 106.69, area, opened, hist, is_new, "SIMULATED"),
+            (sid, chain_id, sid, 10.77, 106.69, area, opened, hist, is_new, SALES_SOURCE),
         )
     for sku, cat, fresh, shelf, _ in SKUS:
         con.execute(
             "INSERT INTO skus VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
-            (sku, sku, cat, fresh, shelf, 10000.0, 15000.0, 3000.0, 1, "SUP", 1.0, "SIMULATED"),
+            (sku, sku, cat, fresh, shelf, 10000.0, 15000.0, 3000.0, 1, "SUP", 1.0, SALES_SOURCE),
         )
     rows = []
     for i, day in enumerate(days):
@@ -97,7 +117,7 @@ def make_chain_db(data_dir: Path, *, chain_id: str = CHAIN, seed: int = 7) -> Pa
                         15000.0,
                         promo,
                         float(rain[i]),
-                        "SIMULATED",
+                        SALES_SOURCE,
                     )
                 )
     con.executemany("INSERT INTO daily_sales VALUES (?,?,?,?,?,?,?,?)", rows)

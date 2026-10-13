@@ -8,10 +8,10 @@ from pathlib import Path
 
 from forecasting.fl.client import fl_model_paths
 from forecasting.fl.experiment import COMPARISON_CSV, DP_CSV
-from forecasting.service import SOURCE
+from forecasting.service import data_sources, source_labels_vi
 
 PROTOCOL_NOTE_VI = (
-    "Dữ liệu giả lập. Mỗi chuỗi là một client Flower, chỉ gửi trọng số phần thân mô hình (FedAvg); "
+    "Mỗi chuỗi là một client Flower, chỉ gửi trọng số phần thân mô hình (FedAvg); "
     "đầu ra (FedPer), chuẩn hoá đặc trưng và hiệu chỉnh conformal giữ tại chuỗi. Siêu tham số FL chọn trên "
     "cửa sổ kiểm định nằm trong giai đoạn huấn luyện; so sánh trên cùng 28 ngày kiểm tra giữ lại như mô hình "
     "cục bộ, trung bình {n_seeds} seed. Mức cải thiện = (cục bộ − FL) / cục bộ; số dương là FL tốt hơn."
@@ -104,5 +104,18 @@ def fl_summary(data_dir: Path = Path("data"), docs_dir: Path = Path("docs/experi
         "seeds": len(seeds),
         "dp_curve": dp_curve,
         "protocol_note_vi": PROTOCOL_NOTE_VI.format(n_seeds=len(seeds)),
-        "source": SOURCE,
+        **_provenance(data_dir, chains),
     }
+
+
+def _provenance(data_dir: Path, chains: list[str]) -> dict[str, list[str]]:
+    """Datasets behind the chains' training data (only chains whose DB is present on this machine)."""
+    ids = sorted(
+        {
+            i
+            for c in chains
+            if (data_dir / "chains" / f"{c}.sqlite").exists()
+            for i in data_sources(c, data_dir)
+        }
+    )
+    return {"sources": ids, "source_labels_vi": source_labels_vi(ids, data_dir)}

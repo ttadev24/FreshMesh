@@ -75,7 +75,7 @@ class RoutePlan:
     at_risk: list[AtRiskOrder]
     solver: str
     runtime_s: float
-    source: str = "SIMULATED"
+    source: str = "Chưa rõ nguồn dữ liệu"
 
 
 def counter_id(store_id: str) -> str:

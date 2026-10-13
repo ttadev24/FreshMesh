@@ -15,7 +15,8 @@ DOCS_DIR = REPO_ROOT / "docs" / "experiments"
 
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(
-        prog="python -m simulation", description="FreshMesh experiments (SIMULATED data)."
+        prog="python -m simulation",
+        description="FreshMesh experiments (30-day simulation and routing benchmark).",
     )
     sub = p.add_subparsers(dest="cmd", required=True)
 

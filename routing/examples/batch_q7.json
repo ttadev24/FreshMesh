@@ -1,5 +1,5 @@
 {
-  "source": "SIMULATED",
+  "source": "Dữ liệu mẫu tự soạn (routing/examples/batch_q7.json)",
   "store": {"store_id": "Q7-01", "lat": 10.7340, "lng": 106.7210},
   "num_vehicles": 3,
   "vehicle_capacity": 8,

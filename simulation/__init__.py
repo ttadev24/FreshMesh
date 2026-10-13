@@ -1,4 +1,4 @@
-"""FreshMesh experiments on SIMULATED data: 30-day inventory simulation and routing benchmark.
+"""FreshMesh experiments: 30-day inventory simulation and routing benchmark.
 
 Public API:
     run_sim30(chain_ids, seeds, *, data_dir, docs_dir, ...)   # docs/experiments/sim30-protocol.md

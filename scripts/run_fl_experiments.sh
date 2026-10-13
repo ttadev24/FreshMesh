@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Reproduce the FreshMesh federated-learning experiments (SIMULATED data).
+# Reproduce the FreshMesh federated-learning experiments (on the chain DBs under the data root).
 #   1. regenerate the simulated chain DBs if missing (seed 42)
 #   2. Local vs FL (FedAvg+FedPer) vs Centralized + epsilon-vs-WAPE curve -> docs/experiments/
 #   3. train the deployable federated models -> data/models/<chain>.fl.npz/.json

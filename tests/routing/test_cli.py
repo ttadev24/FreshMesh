@@ -55,7 +55,7 @@ def test_main_prints_vietnamese_summary(capsys):
     code = main([str(EXAMPLE)], client_factory=EchoSolver)
     out = capsys.readouterr().out
     assert code == 0
-    assert "SIMULATED" in out
+    assert "Dữ liệu mẫu tự soạn" in out
     assert "Quãng đường ước tính" in out
     assert "mỗi đơn một chuyến" in out
     assert "D012" in out and "Đơn có nguy cơ" in out
@@ -65,7 +65,7 @@ def test_main_json_output(capsys):
     code = main([str(EXAMPLE), "--json"], client_factory=EchoSolver)
     data = json.loads(capsys.readouterr().out)
     assert code == 0
-    assert data["plan"]["source"] == "SIMULATED"
+    assert data["plan"]["source"].startswith("Dữ liệu mẫu tự soạn")
     assert data["baseline"]["trips"] == 11
 
 

@@ -16,7 +16,7 @@ from forecasting.fl.client import (
 )
 from forecasting.fl.runtime import _flower_task, round_lr, run_federated
 from forecasting.service import load_model
-from tests.forecasting.conftest import FL_CHAINS
+from tests.forecasting.conftest import FIXTURE_SOURCES, FL_CHAINS
 
 TINY = FLConfig(rounds=2, hidden=(16, 8), max_train_rows=6000, batch_size=512, finetune_epochs=1)
 
@@ -66,7 +66,7 @@ def test_federated_run_writes_personalised_artifacts(fl_run, fl_dir):
         model, meta = load_model(c, fl_dir, kind="fl")
         weights[c] = model.get_weights()
         assert len(meta["conformal_offsets"]) == 7 and all(np.isfinite(meta["conformal_offsets"]))
-        assert meta["source"] == "SIMULATED"
+        assert meta["sources"] == FIXTURE_SOURCES
         assert meta["federated"]["chains"] == list(FL_CHAINS)
         assert meta["federated"]["dp"] is None
         assert set(meta["metrics"]) == {"all", "established", "new_store"}
@@ -124,6 +124,6 @@ def test_cli_train(fl_dir, tmp_path, capsys):
         main(["train", "--data", str(out_dir), "--chains", *FL_CHAINS, "--rounds", "1", "--seed", "1"]) == 0
     )
     text = capsys.readouterr().out
-    assert "SIMULATED" in text and "Không dùng" in text
+    assert "SIMULATED" not in text and "Không dùng" in text
     meta = json.loads(fl_model_paths(FL_CHAINS[0], out_dir)[1].read_text(encoding="utf-8"))
     assert meta["federated"]["rounds"] == 1 and meta["seed"] == 1

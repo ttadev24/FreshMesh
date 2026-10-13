@@ -73,7 +73,6 @@ class DriftStatus:
     n_points: int
     alert: bool
     message_vi: str
-    source: str = "SIMULATED"
 
 
 def drift_status_from_coverage(

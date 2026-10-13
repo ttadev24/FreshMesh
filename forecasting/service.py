@@ -15,6 +15,7 @@ from __future__ import annotations
 import datetime as dt
 import json
 import os
+import sqlite3
 import tempfile
 import threading
 from collections.abc import Sequence
@@ -23,6 +24,7 @@ from pathlib import Path
 
 import numpy as np
 
+from agent.template import UNKNOWN_SOURCE_ID, UNKNOWN_SOURCE_VI
 from forecasting.confidence import (
     SHORT_HISTORY_DAYS,
     DriftStatus,
@@ -39,12 +41,15 @@ from forecasting.features import (
     ChainData,
     FeatureBatch,
     build_features,
+    chain_db_path,
     load_chain,
     target_rows,
 )
 from forecasting.model import QUANTILES, QuantileMLP
+from provenance import label_vi, load_registry, sources_for
 
-SOURCE = "SIMULATED"
+# Tables the forecast model reads (provenance of every forecast / model artifact).
+FORECAST_TABLES: tuple[str, ...] = ("daily_sales", "calendar", "weather", "stores", "skus")
 CAL_DAYS = 28
 TEST_DAYS = 28
 MIN_TRAIN_DAYS = 28
@@ -246,6 +251,36 @@ def _evaluate(
     return out
 
 
+# --- provenance --------------------------------------------------------------------------------------------
+def table_sources(con: sqlite3.Connection, tables: Sequence[str]) -> list[str]:
+    """Dataset ids behind ``tables`` (``provenance.sources_for``), sorted and unique. A table whose origin
+    is not recorded (no row-level ``source`` and no ``data_sources`` entry, or absent) adds ``unknown``:
+    provenance is never guessed."""
+    ids: set[str] = set()
+    for table in tables:
+        try:
+            found = sources_for(con, [table])
+        except ValueError:  # table absent from this DB
+            found = []
+        ids.update(found or [UNKNOWN_SOURCE_ID])
+    return sorted(ids)
+
+
+def data_sources(chain_id: str, data_dir: Path, tables: Sequence[str] = FORECAST_TABLES) -> list[str]:
+    """Dataset ids behind ``tables`` of one chain DB."""
+    con = sqlite3.connect(f"file:{chain_db_path(Path(data_dir), chain_id)}?mode=ro", uri=True)
+    try:
+        return table_sources(con, tables)
+    finally:
+        con.close()
+
+
+def source_labels_vi(ids: Sequence[str], data_dir: Path = Path("data")) -> list[str]:
+    """Vietnamese labels of dataset ids from the registry of ``data_dir`` (``unknown`` → không rõ nguồn)."""
+    reg = load_registry(Path(data_dir))
+    return [UNKNOWN_SOURCE_VI if i == UNKNOWN_SOURCE_ID else label_vi(i, reg) for i in ids]
+
+
 # --- training ----------------------------------------------------------------------------------------------
 def train_local(
     chain_id: str, *, data_dir: Path, seed: int = 0, config: TrainConfig | None = None
@@ -286,7 +321,7 @@ def train_local(
     meta: dict = {
         "version": MODEL_VERSION,
         "chain_id": chain_id,
-        "source": SOURCE,
+        "sources": data_sources(chain_id, data_dir),
         "seed": seed,
         "quantiles": list(QUANTILES),
         "n_features": N_FEATURES,

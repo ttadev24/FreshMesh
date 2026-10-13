@@ -28,13 +28,15 @@ def qty_of(plan, sku_id="RAU"):
 
 # ---------- newsvendor ----------
 
+
 @pytest.mark.parametrize("penalty", [0.0, 35_000.0])
 def test_newsvendor_balanced_plan_hits_critical_ratio(penalty):
     s = sku()
     cr = critical_ratio(s, penalty)
     expected_q = QuantileDistribution(40.0, 60.0, 90.0).ppf(cr)
-    plans = by_name(plan_inventory(fc(), [], {"RAU": s}, Constraints(stockout_penalty_vnd=penalty),
-                                   n_sims=6000, seed=1))
+    plans = by_name(
+        plan_inventory(fc(), [], {"RAU": s}, Constraints(stockout_penalty_vnd=penalty), n_sims=6000, seed=1)
+    )
     assert qty_of(plans["balanced"]) == pytest.approx(expected_q, abs=3)
 
 
@@ -49,6 +51,7 @@ def test_service_targets_match_quantiles():
 
 
 # ---------- FIFO ----------
+
 
 def test_fifo_lot_is_discarded_at_end_of_its_expiry_day():
     lots = [(0, 5), (1, 3)]
@@ -89,6 +92,7 @@ def test_existing_stock_reduces_order():
 
 # ---------- MOQ / constraints ----------
 
+
 def test_quantities_are_multiples_of_moq():
     s = sku(moq=12)
     plans = plan_inventory(fc(), [], {"RAU": s}, Constraints(), n_sims=2000)
@@ -126,6 +130,7 @@ def test_cold_storage_capacity_counts_existing_stock():
 
 # ---------- ordering / output ----------
 
+
 @pytest.mark.parametrize("penalty,price", [(0.0, 22_000), (0.0, 60_000), (200_000.0, 30_000)])
 def test_plans_ordered_by_service_level(penalty, price):
     s = sku(price=price)
@@ -152,9 +157,17 @@ def test_deterministic_with_seed_and_serializable():
     b = plan_inventory(fc(days=2), [], {"RAU": s}, Constraints(), horizon_days=2, n_sims=500, seed=7)
     assert [p.to_dict() for p in a] == [p.to_dict() for p in b]
     d = a[0].to_dict()
-    assert d["source"] == "SIMULATED"
-    assert {"name", "label_vi", "lines", "total_cost_vnd", "expected_waste_pct", "expected_stockout_pct",
-            "rationale_vi", "assumptions_vi"} <= d.keys()
+    assert "source" not in d
+    assert {
+        "name",
+        "label_vi",
+        "lines",
+        "total_cost_vnd",
+        "expected_waste_pct",
+        "expected_stockout_pct",
+        "rationale_vi",
+        "assumptions_vi",
+    } <= d.keys()
     assert {"sku_id", "qty", "cost_vnd"} <= d["lines"][0].keys()
 
 
@@ -189,7 +202,9 @@ def test_assumptions_state_the_fresh_carry_cost_actually_used():
 
     default = " ".join(inventory_assumptions_vi(Constraints()))
     assert f"{pct(20)}" in default and "hạn dùng ≤ 3 ngày" in default and pct(0.5) in default
-    plans = plan_inventory(fc(), [], {"RAU": sku()}, Constraints(fresh_carry_cost_rate_per_day=0.1), n_sims=500)
+    plans = plan_inventory(
+        fc(), [], {"RAU": sku()}, Constraints(fresh_carry_cost_rate_per_day=0.1), n_sims=500
+    )
     assert pct(10) in " ".join(plans[0].assumptions_vi)
     off = " ".join(inventory_assumptions_vi(Constraints(fresh_carry_cost_rate_per_day=None)))
     assert "hạn dùng ≤ 3 ngày" not in off

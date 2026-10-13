@@ -8,11 +8,15 @@ import math
 import time
 from pathlib import Path
 
-from forecasting.service import SOURCE, drift_status, forecast_demand, train_local
+from forecasting.service import data_sources, drift_status, forecast_demand, source_labels_vi, train_local
 
 
 def _fmt(x: float) -> str:
     return "n/a" if math.isnan(x) else f"{x:.3f}"
+
+
+def _sources_text(chain_id: str, data_dir: Path) -> str:
+    return "; ".join(source_labels_vi(data_sources(chain_id, data_dir), data_dir))
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -35,7 +39,8 @@ def main(argv: list[str] | None = None) -> int:
         t0 = time.perf_counter()
         art = train_local(args.chain, data_dir=args.data, seed=args.seed)
         elapsed = time.perf_counter() - t0
-        print(f"[{SOURCE}] Đã huấn luyện mô hình cục bộ cho chuỗi {args.chain} trong {elapsed:.1f} giây.")
+        print(f"Đã huấn luyện mô hình cục bộ cho chuỗi {args.chain} trong {elapsed:.1f} giây.")
+        print(f"Nguồn dữ liệu: {_sources_text(args.chain, args.data)}")
         print(f"Tệp mô hình: {art.weights_path} và {art.meta_path}")
         print("Chỉ số trên tập kiểm tra (giữ lại, không dùng khi huấn luyện):")
         for group, m in art.metrics.items():
@@ -51,7 +56,8 @@ def main(argv: list[str] | None = None) -> int:
     rows = forecast_demand(
         args.chain, [args.store], args.sku, args.horizon, data_dir=args.data, as_of=args.as_of
     )
-    print(f"[{SOURCE}] Dự báo nhu cầu — chuỗi {args.chain}, cửa hàng {args.store}")
+    print(f"Dự báo nhu cầu — chuỗi {args.chain}, cửa hàng {args.store}")
+    print(f"Nguồn dữ liệu: {_sources_text(args.chain, args.data)}")
     for r in rows:
         print(
             f"  {r.date.isoformat()}  {r.sku_id}: P10={r.p10:.1f}  P50={r.p50:.1f}  P90={r.p90:.1f}  "

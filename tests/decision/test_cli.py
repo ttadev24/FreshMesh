@@ -10,10 +10,14 @@ def data_dir(tmp_path_factory):
 
 
 def test_flow1_prints_three_plans_in_vietnamese(data_dir, capsys):
-    rc = main(["flow1", "--chain", "CHAIN_A", "--store", "A-CH1", "--items", "rau,thit", "--data", str(data_dir)])
+    rc = main(
+        ["flow1", "--chain", "CHAIN_A", "--store", "A-CH1", "--items", "rau,thit", "--data", str(data_dir)]
+    )
     out = capsys.readouterr().out
     assert rc == 0
-    assert "SIMULATED" in out
+    assert "SIMULATED" not in out
+    # provenance line built from the datasets of the tables actually used (fixture registry labels)
+    assert "Nguồn dữ liệu: " in out and "Bộ bán hàng thử nghiệm" in out and "Lịch thử nghiệm" in out
     assert "P10 / P50 / P90" in out
     for label in ("Phương án An toàn", "Phương án Cân bằng", "Phương án Tiết kiệm"):
         assert label in out

@@ -44,7 +44,7 @@ def test_reason_is_one_vietnamese_sentence():
 
 def test_drift_alert_below_70pct():
     ds = drift_status_from_coverage("C", "S", 0.6, 200)
-    assert ds.alert and "An toàn" in ds.message_vi and ds.source == "SIMULATED"
+    assert ds.alert and "An toàn" in ds.message_vi and not hasattr(ds, "source")
     ok = drift_status_from_coverage("C", "S", 0.8, 200)
     assert not ok.alert and "80%" in ok.message_vi
     none = drift_status_from_coverage("C", "S", None, 0)

@@ -66,7 +66,7 @@ def test_maps_routes_back_to_orders_with_etas():
     assert plan.road_km == pytest.approx(5.2)  # 15.6 min at 20 km/h
     assert plan.vehicles_used == 2
     assert plan.exceeds_fleet is False
-    assert plan.source == "SIMULATED"
+    assert plan.source == "Chưa rõ nguồn dữ liệu"
 
 
 def test_flags_fleet_overflow():

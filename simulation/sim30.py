@@ -15,7 +15,8 @@ import numpy as np
 
 from api.repo import ChainRepo, SkuInfo
 from api.services import Services
-from data_sim import ASSUMPTIONS, SIM_AS_OF, SOURCE
+from data_sim import ASSUMPTIONS, SIM_AS_OF
+from forecasting.service import data_sources
 from simulation.demand import FutureDemand, future_demand, recover_chain_process
 from simulation.freshmesh import DbForecaster, FreshMeshPolicy, file_sha256, lots_from_rows, snapshot_inputs
 from simulation.inventory import Key, MeanSalesBaseline, Policy, SkuSpec, ledger_metrics, simulate_policy
@@ -155,6 +156,7 @@ def run_chain_seed(
     history = sales_history(repo, stores, fresh_ids)
 
     rows: list[dict[str, Any]] = []
+    sources = ";".join(data_sources(chain_id, data_dir))  # provenance of the input chain DB
     with tempfile.TemporaryDirectory(prefix=f"sim30_{chain_id}_{seed}_") as tmp:
         hashes = snapshot_inputs(data_dir, chain_id, Path(tmp) / "snapshot", fresh_ids)
         for name in policies:
@@ -191,7 +193,7 @@ def run_chain_seed(
                     "db_sha256": hashes["db_sha256"][:16],
                     "model_sha256": hashes["model_sha256"][:16],
                     "data_seed": DATA_SEED,
-                    "source": SOURCE,
+                    "source": sources,
                 }
             )
     return rows
@@ -203,6 +205,11 @@ def _run_task(args: tuple) -> list[dict[str, Any]]:
 
 
 # ---------------------------------------------------------------- CSV
+
+
+def source_ids(rows: Iterable[Mapping[str, Any]]) -> list[str]:
+    """Dataset ids recorded in the ``source`` column (``;``-joined provenance ids of the chain DB)."""
+    return sorted({i for r in rows for i in str(r.get("source") or "").split(";") if i})
 
 
 def read_results(path: Path) -> list[dict[str, Any]]:
@@ -286,7 +293,7 @@ def _t975(df: int) -> float:
 
 def summarize(rows: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
     """Per chain: per-policy means/CIs, paired Δ (each FreshMesh arm − baseline_mean7) and the verdict."""
-    out: dict[str, Any] = {"protocol_version": PROTOCOL_VERSION, "chains": {}, "source": SOURCE}
+    out: dict[str, Any] = {"protocol_version": PROTOCOL_VERSION, "chains": {}, "sources": source_ids(rows)}
     for chain in sorted({r["chain_id"] for r in rows}):
         cr = [r for r in rows if r["chain_id"] == chain]
         seeds = sorted({r["seed"] for r in cr})

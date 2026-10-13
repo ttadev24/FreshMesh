@@ -25,18 +25,14 @@ from typing import Any
 import numpy as np
 
 from data_sim import CHAIN_IDS, SIM_AS_OF, open_chain_db
-from data_sim.assumptions import HISTORY_DAYS
 from data_sim.calendar_weather import build_calendar, simulate_rain
 from data_sim.catalog import CHAINS, SKUS
 from data_sim.generate import (
-    CALENDAR_FUTURE_DAYS,
-    WEATHER_FUTURE_DAYS,
     StoreRow,
     _build_stores,
     _simulate_sales,
-    history_dates,
+    history_inputs,
 )
-from data_sim.locations import pick_store_locations
 
 
 class ReplayMismatch(RuntimeError):
@@ -112,17 +108,9 @@ class FutureDemand:
     rain: np.ndarray  # (D,) mm
 
 
-def _hist_inputs(data_seed: int) -> tuple[list, np.ndarray, list[tuple[float, float]]]:
-    """Same calendar / rain / locations as ``generate_all``."""
-    hist = history_dates()
-    cal_dates = hist + [SIM_AS_OF + dt.timedelta(days=i) for i in range(1, CALENDAR_FUTURE_DAYS + 1)]
-    calendar = build_calendar(cal_dates)
-    rain_all = simulate_rain(
-        cal_dates[: HISTORY_DAYS + WEATHER_FUTURE_DAYS], np.random.default_rng([data_seed, 9001])
-    )
-    n_total = sum(len(p.area_types) for p in CHAINS)
-    locs = pick_store_locations(n_total, np.random.default_rng([data_seed, 1]))
-    return calendar[:HISTORY_DAYS], rain_all[:HISTORY_DAYS], locs
+def _hist_inputs(data_seed: int):
+    """Same calendar / real rain / store sites as ``generate_all``."""
+    return history_inputs(data_seed)
 
 
 def recover_chain_process(

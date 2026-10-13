@@ -10,7 +10,6 @@ from pathlib import Path
 from forecasting.fl.client import GROUPS, FLConfig, fl_model_paths, metrics_from_sums
 from forecasting.fl.experiment import CHAINS, SEEDS, run_all
 from forecasting.fl.runtime import run_federated
-from forecasting.service import SOURCE
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -32,7 +31,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.cmd == "experiment":
         t0 = time.perf_counter()
         paths = run_all(args.data, args.docs, seeds=tuple(args.seeds))
-        print(f"[{SOURCE}] Đã chạy thí nghiệm FL trong {time.perf_counter() - t0:.0f} giây.")
+        print(f"Đã chạy thí nghiệm FL trong {time.perf_counter() - t0:.0f} giây.")
         for name, p in paths.items():
             print(f"  {name}: {p}")
         return 0
@@ -43,7 +42,7 @@ def main(argv: list[str] | None = None) -> int:
     t0 = time.perf_counter()
     res = run_federated(args.chains, args.data, config=cfg, seed=args.seed, window="test", save=True)
     print(
-        f"[{SOURCE}] Học liên kết (FedAvg + FedPer) xong: {len(res.chain_ids)} chuỗi, {cfg.rounds} vòng, "
+        f"Học liên kết (FedAvg + FedPer) xong: {len(res.chain_ids)} chuỗi, {cfg.rounds} vòng, "
         f"{time.perf_counter() - t0:.1f} giây."
     )
     if res.epsilon is None:

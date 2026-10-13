@@ -15,7 +15,7 @@ from html import escape
 from pathlib import Path
 from typing import Any
 
-from data_sim import SOURCE
+from forecasting.service import source_labels_vi
 from simulation import routing_bench, sim30
 
 BEGIN, END = "<!-- BEGIN GENERATED -->", "<!-- END GENERATED -->"
@@ -58,6 +58,10 @@ def write_generated(path: Path, generated: str, tail: str = "") -> None:
     path.write_text(block + "\n" + (f"\n{tail.rstrip()}\n" if tail else ""), encoding="utf-8")
 
 
+def _sources_text(ids: Sequence[str]) -> str:
+    return "; ".join(source_labels_vi(ids)) or "không rõ nguồn"
+
+
 def _f(x: float, nd: int = 1) -> str:
     return f"{x:.{nd}f}"
 
@@ -74,7 +78,7 @@ def sim30_markdown(summary: Mapping[str, Any]) -> str:
     lines = [
         "# Sim30 — kết quả mô phỏng 30 ngày / 30-day inventory simulation results",
         "",
-        f"Dữ liệu: **{SOURCE}**. Giao thức đăng ký trước: [sim30-protocol.md](sim30-protocol.md) "
+        f"Nguồn dữ liệu: **{_sources_text(summary['sources'])}**. Giao thức đăng ký trước: [sim30-protocol.md](sim30-protocol.md) "
         f"(`sim30-v1`, revision `sim30-v2`). Seeds {', '.join(map(str, sim30.CONFIRMATORY_SEEDS))}; "
         "mean [95% t-CI] over seeds; % pooled over stores × 14 fresh SKUs × 30 days.",
         "",
@@ -209,7 +213,7 @@ def sim30_svg(summary: Mapping[str, Any]) -> str:
         body += _bar_panel(70 + i * 420, 60, 360, 240, title, chains, series, "%")
     body += _legend(70, 350, [(POLICY_LABELS[p], COLORS[p]) for p in pols])
     body.append(
-        f'<text x="70" y="410" font-size="10">{SOURCE} · mean of 5 seeds, whiskers = 95% t-CI · '
+        f'<text x="70" y="410" font-size="10">{_sources_text(summary["sources"])} · mean of 5 seeds, whiskers = 95% t-CI · '
         "sim30-protocol.md</text>"
     )
     return _svg(870, 420, body, "Sim30 waste and stockout")
@@ -233,7 +237,7 @@ def routing_summary(rows: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
     per: dict[str, dict[tuple[str, str], Mapping[str, Any]]] = defaultdict(dict)
     for r in ok:
         per[r["method"]][(r["chain_id"], r["store_id"])] = r
-    out: dict[str, Any] = {"n_batches": len(batches), "methods": {}, "source": SOURCE}
+    out: dict[str, Any] = {"n_batches": len(batches), "methods": {}, "sources": sim30.source_ids(rows)}
     baseline = per["one_trip_per_order"]
     for m in methods:
         done = per[m]
@@ -277,7 +281,7 @@ def routing_markdown(rows: Sequence[Mapping[str, Any]], summary: Mapping[str, An
     lines = [
         "# Benchmark định tuyến / routing benchmark (spec §1.4 #4, §6)",
         "",
-        f"Dữ liệu: **{SOURCE}**. Đợt đơn demo hiện tại (cửa sổ 45 phút trước 2026-10-01 09:00) của "
+        f"Nguồn dữ liệu: **{_sources_text(summary['sources'])}**. Đợt đơn demo hiện tại (cửa sổ 45 phút trước 2026-10-01 09:00) của "
         f"{summary['n_batches']} cửa hàng ở 3 chuỗi, {summary['orders']} đơn, {summary['at_risk_orders']} đơn "
         "bị loại trước khi định tuyến (không kịp giao ngay cả khi đi thẳng — giống nhau cho mọi phương pháp). "
         "Đội xe 4 × 30 đơn vị; km = phút di chuyển × 20 km/h (đã gồm hệ số đường vòng 1,3).",
@@ -335,7 +339,7 @@ def routing_svg(rows: Sequence[Mapping[str, Any]], summary: Mapping[str, Any]) -
     body = _bar_panel(60, 60, width - 100, 280, "Quãng đường mỗi đợt / road km per batch", stores, series, "")
     body += _legend(60, 390, [(METHOD_LABELS[m], COLORS[m]) for m in methods])
     body.append(
-        f'<text x="60" y="{390 + 16 * len(methods) + 8}" font-size="10">{SOURCE} · demo batch 2026-10-01 09:00</text>'
+        f'<text x="60" y="{390 + 16 * len(methods) + 8}" font-size="10">{_sources_text(summary["sources"])} · demo batch 2026-10-01 09:00</text>'
     )
     return _svg(width, 400 + 16 * len(methods) + 20, body, "Routing benchmark km")
 
@@ -365,7 +369,11 @@ def experiment_summary(docs_dir: Path) -> dict[str, Any]:
     route_rows = routing_bench.read_results(docs_dir / routing_bench.RESULTS_CSV)
     if not sim_rows and not route_rows:
         raise FileNotFoundError(f"no sim30 or routing benchmark results in {docs_dir}")
-    out: dict[str, Any] = {"source": SOURCE, "sim30": None, "routing": None}
+    out: dict[str, Any] = {
+        "sources": sim30.source_ids([*sim_rows, *route_rows]),
+        "sim30": None,
+        "routing": None,
+    }
     if sim_rows:
         s = sim30.summarize(sim_rows)
         chains = {}

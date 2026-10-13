@@ -3,7 +3,7 @@
     uv run python -m decision.cli flow1 --chain CHAIN_A --store A-CH1 --items rau,thit
 
 Prints the Vietnamese flow-1 report: forecast P10/P50/P90 → 3 plans (total, % waste, % stockout),
-confidence and assumptions, labelled SIMULATED. Nothing is ordered: the report ends with what to approve.
+confidence, assumptions and the data sources used. Nothing is ordered: the report ends with what to approve.
 """
 
 from __future__ import annotations

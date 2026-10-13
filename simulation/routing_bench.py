@@ -26,9 +26,11 @@ from typing import Any
 
 from api.config import FLEET_CAPACITY, FLEET_VEHICLES
 from api.errors import ApiError
+from api.provenance_view import ROUTING_TABLES
 from api.repo import ChainRepo
 from api.routing_service import RoutingService
-from data_sim import CHAIN_IDS, SOURCE
+from data_sim import CHAIN_IDS
+from forecasting.service import data_sources
 from routing.baseline import one_trip_per_order
 from routing.client import SolverClient, SolverError, SolverResponse
 from routing.config import RoutingConfig
@@ -189,6 +191,7 @@ def run_routing_benchmark(
     out: list[dict[str, Any]] = []
     for chain_id in chain_ids:
         repo = ChainRepo(data_dir, chain_id)
+        sources = ";".join(data_sources(chain_id, data_dir, ROUTING_TABLES))
         for store in repo.stores():
             batch, _ = builder.build_batch(repo, store.store_id)
             rows = benchmark_batch(services, batch, cfg)
@@ -199,7 +202,7 @@ def run_routing_benchmark(
                     store_id=store.store_id,
                     n_orders=len(batch.orders),
                     at_risk=len(batch.orders) - n_routable,
-                    source=SOURCE,
+                    source=sources,
                 )
                 out.append(r)
                 if progress:

@@ -47,7 +47,7 @@ from forecasting.fl.client import (
 )
 from forecasting.fl.runtime import run_federated
 from forecasting.fl.svg import bar_chart_svg, line_chart_svg
-from forecasting.service import SOURCE, TrainConfig, load_model, train_local
+from forecasting.service import TrainConfig, load_model, train_local
 
 CHAINS = ("CHAIN_A", "CHAIN_B", "CHAIN_C")
 SEEDS = (0, 1, 2)
@@ -259,7 +259,7 @@ def write_plots(docs_dir: Path, comparison: list[dict], dp: list[dict]) -> list[
     p1 = docs_dir / "fl_comparison_wape.svg"
     p1.write_text(
         bar_chart_svg(
-            f"WAPE trên tập kiểm tra (trung bình {n_seeds} seed) — {SOURCE}",
+            f"WAPE trên tập kiểm tra (trung bình {n_seeds} seed)",
             ["Tất cả cửa hàng", "Cửa hàng mới"],
             series,
             y_label="WAPE (thấp hơn là tốt hơn)",
@@ -281,7 +281,7 @@ def write_plots(docs_dir: Path, comparison: list[dict], dp: list[dict]) -> list[
     p2 = docs_dir / "fl_dp_curve.svg"
     p2.write_text(
         line_chart_svg(
-            f"ε (DP mức chuỗi, δ=1e-5) so với WAPE — {SOURCE}",
+            "ε (DP mức chuỗi, δ=1e-5) so với WAPE",
             pts,
             refs,
             x_label="ε (thang log)",

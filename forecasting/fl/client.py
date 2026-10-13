@@ -31,12 +31,12 @@ from forecasting.features import (
 from forecasting.model import QUANTILES, QuantileMLP
 from forecasting.service import (
     CAL_DAYS,
-    SOURCE,
     TEST_DAYS,
     _model_paths,
     _predict_scaled,
     _predict_units,
     _rows_features,
+    data_sources,
 )
 
 GROUPS = ("all", "established", "new_store")
@@ -188,7 +188,7 @@ class ChainClient:
         return {
             "version": FL_MODEL_VERSION,
             "chain_id": self.chain_id,
-            "source": SOURCE,
+            "sources": data_sources(self.chain_id, self.data_dir),
             "quantiles": list(QUANTILES),
             "n_features": N_FEATURES,
             "feature_names": list(FEATURE_NAMES),

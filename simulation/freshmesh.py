@@ -17,13 +17,15 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Protocol
 
-from data_sim import SOURCE, chain_db_path
+from data_sim import chain_db_path
 from decision import Constraints, ForecastQuantiles, StockLot, plan_inventory
 from decision.types import SkuEconomics
 from forecasting.features import MAX_HORIZON
 from forecasting.service import _model_paths, forecast_demand
 from simulation.inventory import DayContext, DayExtra, Key, Lot
 
+# Sales written by the simulation into its throw-away working copy of the chain DB are simulation output.
+SIM_ROLLOUT_SOURCE = "sim30_rollout"
 PLAN_NAMES = ("safe", "balanced", "lean")
 
 
@@ -140,7 +142,7 @@ class DbForecaster:
                             float(extra.price[(s, k)]),
                             int(extra.promo[(s, k)]),
                             float(extra.rain_mm),
-                            SOURCE,
+                            SIM_ROLLOUT_SOURCE,
                         )
                         for (s, k), q in sorted(sales.items())
                     ],

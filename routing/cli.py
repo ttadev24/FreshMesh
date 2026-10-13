@@ -2,7 +2,7 @@ import argparse
 import json
 import os
 import sys
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from pathlib import Path
 
 from routing.baseline import BaselineResult, one_trip_per_order
@@ -44,7 +44,7 @@ def batch_from_dict(d: dict) -> Batch:
 
 def format_plan(plan: RoutePlan, baseline: BaselineResult) -> str:
     lines = [
-        f"FreshMesh — lộ trình đợt giao (dữ liệu: {plan.source})",
+        f"FreshMesh — lộ trình đợt giao (nguồn dữ liệu: {plan.source})",
         f"Cửa hàng: {plan.store_id} | Solver: {plan.solver.upper()} | Thời gian giải: {plan.runtime_s:.1f}s",
         f"Xe dùng: {plan.vehicles_used}"
         + (" (VƯỢT số xe hiện có)" if plan.exceeds_fleet else ""),
@@ -93,7 +93,9 @@ def main(argv: list[str] | None = None, client_factory=SolverClient) -> int:
     cfg = RoutingConfig()
 
     try:
-        batch = batch_from_dict(json.loads(args.batch.read_text(encoding="utf-8")))
+        raw = json.loads(args.batch.read_text(encoding="utf-8"))
+        batch = batch_from_dict(raw)
+        source_label = str(raw.get("source") or RoutePlan.source)
         baseline = one_trip_per_order(batch, cfg)
     except (OSError, KeyError, ValueError, TypeError) as e:
         print(f"Dữ liệu đợt đơn không hợp lệ: {e}", file=sys.stderr)
@@ -104,6 +106,7 @@ def main(argv: list[str] | None = None, client_factory=SolverClient) -> int:
     except SolverError as e:
         print(f"Không gọi được solver: {e}", file=sys.stderr)
         return 2
+    plan = replace(plan, source=source_label)
 
     if args.json:
         print(json.dumps({"plan": asdict(plan), "baseline": asdict(baseline)}, ensure_ascii=False, indent=2))

@@ -89,7 +89,7 @@ def test_results_csv_carries_protocol_version_and_hash():
         assert r["protocol_version"] in sim30.PRIMARY_BY_VERSION and f"`{r['protocol_version']}`" in text
         assert r["protocol_sha256"] == file_sha256(DOCS / sim30.PROTOCOL_FILE)  # protocol unchanged since run
         assert int(r["seed"]) in sim30.CONFIRMATORY_SEEDS  # dev seed never written
-        assert r["source"] == "SIMULATED"
+        assert r["source"]  # provenance of the input chain DB (";"-joined dataset ids) is recorded
     # every confirmatory seed of every chain present for the primary pairs (no seed dropped)
     for chain in {r["chain_id"] for r in rows}:
         for policy in (sim30.PRIMARY_BASELINE, *sim30.PRIMARY_BY_VERSION.values()):
@@ -143,7 +143,7 @@ def test_reports_and_summary_from_committed_results():
     summary = sim30.summarize(sim30.read_results(DOCS / sim30.RESULTS_CSV))
     ET.fromstring(report.sim30_svg(summary))  # well-formed SVG
     out = report.experiment_summary(DOCS)
-    assert out["source"] == "SIMULATED"
+    assert out["sources"] and "source" not in out
     assert set(out["sim30"]["overall_pass"]) == set(sim30.PRIMARY_BY_VERSION)
     assert out["sim30"]["headline_version"] == "sim30-v1"
     for chain in out["sim30"]["chains"].values():

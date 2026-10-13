@@ -16,7 +16,7 @@ def build_instance(
     lines += [
         f"{r.x:.4f} {r.y:.4f} {r.earliest} {r.latest} {r.service} {int(r.mode)}" for r in orders
     ]
-    lines += [f"{l.x:.4f} {l.y:.4f} 0 {shift_minutes} 0 4" for l in lockers]
+    lines += [f"{lk.x:.4f} {lk.y:.4f} 0 {shift_minutes} 0 4" for lk in lockers]
     for r in orders:
         allowed = set(r.allowed_lockers)
         lines.append(" ".join("1" if i in allowed else "0" for i in range(len(lockers))))

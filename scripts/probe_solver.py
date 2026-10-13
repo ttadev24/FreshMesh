@@ -5,12 +5,11 @@ Usage: uv run python scripts/probe_solver.py [--url http://localhost:8000] [--ru
 import argparse
 import math
 import os
-from pathlib import Path
 import random
 import statistics
-import time
-
 import sys
+import time
+from pathlib import Path
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(_REPO_ROOT) not in sys.path:

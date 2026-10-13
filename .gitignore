@@ -3,3 +3,10 @@ __pycache__/
 node_modules/
 .env
 .omc/
+data/
+web/.next/
+web/node_modules/
+e2e/node_modules/
+test-results/
+playwright-report/
+.ruff_cache/

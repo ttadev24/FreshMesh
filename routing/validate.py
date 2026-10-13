@@ -67,9 +67,9 @@ def screen_orders(batch: Batch, plane: TravelPlane, cfg: RoutingConfig) -> Scree
         raise ValueError("num_vehicles and vehicle_capacity must be >= 1")
 
     lockers = _build_lockers(batch, plane)
-    locker_index = {l.point.point_id: i for i, l in enumerate(lockers)}
+    locker_index = {lk.point.point_id: i for i, lk in enumerate(lockers)}
     reachable_lockers = {
-        i for i, l in enumerate(lockers) if _minutes_from_depot(l.x, l.y) <= cfg.shift_minutes
+        i for i, lk in enumerate(lockers) if _minutes_from_depot(lk.x, lk.y) <= cfg.shift_minutes
     }
 
     routable: list[RoutableOrder] = []

@@ -1,7 +1,6 @@
 import pytest
 
 from routing.client import SolverError, SolverResponse
-from routing.config import RoutingConfig
 from routing.models import Batch, DeliveryMode, Order, Store, counter_id
 from routing.planner import optimize_routes, solver_size
 from tests.routing.helpers import LAT0, LNG0, point_at

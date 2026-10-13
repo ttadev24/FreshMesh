@@ -4,11 +4,11 @@ import { toolLabel } from "./toolLabels";
 import s from "./chat.module.css";
 
 /** plan → tool calls → answer, updated live while the turn streams. */
-export default function StepList({ turn, pending }: { turn: AgentTurn; pending: boolean }) {
+export default function StepList({ turn, pending, testId = "step-list" }: { turn: AgentTurn; pending: boolean; testId?: string }) {
   const descriptions = new Map(turn.plan_steps.map((p) => [p.tool, p.description_vi]));
   const answering = pending && turn.tools.length > 0 && turn.tools.every((t) => t.status !== "running") && !turn.done;
   return (
-    <ol className={s.steps} aria-label="Các bước xử lý" data-testid="step-list">
+    <ol className={s.steps} aria-label="Các bước xử lý" data-testid={testId || undefined}>
       <li className={s.step} data-state={turn.plan ? "done" : pending ? "running" : "idle"}>
         <span className={s.stepIcon} aria-hidden="true">
           {turn.plan ? "✓" : pending ? <Spinner /> : ""}

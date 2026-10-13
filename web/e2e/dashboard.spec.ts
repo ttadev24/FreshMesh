@@ -11,9 +11,19 @@ test.beforeEach(async ({ page }) => {
 async function expectSources(panel: import("@playwright/test").Locator, endpoint: string) {
   const line = panel.getByTestId("sources-line");
   await expect(line).toContainText("Nguồn dữ liệu");
-  await expect(line).toContainText(endpoint);
+  // The endpoint that computed the panel stays visible next to the collapsed sources.
+  const computedBy = line.getByText("tính bởi");
+  await expect(computedBy).toBeVisible();
+  await expect(computedBy).toContainText(endpoint);
+  // Compact by default ("Nguồn dữ liệu (N)"); expanding shows every labelled dataset.
+  const toggle = line.getByTestId("sources-toggle");
+  await expect(toggle).toHaveAttribute("aria-expanded", "false");
+  await toggle.click();
+  await expect(toggle).toHaveAttribute("aria-expanded", "true");
   // Provenance from the API: at least one labelled dataset, never a placeholder.
-  await expect(line.getByTestId("source-ref").first()).toBeVisible();
+  const refs = line.getByTestId("source-ref");
+  await expect(refs.first()).toBeVisible();
+  await expect(toggle).toContainText(`(${await refs.count()})`);
   await expect(line).not.toContainText(NO_RAW_VALUES);
 }
 

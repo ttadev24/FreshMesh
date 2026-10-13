@@ -144,7 +144,7 @@ function RoutePanel({ route, storeNames, stores, footer }: Props) {
         </div>
       ) : null}
       <p className={s.muted}>Giả định: tốc độ trung bình và hệ số đường vòng là ước tính; bạn duyệt trước khi gửi cho shipper.</p>
-      <SourcesLine sources={route.sources} computedBy={route.tool} />
+      <SourcesLine sources={route.sources} computedBy={route.tool} compact />
       {footer}
     </Panel>
   );

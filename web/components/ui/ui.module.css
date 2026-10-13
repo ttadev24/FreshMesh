@@ -251,3 +251,108 @@
   padding-top: 0;
   border-top: 0;
 }
+
+/* ---------- disclosure (button + region) ---------- */
+
+.disclosureBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 2px 4px 2px 2px;
+  margin: -2px 0 -2px -2px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--ink-2);
+  font-size: 12px;
+  font-weight: 500;
+  text-align: left;
+}
+
+.disclosureBtn:hover {
+  color: var(--ink);
+}
+
+/* CSS chevron: points right when closed, down when open. */
+.chevron {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  display: inline-grid;
+  place-items: center;
+}
+
+.chevron::before {
+  content: "";
+  width: 5px;
+  height: 5px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(-45deg);
+  transition: transform 0.15s ease;
+}
+
+.disclosureBtn[aria-expanded="true"] .chevron::before {
+  transform: rotate(45deg) translate(-1px, -1px);
+}
+
+/* ---------- compact sources line ---------- */
+
+.sourcesCompact {
+  gap: 4px 10px;
+}
+
+.sourcesToggle {
+  flex-wrap: wrap;
+  row-gap: 4px;
+}
+
+.sourcesToggle .sourcesLabel {
+  white-space: nowrap;
+}
+
+.sourcesCount {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-3);
+}
+
+.sourcesKinds {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-left: 2px;
+}
+
+.sourcesCompact .sourcesBy {
+  margin-left: auto;
+}
+
+.sourcesRegion {
+  flex: 1 1 100%;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  padding: 4px 0 0 20px;
+}
+
+.sourcesRegion[hidden] {
+  display: none;
+}
+
+/* ---------- panel skeleton ---------- */
+
+.panelSkeleton {
+  gap: 14px;
+}
+
+.skeletonHead {
+  display: grid;
+  gap: 8px;
+}
+
+.skeletonLabel {
+  font-size: 12px;
+  color: var(--ink-3);
+}

@@ -126,7 +126,7 @@ function PlanTable({ inventory, skuNames, footer }: { inventory: SourcedData<Inv
           </ul>
         </details>
       ) : null}
-      <SourcesLine sources={inventory.sources} computedBy={inventory.tool} />
+      <SourcesLine sources={inventory.sources} computedBy={inventory.tool} compact />
       {footer}
     </Panel>
   );

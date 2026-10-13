@@ -1,3 +1,4 @@
+/* Desktop: the app is exactly one viewport tall and only the panes' own scrollers move. */
 .app {
   height: 100dvh;
   display: grid;
@@ -161,15 +162,19 @@
   display: none;
 }
 
+/* One explicit minmax(0, 1fr) row: the panes are exactly the remaining height, never their content's
+   height (an implicit auto row grows with a long conversation and pushes the composer off screen). */
 .panes {
   grid-row: 3;
   display: grid;
   grid-template-columns: minmax(380px, 0.82fr) minmax(0, 1.18fr);
+  grid-template-rows: minmax(0, 1fr);
   min-height: 0;
 }
 
 .left {
   min-height: 0;
+  min-width: 0;
   border-right: 1px solid var(--line);
   background: var(--surface);
   display: flex;
@@ -181,6 +186,13 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
+}
+
+/* Wide screens: the chat column stops growing, the dashboard gets the room. */
+@media (min-width: 1800px) {
+  .panes {
+    grid-template-columns: minmax(560px, 760px) minmax(0, 1fr);
+  }
 }
 
 @media (max-width: 1023px) {
@@ -244,6 +256,7 @@
 
   .panes {
     grid-template-columns: 1fr;
+    grid-template-rows: auto;
   }
 
   .left {

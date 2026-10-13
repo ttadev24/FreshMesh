@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useId, useState, type ReactNode } from "react";
 import { KIND_HELP_VI, KIND_VI, resolveSources, useProvenanceIndex } from "@/lib/provenance";
 import type { Confidence, SourceKind, SourceRef } from "@/lib/types";
 import s from "./ui.module.css";
@@ -24,37 +24,111 @@ export function KindChip({ kind }: { kind: SourceKind }) {
   );
 }
 
-/** "Nguồn dữ liệu: …" line of a panel or answer, from the payload's `sources` / `source_labels_vi`. */
-export function SourcesLine({ sources, computedBy, testId = "sources-line", bare = false }: {
+/**
+ * Button + region disclosure (WAI-ARIA pattern): `aria-expanded` on the button, `hidden` on the region.
+ * The region's content is only rendered while open. The chevron turns with the state.
+ */
+export function Disclosure({ label, defaultOpen = false, children, buttonClassName, regionClassName, testId, after, headingClassName }: {
+  label: ReactNode;
+  defaultOpen?: boolean;
+  children: ReactNode;
+  buttonClassName?: string;
+  regionClassName?: string;
+  testId?: string;
+  /** Rendered between the button and the region (e.g. "tính bởi …" next to a sources toggle). */
+  after?: ReactNode;
+  /** Wraps the button in an h3 (accordion pattern) when given. */
+  headingClassName?: string;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  const id = useId();
+  const button = (
+    <button
+      type="button"
+      className={`${s.disclosureBtn} ${buttonClassName ?? ""}`}
+      aria-expanded={open}
+      aria-controls={id}
+      onClick={() => setOpen((v) => !v)}
+      data-testid={testId}
+    >
+      <span className={s.chevron} aria-hidden="true" />
+      {label}
+    </button>
+  );
+  return (
+    <>
+      {headingClassName === undefined ? button : <h3 className={headingClassName}>{button}</h3>}
+      {after}
+      <div id={id} hidden={!open} className={regionClassName}>
+        {open ? children : null}
+      </div>
+    </>
+  );
+}
+
+/**
+ * "Nguồn dữ liệu" of a panel or answer, from the payload's `sources` / `source_labels_vi`.
+ * `compact`: one line "Nguồn dữ liệu (N)" with the distinct kinds, expanding to the labelled chips.
+ */
+export function SourcesLine({ sources, computedBy, testId = "sources-line", bare = false, compact = false }: {
   sources: readonly SourceRef[];
   computedBy?: string;
   testId?: string;
-  /** Without the "Nguồn dữ liệu:" label (when a heading already says it). */
+  /** Without the dashed rule above the line (when its container already separates it). */
   bare?: boolean;
+  compact?: boolean;
 }) {
   const index = useProvenanceIndex();
   const refs = resolveSources(sources, index);
   if (!refs.length && !computedBy) return null;
+  const by = computedBy ? (
+    <span className={s.sourcesBy}>
+      tính bởi <code>{computedBy}</code>
+    </span>
+  ) : null;
+  const list = (
+    <ul className={s.sourcesList}>
+      {refs.map((r) => (
+        <li key={r.id} data-testid="source-ref">
+          {r.kind ? <KindChip kind={r.kind} /> : null}
+          <span>{r.label_vi}</span>
+        </li>
+      ))}
+    </ul>
+  );
+
+  if (compact && refs.length) {
+    const kinds = [...new Set(refs.map((r) => r.kind).filter((k): k is SourceKind => Boolean(k)))];
+    return (
+      <div className={`${s.sourcesLine} ${s.sourcesCompact} ${bare ? s.sourcesBare : ""}`} data-testid={testId}>
+        <Disclosure
+          testId="sources-toggle"
+          buttonClassName={s.sourcesToggle}
+          regionClassName={s.sourcesRegion}
+          label={
+            <>
+              <span className={s.sourcesLabel}>Nguồn dữ liệu</span>
+              <span className={s.sourcesCount}>({refs.length})</span>
+              <span className={s.sourcesKinds}>
+                {kinds.map((k) => (
+                  <KindChip key={k} kind={k} />
+                ))}
+              </span>
+            </>
+          }
+          after={by}
+        >
+          {list}
+        </Disclosure>
+      </div>
+    );
+  }
+
   return (
     <div className={`${s.sourcesLine} ${bare ? s.sourcesBare : ""}`} data-testid={testId}>
-      {bare ? null : <span className={s.sourcesLabel}>Nguồn dữ liệu:</span>}
-      {refs.length ? (
-        <ul className={s.sourcesList}>
-          {refs.map((r) => (
-            <li key={r.id} data-testid="source-ref">
-              {r.kind ? <KindChip kind={r.kind} /> : null}
-              <span>{r.label_vi}</span>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <span className={s.sourcesMissing}>máy chủ chưa gắn nguồn cho kết quả này</span>
-      )}
-      {computedBy ? (
-        <span className={s.sourcesBy}>
-          tính bởi <code>{computedBy}</code>
-        </span>
-      ) : null}
+      <span className={s.sourcesLabel}>Nguồn dữ liệu:</span>
+      {refs.length ? list : <span className={s.sourcesMissing}>máy chủ chưa gắn nguồn cho kết quả này</span>}
+      {by}
     </div>
   );
 }
@@ -125,6 +199,20 @@ export function Skeleton({ lines = 3, block = false, label = "Đang tải dữ l
       {Array.from({ length: lines }, (_, i) => (
         <div key={i} className={s.skeletonLine} style={{ width: `${92 - i * 17}%` }} />
       ))}
+    </div>
+  );
+}
+
+/** Loading placeholder shaped like a dashboard panel: title, subtitle, a chart / table block. */
+export function PanelSkeleton({ label }: { label: string }) {
+  return (
+    <div className={`${s.panel} ${s.panelSkeleton}`} role="status" aria-label={label}>
+      <div className={s.skeletonHead}>
+        <div className={s.skeletonLine} style={{ width: "38%", height: 14 }} />
+        <div className={s.skeletonLine} style={{ width: "56%" }} />
+      </div>
+      <div className={`${s.skeletonLine} ${s.skeletonBlock}`} />
+      <p className={s.skeletonLabel}>{label}</p>
     </div>
   );
 }

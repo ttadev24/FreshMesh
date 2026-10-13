@@ -57,6 +57,8 @@ test.describe("Trợ lý LLM thật", () => {
     const answer = turn.getByTestId("agent-answer");
     await expect(answer).toBeVisible({ timeout: 180_000 });
     await expect(turn.getByTestId("turn-error")).toHaveCount(0);
+    // Finished steps collapse to one line; expanding shows them.
+    await turn.getByTestId("steps-toggle").click();
     await expect(turn.getByTestId("tool-step").first()).toBeVisible();
     for (const section of ["Đề xuất", "Vì sao", "Độ tin cậy", "Giả định", "Việc cần bạn duyệt", "Nguồn dữ liệu"]) {
       await expect(answer.getByText(section, { exact: true })).toBeVisible();
@@ -64,15 +66,31 @@ test.describe("Trợ lý LLM thật", () => {
     await expect(answer.getByTestId("answer-sources")).not.toBeEmpty();
   });
 
-  test("câu hỏi tự gõ được stream thành các bước rồi trả lời theo khuôn", async ({ page }) => {
+  test("hai câu hỏi tự gõ liên tiếp: mỗi câu được stream rồi trả lời theo khuôn, ô nhập vẫn dùng được", async ({ page }) => {
     await login(page, "owner_a");
     await showPane(page, "chat");
-    await page.getByTestId("chat-input").fill("hello");
-    await page.getByTestId("chat-send").click();
-    const turn = page.getByTestId("turn").last();
-    await expect(turn.getByTestId("agent-answer").or(turn.getByTestId("turn-error"))).toBeVisible({ timeout: 180_000 });
-    // The real agent answers free text; never the old "chỉ hiểu 3 luồng" scripted refusal.
-    await expect(turn).not.toContainText(/kịch bản|chỉ hiểu 3 luồng/i);
-    await expect(turn.getByTestId("turn-error")).toHaveCount(0);
+    const input = page.getByTestId("chat-input");
+    const chats: string[] = [];
+    page.on("request", (req) => {
+      if (/\/api\/agent\/chat$/.test(req.url()) && req.method() === "POST") chats.push(req.url());
+    });
+    const questions = ["hello", "Cảm ơn. Bạn giúp được những việc gì? Trả lời ngắn."];
+    for (const [i, question] of questions.entries()) {
+      await input.fill(question);
+      if (i === 0) await page.getByTestId("chat-send").click();
+      else await input.press("Enter");
+      await expect.poll(() => chats.length).toBe(i + 1);
+      const turn = page.getByTestId("turn").nth(i);
+      await expect(turn.getByTestId("turn-question")).toHaveText(question);
+      await expect(turn.getByTestId("agent-answer").or(turn.getByTestId("turn-error"))).toBeVisible({ timeout: 180_000 });
+      // The real agent answers free text; never the old "chỉ hiểu 3 luồng" scripted refusal.
+      await expect(turn).not.toContainText(/kịch bản|chỉ hiểu 3 luồng/i);
+      await expect(turn.getByTestId("turn-error")).toHaveCount(0);
+      // After each answer the composer is still on screen, enabled and focused for the next question.
+      await expect(input).toBeEnabled();
+      await expect(input).toBeFocused();
+      await expect(input).toBeInViewport({ ratio: 1 });
+    }
+    await expect(page.getByTestId("turn")).toHaveCount(2);
   });
 });

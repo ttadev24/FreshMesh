@@ -219,7 +219,7 @@ function StockComparison({ stock, skuNames, storeNames, footer }: Props) {
       ) : null}
 
       {!comparisons.length && !markdown.length && !transfer ? <p className={s.muted}>Không có dữ liệu so sánh.</p> : null}
-      <SourcesLine sources={stock.sources} computedBy={stock.tool} />
+      <SourcesLine sources={stock.sources} computedBy={stock.tool} compact />
       {footer}
     </Panel>
   );

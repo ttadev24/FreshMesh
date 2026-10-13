@@ -4,7 +4,7 @@ import { memo } from "react";
 import type { Role } from "@/lib/types";
 import type { ConversationEntry } from "@/components/workspace/useConversation";
 import type { DraftsApi } from "@/components/workspace/useDrafts";
-import { ErrorState } from "@/components/ui/primitives";
+import { Disclosure, ErrorState } from "@/components/ui/primitives";
 import AnswerView from "./AnswerView";
 import ProposalCard from "./ProposalCard";
 import StepList from "./StepList";
@@ -23,12 +23,12 @@ interface Props {
 function TurnView({ entry, drafts, role, skuMoq, onDashboard, hasData, onShowDashboard }: Props) {
   const { turn } = entry;
   return (
-    <li className={s.turn} data-testid="turn">
-      <div className={s.question}>
+    <li className={s.turn} data-testid="turn" data-turn>
+      <div className={s.question} data-testid="turn-question">
         <p>{entry.question}</p>
       </div>
       <div className={s.reply}>
-        <StepList turn={turn} pending={entry.pending} />
+        {entry.pending ? <StepList turn={turn} pending /> : <FinishedSteps entry={entry} />}
         {entry.error ? (
           <ErrorState
             title={entry.errorCode === "llm_unavailable" ? "Trợ lý chưa sẵn sàng" : "Không hoàn tất lượt này"}
@@ -58,6 +58,29 @@ function TurnView({ entry, drafts, role, skuMoq, onDashboard, hasData, onShowDas
         ) : null}
       </div>
     </li>
+  );
+}
+
+/** A finished turn keeps its plan and tool steps one click away instead of a long list above the answer. */
+function FinishedSteps({ entry }: { entry: ConversationEntry }) {
+  const { tools } = entry.turn;
+  const failed = tools.filter((t) => t.status === "error").length;
+  return (
+    <div className={s.stepsDone} data-testid="step-list">
+      <Disclosure
+        testId="steps-toggle"
+        buttonClassName={s.stepsToggle}
+        defaultOpen={failed > 0 || Boolean(entry.error)}
+        label={
+          <span>
+            {tools.length ? `Đã chạy ${tools.length} bước công cụ` : "Kế hoạch xử lý (không dùng công cụ)"}
+            {failed ? <span className={s.stepsFailed}>, {failed} bước lỗi</span> : null}
+          </span>
+        }
+      >
+        <StepList turn={entry.turn} pending={false} testId="" />
+      </Disclosure>
+    </div>
   );
 }
 

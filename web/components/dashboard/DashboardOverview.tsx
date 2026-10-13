@@ -6,7 +6,7 @@ import type { Role, Store } from "@/lib/types";
 import type { ConversationEntry } from "@/components/workspace/useConversation";
 import { TOOL_META, TOOL_SCOPE, TOOL_SLOTS, type DirectTools, type ToolSlot } from "@/components/workspace/useDirectTools";
 import type { DraftsApi } from "@/components/workspace/useDrafts";
-import { EmptyState, ErrorState, Skeleton, Spinner } from "@/components/ui/primitives";
+import { EmptyState, ErrorState, PanelSkeleton, Spinner } from "@/components/ui/primitives";
 import ForecastPanel from "./ForecastPanel";
 import PanelDrafts, { type CreateDraft } from "./PanelDrafts";
 import PlanTable from "./PlanTable";
@@ -36,6 +36,15 @@ interface Props {
 export default function DashboardOverview(props: Props) {
   const { storeName, tools, onRunTool, entry, onBackToTools } = props;
   const turnData = entry ? dashboardFromTurn(entry.turn) : null;
+  const turnHasData = turnData ? hasDashboardData(turnData) : false;
+  // While the turn streams: a panel-shaped placeholder for the tool output still to come.
+  const waiting = !entry?.pending
+    ? null
+    : entry.turn.tools.some((t) => t.status === "running")
+      ? "Đang chờ kết quả công cụ của trợ lý"
+      : turnHasData
+        ? null
+        : "Trợ lý đang lập kế hoạch";
 
   return (
     <div className={s.stack}>
@@ -85,10 +94,13 @@ export default function DashboardOverview(props: Props) {
               Về kết quả tính toán trực tiếp
             </button>
           </div>
-          {!hasDashboardData(turnData) ? (
-            entry.pending ? <Skeleton lines={3} block label="Đang chờ kết quả công cụ" /> : <EmptyState title="Lượt này không có số liệu để vẽ" />
+          {!turnHasData && !entry.pending ? (
+            <EmptyState title="Lượt này không có số liệu để vẽ">
+              <p>Trợ lý trả lời mà không cần dự báo, phương án nhập, so sánh tồn kho hay lộ trình.</p>
+            </EmptyState>
           ) : null}
           <Panels data={turnData} {...props} withDrafts={false} />
+          {waiting ? <PanelSkeleton label={waiting} /> : null}
         </>
       ) : (
         <DirectPanels {...props} />
@@ -126,7 +138,7 @@ function DirectPanels(props: Props) {
           );
         }
         if (st?.status === "loading" && !tools.data[slot]) {
-          return <Skeleton key={slot} lines={2} block label={`Đang tính: ${TOOL_META[slot].label}`} />;
+          return <PanelSkeleton key={slot} label={`Đang tính: ${TOOL_META[slot].label}`} />;
         }
         return null;
       })}

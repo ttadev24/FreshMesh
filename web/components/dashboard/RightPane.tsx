@@ -79,7 +79,7 @@ export default function RightPane({ tab, onTab, dashboard, provenance }: Props) 
           </button>
         ))}
       </div>
-      <div className={s.tabBody}>
+      <div className={s.tabBody} data-testid="tab-body">
         {TABS.map((t) =>
           opened.has(t.id) ? (
             <div

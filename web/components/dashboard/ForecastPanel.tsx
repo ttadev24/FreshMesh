@@ -47,7 +47,7 @@ function ForecastPanel({ forecast, skuNames }: { forecast: SourcedData<ForecastR
     return (
       <Panel title="Dự báo nhu cầu" labelId="forecast-title" testId="forecast-chart">
         <p className={s.muted}>Công cụ dự báo không trả về dòng nào cho lựa chọn này.</p>
-        <SourcesLine sources={forecast.sources} computedBy={forecast.tool} />
+        <SourcesLine sources={forecast.sources} computedBy={forecast.tool} compact />
       </Panel>
     );
   }
@@ -139,7 +139,7 @@ function ForecastPanel({ forecast, skuNames }: { forecast: SourcedData<ForecastR
         </div>
       </details>
       {weakest?.reason ? <p className={s.muted}>{weakest.reason}</p> : null}
-      <SourcesLine sources={forecast.sources} computedBy={forecast.tool} />
+      <SourcesLine sources={forecast.sources} computedBy={forecast.tool} compact />
     </Panel>
   );
 }

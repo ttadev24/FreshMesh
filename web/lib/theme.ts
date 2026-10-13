@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useSyncExternalStore } from "react";
+import { useCallback, useMemo, useSyncExternalStore } from "react";
 
 // Canvas / SVG libraries (ECharts, Leaflet) cannot read CSS variables themselves: they get resolved
 // token values, and re-read them when the system colour scheme flips.
@@ -14,21 +14,22 @@ export function prefersReducedMotion(): boolean {
   return typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
-const DARK = "(prefers-color-scheme: dark)";
-
-function subscribe(onChange: () => void) {
-  const mq = window.matchMedia(DARK);
-  mq.addEventListener("change", onChange);
-  return () => mq.removeEventListener("change", onChange);
+/** Live result of a media query (false during server rendering). */
+export function useMediaQuery(query: string): boolean {
+  const subscribe = useCallback(
+    (onChange: () => void) => {
+      const mq = window.matchMedia(query);
+      mq.addEventListener("change", onChange);
+      return () => mq.removeEventListener("change", onChange);
+    },
+    [query],
+  );
+  return useSyncExternalStore(subscribe, () => window.matchMedia(query).matches, () => false);
 }
 
 /** "dark" | "light", following the system preference live (tokens in globals.css switch on it). */
 export function useColorScheme(): "dark" | "light" {
-  return useSyncExternalStore(
-    subscribe,
-    () => (window.matchMedia(DARK).matches ? "dark" : "light"),
-    () => "light",
-  );
+  return useMediaQuery("(prefers-color-scheme: dark)") ? "dark" : "light";
 }
 
 /**

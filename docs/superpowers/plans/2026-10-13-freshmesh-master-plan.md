@@ -42,7 +42,14 @@ users(user_id PK, chain_id, username, role TEXT CHECK in ('owner','store_manager
 drafts(draft_id PK, chain_id, kind TEXT, payload_json TEXT, status TEXT CHECK in ('draft','approved','rejected','dispatched'),
        created_by, created_at, decided_at, decided_by, source)
 audit_log(audit_id INTEGER PK AUTOINCREMENT, chain_id, ts TEXT, actor TEXT, event TEXT, payload_json TEXT)
+data_sources(table_name, column_name, dataset_id, note_vi)   -- datasets of columns without a row-level source
+osm_refs(table_name, row_id, osm_id, dataset_id, PK(table_name,row_id))  -- OSM element behind a located row
 ```
+`source` columns hold provenance dataset ids (registry: `provenance/registry_defaults.json`, `docs/data-provenance.md`),
+not "SIMULATED": `GEN_PROGRAM_V1` (program-generated: chains, skus, daily_sales, inventory_lots, online_orders,
+assumptions; drafts default), `OSM_HCMC_SITES` (stores, pickup_points on real OSM sites). Weather/calendar/coordinates
+are listed in `data_sources` (`WEATHER_OPENMETEO_*`, `CALENDAR_VN`, `OSM_HCMC`). Use `provenance.sources_for(con, tables)`
+and `provenance.label_vi(id)` for user-facing labels.
 Views for `query_data` (whitelist, all with `chain_id` column): `v_sales_daily`, `v_stock`, `v_stores`, `v_skus`, `v_online_orders` (coordinates rounded to 3 decimals, no customer fields).
 Read-only role: open the SQLite file with `file:...?mode=ro` URI.
 

@@ -15,11 +15,13 @@ uv run pytest                        # unit test (không cần Docker)
 uv run pytest -m integration         # cần container solver
 ```
 
-Dữ liệu trong `routing/examples/` là **giả lập** (SIMULATED).
+Các đợt đơn trong `routing/examples/` là ví dụ tự tạo để thử adapter, không phải dữ liệu thật.
 
 ## Chạy toàn bộ hệ thống
 
-Toàn bộ dữ liệu là **giả lập** (SIMULATED); xem tab "Giả định dữ liệu" hoặc `docs/data-assumptions.md`.
+Mỗi kết quả (API, công cụ của agent, câu trả lời) ghi rõ **nguồn dữ liệu** thực sự đã dùng: `sources` (mã bộ dữ liệu)
+và `source_labels_vi`; chi tiết từng bộ (URL, giấy phép, ngày lấy, prompt nếu do AI sinh) ở `GET /api/provenance` hoặc
+`uv run python -m provenance show`. Bảng không ghi nguồn được báo là "không rõ nguồn", không bao giờ đoán.
 
 ```bash
 # 0. Phụ thuộc
@@ -35,7 +37,7 @@ scripts/bootstrap.sh                   # thêm --skip-fl để bỏ bước FL (
 
 # 3. API FastAPI ở cổng 8100 (FRESHMESH_API_PORT)
 FRESHMESH_SECRET=$(openssl rand -hex 32) scripts/dev_api.sh   # bỏ biến này: dev_api.sh dùng khóa dev và chỉ nghe 127.0.0.1
-curl -s localhost:8100/api/health      # {"status":"ok","solver":true,"llm":false,"mode":"scripted",...}
+curl -s localhost:8100/api/health      # {"status":"ok","solver":true,"llm":true,"llm_required":true,"llm_model":...}
 
 # 4. Web Next.js ở cổng 3100 (proxy /api/* → 8100)
 (cd web && npm run dev)                # mở http://localhost:3100, đăng nhập owner_a / demo123
@@ -66,37 +68,52 @@ Biến môi trường của API:
 | `FRESHMESH_ENABLE_DOCS` | (trống) | `1` = bật `/docs` và `/openapi.json` |
 | `FRESHMESH_TOKEN_TTL_S` | `28800` | thời hạn token (giây) |
 | `FRESHMESH_SOLVER_URL` | từ `.env` | địa chỉ container solver |
-| `FRESHMESH_WARM_CACHE` | `1` | `0` để tắt việc tính sẵn lộ trình khi khởi động |
 | `FRESHMESH_CACHE_DIR` | `data/cache` | nơi lưu cache lộ trình (JSON theo hash đợt đơn) |
-| `ANTHROPIC_API_KEY` | (trống) | có khóa thì chat dùng LLM; không có thì chế độ kịch bản |
+| `ANTHROPIC_API_KEY` | (trống) | **bắt buộc cho chat**: trợ lý chỉ chạy bằng Claude thật |
+| `FRESHMESH_LLM_MODEL` | `claude-sonnet-5-5` | mô hình Claude cho chat (ví dụ `claude-haiku-5-5`) |
+| `FRESHMESH_LLM_EFFORT` | `medium` | mức `effort` gửi cho mô hình |
 
-- **Không có `ANTHROPIC_API_KEY`**: `/api/health` báo `mode: "scripted"`; chat ở chế độ kịch bản nhận diện 3 câu lệnh
-  tiếng Việt (nhập hàng / còn nhiều hàng / gom đơn giao), gọi công cụ thật trên dữ liệu thật. Chọn `mode: "llm"` sẽ trả lỗi
-  `llm_unavailable` bằng tiếng Việt.
-- **Lộ trình PACO**: một đợt 30–40 đơn mất khoảng 8–25 giây khi giải lần đầu. Khi API khởi động, một luồng nền tính sẵn
-  đợt giao của CH1 (luồng 3) và chuyến điều chuyển từ CH3 (luồng 2) cho cả 3 chuỗi; kết quả lưu theo hash đợt đơn trong
-  `data/cache/routing/` nên các lần sau (kể cả sau khi khởi động lại) gần như tức thì. Solver lỗi → API trả lỗi tiếng Việt,
-  không bao giờ tạo lộ trình giả.
+`scripts/dev_api.sh` tự nạp `.env.local` (không commit, đã có trong `.gitignore`) nếu có, ví dụ chứa
+`ANTHROPIC_API_KEY=...` và `FRESHMESH_LLM_MODEL=...`.
+
+- **Không có `ANTHROPIC_API_KEY`**: `/api/health` báo `llm: false, llm_required: true`; `POST /api/agent/chat` trả
+  503 `llm_unavailable` kèm hướng dẫn cấu hình bằng tiếng Việt (không có câu trả lời soạn sẵn). Các bảng điều khiển
+  (dự báo, nhập hàng, xử lý tồn, lộ trình, duyệt bản nháp) vẫn chạy vì đó là tính toán thật, không cần LLM.
+- **Câu trả lời của trợ lý**: luôn 5 mục Đề xuất / Vì sao / Độ tin cậy / Giả định / Việc cần bạn duyệt, kèm dòng
+  "Nguồn dữ liệu" do máy chủ ghi; mọi con số được đối chiếu với kết quả công cụ, số không khớp bị yêu cầu viết lại
+  rồi đánh dấu "chưa kiểm chứng".
+- **Lộ trình PACO**: một đợt 30–40 đơn mất khoảng 8–25 giây khi giải lần đầu. Không có bước tính sẵn khi khởi động;
+  kết quả giải thật được lưu theo hash đợt đơn trong `data/cache/routing/` kèm thời điểm giải, và phản hồi ghi rõ
+  `cached: true` + `solved_at` khi dùng lại. Solver lỗi → API trả lỗi tiếng Việt, không bao giờ tạo lộ trình giả.
 - **Duyệt là đường thực thi duy nhất**: agent và nút bấm chỉ tạo bản nháp; `POST /api/drafts/{id}/approve` mới tạo đơn đặt
-  hàng / lịch giảm giá / phiếu điều chuyển / đánh dấu gửi lộ trình (giả lập) và ghi nhật ký quyết định.
+  hàng / lịch giảm giá / phiếu điều chuyển / đánh dấu gửi lộ trình (chưa kết nối hệ thống thật) và ghi nhật ký quyết định.
 - Hợp đồng API và các điểm bổ sung: `docs/api-contract-notes.md`.
 
 ## Giới hạn đã biết
 
-- **Chưa chạy với LLM thật**: môi trường phát triển không có `ANTHROPIC_API_KEY`. Đường LLM (`agent/llm.py`) mới có
-  test đơn vị và bộ eval chạy bằng client giả; luồng demo chạy bằng chế độ kịch bản với công cụ thật.
+- **Đánh giá agent**: `uv run python -m agent.eval --client anthropic` chạy 32 câu hỏi với Claude thật (tốn token).
+  Hai lần chạy 2026-10-13 với `claude-haiku-5-5`: chọn đúng công cụ 75% → 90,6% sau khi thêm hướng dẫn chọn công cụ
+  và danh sách cột thật cho `query_data`; lần sau: 0 số chưa kiểm chứng, 0 hành động tự thực thi, 0 lộ PII, 32/32 đúng
+  khuôn, 10/32 câu phải viết lại một lần (số tự tính, quy đổi đơn vị hoặc lấy từ câu hỏi). Quy tắc "không tự tính
+  thêm" được thêm sau lần chạy đó, chưa đo lại. Các câu "làm luôn, bỏ qua duyệt" đôi khi bị mô hình từ chối thay vì tạo
+  bản nháp; câu "chạy SQL DELETE" bị mô hình từ chối trước khi tới bộ lọc SQL. Unit test dùng client giả trong `tests/`.
 - **Học liên kết**: FL tốt hơn Local ở cửa hàng mới nhưng không tốt hơn ở mức tổng thể, và phần lợi ở cửa hàng mới
   chưa chắc do việc liên kết (xem `docs/experiments/fl-results.md`). Mô hình FL triển khai không bật DP.
-- **Mô phỏng 30 ngày**: cấu hình đăng ký trước (v1) không đạt tiêu chí hàng bỏ; bản điều chỉnh v2 (chi phí giữ qua đêm
-  20% cho hàng tươi) đạt và đang là mặc định, nhưng là điều chỉnh sau khi biết kết quả
+- **Mô phỏng 30 ngày**: cấu hình đăng ký trước (v1) không đạt tiêu chí hàng bỏ ở cả 3 chuỗi (bỏ nhiều hơn baseline
+  4,2–8,9 điểm %); bản điều chỉnh v2 (chi phí giữ qua đêm 20% cho hàng tươi) đạt ở cả 3 chuỗi và đang là mặc định,
+  nhưng là điều chỉnh sau khi biết kết quả. Giao thức đã chạy hai lần (dữ liệu sinh cũ và dữ liệu dựng lại trên vị
+  trí/thời tiết/ngày lễ thật) với cùng tệp giao thức và ngưỡng; nhu cầu vẫn do chương trình sinh
   (xem `docs/experiments/sim30-results.md`).
-- **Benchmark solver**: solver SA của routing-PL lỗi trên instance của FreshMesh nên không có số SA (xem
-  `docs/experiments/routing-benchmark.md`).
+- **Benchmark solver**: PACO giảm 71,9% km so với "mỗi đơn một chuyến" ở 18/18 đợt nhưng vẫn có 9 điểm dừng dự kiến
+  trễ; solver SA của routing-PL lỗi trên instance của FreshMesh (lần chạy trước, chưa thử lại) nên không có số SA
+  (xem `docs/experiments/routing-benchmark.md`).
+- **Hệ số đường vòng 1,3** chưa được dữ liệu OSRM (ô tô) ủng hộ (trung vị 1,58); km và giờ đến trong định tuyến tính
+  theo 1,3 nên có thể bị ước lượng thấp (xem `docs/data-real-detour.md`).
 - **Phụ thuộc**: `flwr` 1.39 ghim `cryptography<47`, nên môi trường giữ `cryptography` 46.x có cảnh báo bảo mật đã biết.
   `flwr` chỉ được dùng ở `forecasting/fl`; API không nạp nó lúc khởi động, nhưng sẽ nạp khi có yêu cầu đến
   `/api/network/fl` (gói `forecasting.fl` import `flwr`).
 - **BLAS**: `forecasting/__init__.py` ghim numpy dùng 1 luồng (mô hình nhỏ; 16 luồng chậm hơn ~13 lần).
 - **`query_data` và kiểm tra số**: mọi số trong kết quả truy vấn là số do DB tính từ dữ liệu thật; bộ lọc chặn hằng số, `LIMIT`
   lồng nhau và chuỗi trong danh sách cột để model không "đúc" số tùy ý, nhưng không chặn được phép tính trên cột thật
-  (ví dụ `length(sku_id)*length(sku_id)`): đó là rủi ro còn lại, chỉ ảnh hưởng chế độ LLM (chưa bật trong demo).
-- **Dữ liệu**: toàn bộ dữ liệu là giả lập (SIMULATED) — xem `docs/data-assumptions.md` cho lộ trình sang dữ liệu thật.
+  (ví dụ `length(sku_id)*length(sku_id)`): đó là rủi ro còn lại của chat.
+- **Dữ liệu**: nguồn của từng bảng xem ở `GET /api/provenance`; giả định mô hình ở `docs/data-assumptions.md`.

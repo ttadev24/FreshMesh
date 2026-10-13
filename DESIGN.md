@@ -6,14 +6,14 @@
 
 - **Human-in-the-loop**: The system proposes, human decides ("Duyệt / Sửa / Bỏ").
 - **Language**: Vietnamese for all user-facing strings, prompts, labels, and errors; English for identifiers, code symbols, and logs.
-- **Transparency**: Every simulation, heuristic, or forecasted metric MUST be labeled clearly (`SIMULATED`, sources, confidence intervals).
+- **Transparency**: Every number MUST show its data provenance (dataset name, kind — public / AI-generated / program-generated / computed —, URL, licence, retrieval time; AI-generated data also shows its prompt ids) plus confidence intervals for forecasts. The generic `SIMULATED` label is replaced by these provenance labels (see `docs/data-provenance.md`).
 - **Graceful Failure**: Never hallucinate or synthesize fake routes or numbers. When a solver fails or an order cannot be met, report clear Vietnamese reasons and flag at-risk orders.
 
 ## 2. CLI UI/UX Guidelines (Plan 1)
 
 The CLI tool (`routing.cli`) formats route plans for human operators:
 - **Header**:
-  - `FreshMesh — lộ trình đợt giao (dữ liệu: SIMULATED)`
+  - `FreshMesh — lộ trình đợt giao (nguồn dữ liệu: <nhãn nguồn>)`
   - `Cửa hàng: <store_id> | Solver: <SOLVER> | Thời gian giải: <runtime>s`
   - `Xe dùng: <count> (VƯỢT số xe hiện có if exceeds_fleet)`
   - `Quãng đường ước tính: <km> km (đã gồm hệ số đường vòng)`
@@ -36,7 +36,7 @@ The CLI tool (`routing.cli`) formats route plans for human operators:
 
 - **Layout**: Two-pane split dashboard:
   - Left pane: Conversational AI agent, action proposal cards with "Duyệt / Sửa / Bỏ" action buttons, audit trail.
-  - Right pane: Contextual analytical dashboard (P10-P90 forecast bands, interactive Leaflet/OSM route map with vehicle paths and locker nodes, trust badges, data assumption tabs).
+  - Right pane: Contextual analytical dashboard (P10-P90 forecast bands, interactive Leaflet/OSM route map with vehicle paths and locker nodes, trust badges, provenance badge and the "Nguồn & giả định dữ liệu" tab).
 - **Tone & Typography**: Clean, high-density, professional supply-chain interface.
 - **Color Palette**:
   - Primary: Forest / Fresh Green (representing fresh goods efficiency).

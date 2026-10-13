@@ -1,0 +1,24 @@
+{
+  "source": "SIMULATED",
+  "store": {"store_id": "Q7-01", "lat": 10.7340, "lng": 106.7210},
+  "num_vehicles": 3,
+  "vehicle_capacity": 8,
+  "pickup_points": [
+    {"point_id": "PP-SKYGARDEN", "lat": 10.7290, "lng": 106.7070},
+    {"point_id": "PP-HUNGVUONG", "lat": 10.7275, "lng": 106.7110}
+  ],
+  "orders": [
+    {"order_id": "D001", "lat": 10.7380, "lng": 106.7225, "demand": 2, "earliest_min": 0,  "latest_min": 60,  "mode": "home"},
+    {"order_id": "D002", "lat": 10.7295, "lng": 106.7080, "demand": 1, "earliest_min": 0,  "latest_min": 240, "mode": "pickup", "pickup_point_id": "PP-SKYGARDEN"},
+    {"order_id": "D003", "lat": 10.7268, "lng": 106.7115, "demand": 1, "earliest_min": 0,  "latest_min": 120, "mode": "flexible"},
+    {"order_id": "D004", "lat": 10.7412, "lng": 106.7190, "demand": 3, "earliest_min": 30, "latest_min": 90,  "mode": "home"},
+    {"order_id": "D005", "lat": 10.7320, "lng": 106.7300, "demand": 1, "earliest_min": 0,  "latest_min": 45,  "mode": "home"},
+    {"order_id": "D006", "lat": 10.7282, "lng": 106.7105, "demand": 2, "earliest_min": 0,  "latest_min": 240, "mode": "pickup", "pickup_point_id": "PP-HUNGVUONG"},
+    {"order_id": "D007", "lat": 10.7355, "lng": 106.7150, "demand": 1, "earliest_min": 15, "latest_min": 75,  "mode": "flexible"},
+    {"order_id": "D008", "lat": 10.7250, "lng": 106.7240, "demand": 2, "earliest_min": 0,  "latest_min": 120, "mode": "home"},
+    {"order_id": "D009", "lat": 10.7340, "lng": 106.7210, "demand": 1, "earliest_min": 0,  "latest_min": 240, "mode": "pickup", "pickup_point_id": "Q7-01-counter"},
+    {"order_id": "D010", "lat": 10.7400, "lng": 106.7280, "demand": 2, "earliest_min": 0,  "latest_min": 100, "mode": "home"},
+    {"order_id": "D011", "lat": 10.7300, "lng": 106.7060, "demand": 1, "earliest_min": 0,  "latest_min": 90,  "mode": "flexible"},
+    {"order_id": "D012", "lat": 10.7600, "lng": 106.7600, "demand": 1, "earliest_min": 0,  "latest_min": 10,  "mode": "home"}
+  ]
+}

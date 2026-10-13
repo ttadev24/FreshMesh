@@ -1,0 +1,10 @@
+services:
+  solver:
+    build:
+      context: ./routing/routing-PL
+    image: freshmesh-solver:routing-pl-32488ce
+    container_name: freshmesh-solver
+    ports:
+      - "${FRESHMESH_SOLVER_PORT:-8000}:8000"   # routing-PL FastAPI (/solve, /health)
+      - "${FRESHMESH_STREAMLIT_PORT:-8501}:8501"   # routing-PL Streamlit (internal solver comparison)
+    restart: unless-stopped

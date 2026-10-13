@@ -7,13 +7,22 @@ from api.auth import User, issue_token, verify_token
 from tests.api.conftest import SECRET, assert_error, login
 
 
-def test_health_is_public_and_reports_scripted_mode(client, monkeypatch):
+def test_health_is_public_and_reports_llm_requirement(client, monkeypatch):
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.delenv("FRESHMESH_LLM_MODEL", raising=False)
     r = client.get("/api/health")
     assert r.status_code == 200
     body = r.json()
-    assert body["status"] == "ok" and body["mode"] == "scripted" and body["llm"] is False
-    assert body["solver"] is True
+    assert body == {
+        "status": "ok",
+        "solver": True,
+        "llm": False,
+        "llm_required": True,
+        "llm_model": "claude-sonnet-5-5",
+        "data": True,
+    }
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
+    assert client.get("/api/health").json()["llm"] is True
 
 
 def test_login_returns_token_and_user(client):
@@ -30,15 +39,23 @@ def test_login_returns_token_and_user(client):
 
 
 def test_wrong_password_and_unknown_user(client):
-    assert_error(client.post("/api/auth/login", json={"username": "owner_a", "password": "x"}), 401,
-                 "invalid_credentials")
-    assert_error(client.post("/api/auth/login", json={"username": "nobody", "password": "demo123"}), 401,
-                 "invalid_credentials")
+    assert_error(
+        client.post("/api/auth/login", json={"username": "owner_a", "password": "x"}),
+        401,
+        "invalid_credentials",
+    )
+    assert_error(
+        client.post("/api/auth/login", json={"username": "nobody", "password": "demo123"}),
+        401,
+        "invalid_credentials",
+    )
 
 
 def test_missing_and_garbage_tokens(client):
     assert_error(client.get("/api/stores"), 401, "unauthorized")
-    assert_error(client.get("/api/stores", headers={"Authorization": "Bearer abc.def.ghi"}), 401, "invalid_token")
+    assert_error(
+        client.get("/api/stores", headers={"Authorization": "Bearer abc.def.ghi"}), 401, "invalid_token"
+    )
 
 
 def test_expired_token():
@@ -70,17 +87,22 @@ def test_tenant_isolation_chain_a_never_reads_chain_b(client, owner_a, owner_b):
     assert all(s.startswith("A-") for s in a_stores)
     # Naming a CHAIN_B store with a CHAIN_A token is "not in your chain", never data.
     assert_error(client.get("/api/forecast?store_id=B-CH1", headers=owner_a), 404, "unknown_store")
-    assert_error(client.post("/api/routing/plan", json={"store_id": "B-CH1"}, headers=owner_a), 404, "unknown_store")
+    assert_error(
+        client.post("/api/routing/plan", json={"store_id": "B-CH1"}, headers=owner_a), 404, "unknown_store"
+    )
     # A chain_id in the body is ignored: the tenant comes from the token.
-    r = client.post("/api/inventory/plan", json={"store_id": "CH2", "categories": ["rau"], "chain_id": "CHAIN_B"},
-                    headers=owner_a)
+    r = client.post(
+        "/api/inventory/plan",
+        json={"store_id": "CH2", "categories": ["rau"], "chain_id": "CHAIN_B"},
+        headers=owner_a,
+    )
     assert r.status_code == 200 and r.json()["store_id"] == "A-CH2"
 
 
 def test_me_has_chain_name(client):
     headers = login(client, "owner_c")
     body = client.get("/api/me", headers=headers).json()
-    assert body["chain_id"] == "CHAIN_C" and body["chain_name"] and body["source"] == "SIMULATED"
+    assert body["chain_id"] == "CHAIN_C" and body["chain_name"] and "source" not in body
 
 
 def test_secret_is_required_unless_dev_flag(monkeypatch):

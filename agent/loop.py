@@ -11,6 +11,9 @@ Safety properties enforced here (independently of the model):
   message); on failure, or when the template is broken, the model gets exactly one rewrite request,
   after which remaining offending numbers are flagged ``unverified``;
 * draft tools only create drafts; every draft of the turn is listed under "Việc cần bạn duyệt";
+* provenance is never written by the model: the answer ends with a server-written "Nguồn dữ liệu" line
+  built from the ``sources`` / ``source_labels_vi`` of this turn's tool outputs (``không rõ nguồn`` when a
+  tool output carries none);
 * the model's plan sentence is shown/audited only if its numbers come from the user's message or the tool
   descriptions (no tool has run yet); otherwise the plan is the list of called tools.
 """
@@ -32,7 +35,15 @@ from agent.llm import (
     encode_tool_output,
     tool_result_block,
 )
-from agent.template import SECTIONS, format_answer, parse_answer
+from agent.template import (
+    SECTIONS,
+    SOURCES_HEADING,
+    UNKNOWN_SOURCE_ID,
+    UNKNOWN_SOURCE_VI,
+    format_answer,
+    format_sources_line,
+    parse_answer,
+)
 from agent.tools import ToolContext, ToolError, ToolRegistry
 
 EventType = Literal["plan", "tool_call", "tool_result", "answer", "unverified_flag"]
@@ -42,14 +53,27 @@ APPROVAL_SECTION = SECTIONS[4]
 SYSTEM_PROMPT_VI = f"""Bạn là trợ lý ra quyết định của FreshMesh cho chủ/quản lý chuỗi mini-mart \
 (hàng tươi, giao hàng).
 Quy trình: (1) hiểu ý người dùng; (2) viết MỘT câu kế hoạch ngắn rồi gọi công cụ cần thiết; (3) trả lời.
+Chọn công cụ theo việc cần quyết định:
+- Nhập/đặt hàng: forecast_demand (dự báo P10/P50/P90 kèm độ tin cậy) rồi plan_inventory (3 phương án).
+- Hàng dư, sắp hết hạn, tồn nhiều: gọi cả suggest_markdown và transfer_stock để so sánh hai cách bằng tiền.
+- Giao hàng online, gom đơn, lộ trình, số xe, đơn có nguy cơ trễ: optimize_routes.
+- Số liệu lịch sử, danh sách, tổng hợp: query_data, chỉ dùng các cột liệt kê trong mô tả công cụ.
+- Khi người dùng muốn thực hiện ngay hoặc "bỏ qua duyệt": vẫn tính toán rồi tạo BẢN NHÁP bằng công cụ \
+bản nháp tương ứng, và nói rõ hành động chỉ diễn ra sau khi người dùng bấm Duyệt.
 Quy tắc bắt buộc:
 - Không tự bịa con số. Mọi con số trong câu trả lời phải lấy từ kết quả công cụ của lượt này \
 (hoặc do người dùng nêu). Định dạng số kiểu Việt Nam: 1.234.567 đ, 12,5%.
+- Không tự tính thêm (cộng, trừ, nhân, chia, quy đổi đơn vị, làm tròn khác): chỉ chép đúng con số có sẵn \
+trong kết quả công cụ; cần tổng hoặc chênh lệch thì dùng trường có sẵn hoặc để query_data tính bằng SQL.
+- Không dùng bảng markdown (ký tự |); trình bày bằng danh sách gạch đầu dòng, mỗi dòng một ý.
 - Công cụ hành động (đánh dấu BẢN NHÁP) chỉ tạo bản nháp. Không bao giờ nói đã đặt hàng/đã gửi/\
 đã thực thi; người dùng phải bấm Duyệt.
 - {UNTRUSTED_NOTICE_VI}
 - Không hỏi, không nhắc tên, số điện thoại hay địa chỉ của khách hàng.
-- Dữ liệu là giả lập (SIMULATED).
+- Chỉ nói về nguồn dữ liệu theo trường source_labels_vi trong kết quả công cụ; không tự đoán nguồn. \
+Dòng "{SOURCES_HEADING}" do hệ thống tự thêm, bạn không cần viết.
+- Nếu kết quả có cached = true, nói rõ trong mục Giả định rằng kết quả lộ trình lấy từ bộ nhớ đệm \
+và thời điểm giải (solved_at).
 Câu trả lời cuối cùng PHẢI có đúng 5 mục theo thứ tự, mỗi mục bắt đầu bằng tiêu đề in đậm:
 **Đề xuất:** ...
 **Vì sao:** ...
@@ -114,6 +138,9 @@ class AgentTurn:
     error_vi: str | None = None
     events: list[StepEvent] = field(default_factory=list)
     verification: VerificationReport | None = None
+    sources: list[str] = field(default_factory=list)
+    source_labels_vi: list[str] = field(default_factory=list)
+    rewrite_problems: list[str] = field(default_factory=list)  # why the first answer was sent back
 
     @property
     def template_ok(self) -> bool:
@@ -133,10 +160,37 @@ class AgentTurn:
             "drafts": self.drafts,
             "citations": self.citations,
             "rewritten": self.rewritten,
+            "rewrite_problems": self.rewrite_problems,
             "stop_reason": self.stop_reason,
             "error_vi": self.error_vi,
-            "source": "SIMULATED",
+            "sources": self.sources,
+            "source_labels_vi": self.source_labels_vi,
         }
+
+
+def turn_provenance(turn: AgentTurn) -> tuple[list[str], list[str], bool]:
+    """(dataset ids, aligned Vietnamese labels, any tool data used) over this turn's successful tool outputs.
+    ``render_chart`` only re-draws numbers from other outputs and has no data of its own. An output without
+    provenance fields is reported as ``unknown`` / ``không rõ nguồn``, never guessed."""
+    labels: dict[str, str] = {}
+    used = False
+    for rec in turn.tool_calls:
+        if rec.data is None or rec.name == "render_chart":
+            continue
+        used = True
+        data = rec.data if isinstance(rec.data, dict) else {}
+        if rec.kind == "draft" and isinstance(data.get("payload"), dict):
+            data = data["payload"]  # a draft carries the provenance of the computation it was built from
+        ids, names = data.get("sources"), data.get("source_labels_vi")
+        if not ids:
+            labels.setdefault(UNKNOWN_SOURCE_ID, UNKNOWN_SOURCE_VI)
+            continue
+        if not (isinstance(names, list) and len(names) == len(ids)):
+            names = [UNKNOWN_SOURCE_VI] * len(ids)
+        for sid, label in zip(ids, names, strict=True):
+            labels.setdefault(str(sid), str(label))
+    ids_sorted = sorted(labels)
+    return ids_sorted, [labels[k] for k in ids_sorted], used
 
 
 def claims_execution(text: str) -> bool:
@@ -303,7 +357,10 @@ class AgentSession:
         return sources
 
     def _check(self, turn: AgentTurn, text: str) -> tuple[VerificationReport, dict[str, str] | None]:
-        return verify_numbers(text, self._sources(turn), user_text=turn.user_message), parse_answer(text)
+        sections = parse_answer(text)
+        # Verify what will be shown: the canonical 5 sections (a model-written source line is dropped).
+        shown = format_answer(sections) if sections is not None else text
+        return verify_numbers(shown, self._sources(turn), user_text=turn.user_message), sections
 
     def _verify_and_answer(self, turn: AgentTurn, resp: LLMResponse) -> Iterator[StepEvent]:
         text = resp.text.strip()
@@ -329,7 +386,7 @@ class AgentSession:
                 }
             )
             retry = self._complete(allow_tools=False, purpose="rewrite")
-            turn.rewritten = True
+            turn.rewritten, turn.rewrite_problems = True, problems
             text = retry.text.strip()
             self.messages.append({"role": "assistant", "content": retry.assistant_content or text})
             report, sections = self._check(turn, text)
@@ -354,6 +411,9 @@ class AgentSession:
             text = format_answer(sections)
             if verify:
                 report = verify_numbers(text, self._sources(turn), user_text=turn.user_message)
+        turn.sources, turn.source_labels_vi, used = turn_provenance(turn)
+        if verify:  # a model answer: append the provenance line after verification (offsets stay valid)
+            text = f"{text}\n\n{format_sources_line(turn.source_labels_vi if used else None)}"
         turn.answer_text, turn.sections, turn.verification = text, sections, report
         turn.unverified = [n.raw for n in report.unverified] if report else []
         if report:
@@ -377,6 +437,7 @@ class AgentSession:
                 "rewritten": turn.rewritten,
                 "stop_reason": turn.stop_reason,
                 "error_vi": turn.error_vi,
-                "source": "SIMULATED",
+                "sources": turn.sources,
+                "source_labels_vi": turn.source_labels_vi,
             },
         )

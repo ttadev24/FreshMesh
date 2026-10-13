@@ -62,7 +62,6 @@ class Settings:
     secret: str = field(default_factory=_secret)
     token_ttl_s: int = field(default_factory=lambda: int(os.environ.get("FRESHMESH_TOKEN_TTL_S", "28800")))
     solver_url: str = field(default_factory=default_solver_url)
-    warm_cache: bool = field(default_factory=lambda: os.environ.get("FRESHMESH_WARM_CACHE", "1") != "0")
     fleet_vehicles: int = FLEET_VEHICLES
     fleet_capacity: int = FLEET_CAPACITY
 

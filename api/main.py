@@ -9,37 +9,29 @@ from __future__ import annotations
 import json
 import logging
 import os
-import threading
 import time
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from contextlib import asynccontextmanager
-from typing import Any, Literal
+from typing import Any
 
-from fastapi import Depends, FastAPI, Request
+from fastapi import Depends, FastAPI
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
 from agent.audit import AuditLog
-from agent.llm import AnthropicClient, LLMUnavailableError, ScriptedClient, llm_available
+from agent.llm import AnthropicClient, LLMClient, LLMUnavailableError, configured_model, llm_available
 from agent.loop import AgentSession, AgentTurn
 from agent.tools import ToolContext, ToolError
+from api import provenance_view
 from api.auth import User, authenticate, current_user, issue_token
 from api.config import Settings
 from api.drafts import DRAFT_KINDS, SqlDraftStore
 from api.errors import ApiError, install_error_handlers
-from api.repo import ensure_store_access, resolve_store_id
+from api.repo import ChainRepo, ensure_store_access, resolve_store_id
 from api.routing_service import RoutingService, make_solver_client
-from api.scenarios import (
-    FLOW_TITLES_VI,
-    UNKNOWN_INTENT_VI,
-    build_scenario,
-    default_store,
-    detect_intent,
-    flow_message,
-)
 from api.services import DEFAULT_NOW_HOUR, Services, assumptions_payload, fl_summary_payload
 from api.tools import build_registry, make_edit_applier
-from data_sim import CHAIN_IDS, SOURCE, chain_db_path
+from data_sim import CHAIN_IDS, chain_db_path
 from forecasting.service import model_ready, resolve_model_kind
 from routing.client import SolverClient
 from routing.planner import Solver
@@ -93,13 +85,7 @@ class DecisionBody(BaseModel):
 
 class ChatBody(BaseModel):
     message: str = Field(min_length=1, max_length=2000)
-    mode: Literal["llm", "scripted"] | None = None
     store_id: str | None = None
-
-
-class ScenarioBody(BaseModel):
-    store_id: str | None = None
-    now_minute: int = Field(default=0, ge=0, le=240)
 
 
 # ---------------------------------------------------------------- helpers
@@ -117,9 +103,27 @@ def _turn_dict(turn: AgentTurn, extra: dict[str, Any]) -> dict[str, Any]:
     return {**turn.to_dict(), "events": [e.to_dict() for e in turn.events], **extra}
 
 
-def create_app(settings: Settings | None = None, solver: Solver | None | object = _DEFAULT) -> FastAPI:
+def row_provenance(repo: ChainRepo, ids: list[str | None]) -> dict[str | None, dict[str, list[str]]]:
+    """Per-row provenance with one registry load: raw row id → ``{sources, source_labels_vi}``."""
+    distinct = list(dict.fromkeys(ids))
+    labelled = repo.labelled(distinct)
+    by_id = dict(zip(labelled["sources"], labelled["source_labels_vi"], strict=True))
+    out = {}
+    for raw in distinct:
+        key = repo.labelled_id(raw)
+        out[raw] = {"sources": [key], "source_labels_vi": [by_id[key]]}
+    return out
+
+
+def create_app(
+    settings: Settings | None = None,
+    solver: Solver | None | object = _DEFAULT,
+    llm_client_factory: Callable[[], LLMClient] | None = None,
+) -> FastAPI:
     """App factory. ``solver`` defaults to the routing-PL HTTP client at ``settings.solver_url``;
-    tests pass a fake solver (or ``None`` = unreachable)."""
+    tests pass a fake solver (or ``None`` = unreachable). ``llm_client_factory`` defaults to the real
+    :class:`AnthropicClient` (raises :class:`LLMUnavailableError` without a key → 503 ``llm_unavailable``);
+    tests inject a deterministic fake LLM. There is no scripted fallback."""
     settings = settings or Settings()
     solver_obj: Solver | None = make_solver_client(settings.solver_url) if solver is _DEFAULT else solver  # type: ignore[assignment]
     routing = RoutingService(
@@ -132,40 +136,6 @@ def create_app(settings: Settings | None = None, solver: Solver | None | object 
     drafts = SqlDraftStore(settings.data_dir)
     registry = build_registry(services, drafts)
     health_cache: dict[str, Any] = {"t": 0.0, "solver": False, "client": None}
-
-    warm_status: dict[str, Any] = {"state": "idle", "done": 0, "total": 0, "failed": 0, "seconds": None}
-
-    def warm_cache() -> None:
-        """Pre-solve demo batches in priority order: flow 3 of each chain's first store, flow 2 transfer
-        from CH3, then flow 3 of every other store (CHAIN_A first). Results persist in the routing cache."""
-        jobs: list[tuple[str, str, str]] = []  # (chain_id, kind, store_id)
-        rest: list[tuple[str, str, str]] = []
-        for chain_id in CHAIN_IDS:
-            if not chain_db_path(settings.data_dir, chain_id).exists():
-                continue
-            stores = [st.store_id for st in services.repo(chain_id).stores()]
-            if not stores:
-                continue
-            jobs.append((chain_id, "routes", stores[0]))
-            ch3 = [sid for sid in stores if sid.endswith("-CH3")]
-            jobs += [(chain_id, "transfer", sid) for sid in ch3]
-            rest += [(chain_id, "routes", sid) for sid in stores[1:]]
-        jobs += rest
-        warm_status.update(state="running", total=len(jobs))
-        t0 = time.perf_counter()
-        for chain_id, kind, store_id in jobs:
-            try:
-                if kind == "routes":
-                    services.routing_plan(chain_id, store_id)
-                else:
-                    veg = services.repo(chain_id).select_skus(None, ["vegetable"])
-                    services.transfer(chain_id, store_id, veg)
-            except Exception as exc:  # warm-up must never break the server
-                warm_status["failed"] += 1
-                log.warning("cache warm-up %s %s/%s failed: %s", kind, chain_id, store_id, exc)
-            warm_status["done"] += 1
-        warm_status.update(state="finished", seconds=round(time.perf_counter() - t0, 1))
-        log.info("routing cache warm-up: %d jobs in %.1fs", len(jobs), warm_status["seconds"])
 
     @asynccontextmanager
     async def lifespan(_: FastAPI):
@@ -184,8 +154,6 @@ def create_app(settings: Settings | None = None, solver: Solver | None | object 
                     chain_id,
                     settings.data_dir,
                 )
-        if settings.warm_cache and solver_obj is not None:
-            threading.Thread(target=warm_cache, name="routing-warmup", daemon=True).start()
         yield
 
     docs_on = os.environ.get("FRESHMESH_ENABLE_DOCS") == "1"
@@ -201,7 +169,6 @@ def create_app(settings: Settings | None = None, solver: Solver | None | object 
     app.state.services = services
     app.state.drafts = drafts
     app.state.registry = registry
-    app.state.warm_cache = warm_cache
     install_error_handlers(app)
 
     def store_for(user: User, raw: str | None) -> str:
@@ -238,16 +205,14 @@ def create_app(settings: Settings | None = None, solver: Solver | None | object 
 
     @app.get("/api/health")
     def health() -> dict[str, Any]:
-        llm = llm_available()
         data_ready = all(chain_db_path(settings.data_dir, c).exists() for c in CHAIN_IDS)
         return {
             "status": "ok" if data_ready else "degraded",
             "solver": solver_up(),
-            "llm": llm,
-            "mode": "llm" if llm else "scripted",
+            "llm": llm_client_factory is not None or llm_available(),
+            "llm_required": True,
+            "llm_model": configured_model(),
             "data": data_ready,
-            "routing_cache_warmup": dict(warm_status),
-            "source": SOURCE,
         }
 
     @app.post("/api/auth/login")
@@ -267,16 +232,21 @@ def create_app(settings: Settings | None = None, solver: Solver | None | object 
     def me(user: User = Depends(current_user)) -> dict[str, Any]:
         repo = services.repo(user.chain_id)
         store_name = repo.store(user.store_id).name if user.store_id else None
-        return {**user.to_dict(), "chain_name": repo.chain_name(), "store_name": store_name, "source": SOURCE}
+        return {**user.to_dict(), "chain_name": repo.chain_name(), "store_name": store_name}
 
     @app.get("/api/stores")
     def stores(user: User = Depends(current_user)) -> list[dict[str, Any]]:
-        rows = services.repo(user.chain_id).stores()
-        return [s.to_dict() for s in rows if user.is_owner or s.store_id == user.store_id]
+        repo = services.repo(user.chain_id)
+        rows = [s for s in repo.stores() if user.is_owner or s.store_id == user.store_id]
+        prov = row_provenance(repo, [s.source for s in rows])
+        return [{**s.to_dict(), **prov[s.source]} for s in rows]
 
     @app.get("/api/skus")
     def skus(user: User = Depends(current_user)) -> list[dict[str, Any]]:
-        return [s.to_dict() for s in services.repo(user.chain_id).skus()]
+        repo = services.repo(user.chain_id)
+        rows = repo.skus()
+        prov = row_provenance(repo, [s.source for s in rows])
+        return [{**s.to_dict(), **prov[s.source]} for s in rows]
 
     @app.get("/api/forecast")
     def forecast(
@@ -334,29 +304,29 @@ def create_app(settings: Settings | None = None, solver: Solver | None | object 
             result = registry.call(body.kind, {**body.payload, "store_id": sid}, tool_ctx(user, sid))
         except ToolError as exc:
             raise ApiError(422, "draft_invalid", exc.message_vi) from None
-        return {"draft": drafts.get(user, result.data["draft_id"]), "source": SOURCE}
+        return {"draft": drafts.get(user, result.data["draft_id"])}
 
     @app.get("/api/drafts")
     def list_drafts(status: str | None = None, user: User = Depends(current_user)) -> dict[str, Any]:
-        return {"drafts": drafts.list(user, status=status), "source": SOURCE}
+        return {"drafts": drafts.list(user, status=status)}
 
     @app.get("/api/drafts/{draft_id}")
     def get_draft(draft_id: str, user: User = Depends(current_user)) -> dict[str, Any]:
-        return {"draft": drafts.get(user, draft_id), "source": SOURCE}
+        return {"draft": drafts.get(user, draft_id)}
 
     @app.post("/api/drafts/{draft_id}/approve")
     def approve(draft_id: str, user: User = Depends(current_user)) -> dict[str, Any]:
         draft = drafts.approve(user, draft_id)
-        return {"draft": draft, "execution": draft["payload"].get("execution"), "source": SOURCE}
+        return {"draft": draft, "execution": draft["payload"].get("execution")}
 
     @app.post("/api/drafts/{draft_id}/reject")
     def reject(draft_id: str, body: DecisionBody | None = None, user: User = Depends(current_user)) -> dict:
-        return {"draft": drafts.reject(user, draft_id, (body.note if body else "")), "source": SOURCE}
+        return {"draft": drafts.reject(user, draft_id, (body.note if body else ""))}
 
     @app.patch("/api/drafts/{draft_id}")
     def patch_draft(draft_id: str, body: DraftPatch, user: User = Depends(current_user)) -> dict[str, Any]:
         draft = drafts.edit(user, draft_id, body.payload, make_edit_applier(services, user.chain_id))
-        return {"draft": draft, "source": SOURCE}
+        return {"draft": draft}
 
     # ------------------------------------------------------------ agent
 
@@ -380,83 +350,20 @@ def create_app(settings: Settings | None = None, solver: Solver | None | object 
         assert session.last_turn is not None
         yield _sse("final", _turn_dict(session.last_turn, extra))
 
-    def scripted_session(
-        user: User, flow: int, store_id: str, categories=(), now_minute: int = 0
-    ) -> AgentSession:
-        scenario = build_scenario(
-            flow,
-            services,
-            chain_id=user.chain_id,
-            store_id=store_id,
-            categories=tuple(categories),
-            now_minute=now_minute,
-        )
-        return AgentSession(
-            ScriptedClient(scenario),
-            registry,
-            tool_ctx(user, store_id),
-            audit=AuditLog(chain_db_path(settings.data_dir, user.chain_id)),
-            max_tool_calls=len(scenario.steps) + 1,
-        )
-
-    def scripted_extra(flow: int, store_id: str) -> dict[str, Any]:
-        return {
-            "mode": "scripted",
-            "scenario": {"flow": flow, "title_vi": FLOW_TITLES_VI[flow], "store_id": store_id},
-        }
-
-    def wants_sse(request: Request) -> bool:
-        return (
-            "text/event-stream" in request.headers.get("accept", "")
-            or request.query_params.get("stream") == "1"
-        )
-
-    @app.post("/api/agent/scenario/{flow}")
-    def scenario(
-        flow: int, request: Request, body: ScenarioBody | None = None, user: User = Depends(current_user)
-    ):
-        if flow not in (1, 2, 3):
-            raise ApiError(404, "unknown_scenario", "Kịch bản chỉ có 1, 2 hoặc 3.")
-        body = body or ScenarioBody()
-        repo = services.repo(user.chain_id)
-        sid = default_store(flow, repo, role=user.role, own_store=user.store_id, requested=body.store_id)
-        ensure_store_access(user.role, user.store_id, sid)
-        session = scripted_session(user, flow, sid, now_minute=body.now_minute)
-        message = flow_message(flow, sid)
-        extra = scripted_extra(flow, sid)
-        if wants_sse(request):
-            return StreamingResponse(stream_turn(session, message, extra), media_type="text/event-stream")
-        turn = session.run(message)
-        return _turn_dict(turn, extra)
-
     @app.post("/api/agent/chat")
     def chat(body: ChatBody, user: User = Depends(current_user)):
-        mode = body.mode or ("llm" if llm_available() else "scripted")
-        repo = services.repo(user.chain_id)
         default_sid = store_for(user, body.store_id) if body.store_id else None
-        if mode == "llm":
-            try:
-                client = AnthropicClient()
-            except LLMUnavailableError as exc:
-                raise ApiError(503, "llm_unavailable", exc.message_vi) from None
-            session = AgentSession(
-                client,
-                registry,
-                tool_ctx(user, default_sid),
-                audit=AuditLog(chain_db_path(settings.data_dir, user.chain_id)),
-            )
-            extra: dict[str, Any] = {"mode": "llm"}
-        else:
-            intent = detect_intent(body.message)
-            if intent is None:
-                raise ApiError(422, "scripted_intent_unknown", UNKNOWN_INTENT_VI)
-            requested = intent.store or body.store_id
-            sid = default_store(
-                intent.flow, repo, role=user.role, own_store=user.store_id, requested=requested
-            )
-            ensure_store_access(user.role, user.store_id, sid)
-            session = scripted_session(user, intent.flow, sid, intent.categories)
-            extra = scripted_extra(intent.flow, sid)
+        try:
+            client = llm_client_factory() if llm_client_factory is not None else AnthropicClient()
+        except LLMUnavailableError as exc:
+            raise ApiError(503, "llm_unavailable", exc.message_vi) from None
+        session = AgentSession(
+            client,
+            registry,
+            tool_ctx(user, default_sid),
+            audit=AuditLog(chain_db_path(settings.data_dir, user.chain_id)),
+        )
+        extra = {"model": getattr(client, "model", getattr(client, "name", ""))}
         return StreamingResponse(stream_turn(session, body.message, extra), media_type="text/event-stream")
 
     # ------------------------------------------------------------ tabs
@@ -495,11 +402,19 @@ def create_app(settings: Settings | None = None, solver: Solver | None | object 
             }
             for r in rows
         ]
-        return {"entries": entries, "source": SOURCE}
+        return {"entries": entries}
 
     @app.get("/api/network/fl")
     def network_fl(user: User = Depends(current_user)) -> dict[str, Any]:
         return fl_summary_payload(settings.data_dir)
+
+    @app.get("/api/provenance")
+    def provenance_list(user: User = Depends(current_user)) -> dict[str, Any]:
+        return {"datasets": provenance_view.datasets(settings.data_dir)}
+
+    @app.get("/api/provenance/{dataset_id}")
+    def provenance_item(dataset_id: str, user: User = Depends(current_user)) -> dict[str, Any]:
+        return provenance_view.dataset(dataset_id, settings.data_dir)
 
     @app.get("/api/assumptions")
     def assumptions(user: User = Depends(current_user)) -> dict[str, Any]:
@@ -507,7 +422,7 @@ def create_app(settings: Settings | None = None, solver: Solver | None | object 
 
     @app.get("/")
     def root() -> JSONResponse:
-        return JSONResponse({"name": "FreshMesh API", "source": SOURCE})
+        return JSONResponse({"name": "FreshMesh API"})
 
     return app
 

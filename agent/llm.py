@@ -3,9 +3,7 @@
 * :class:`AnthropicClient`: Claude via the official ``anthropic`` SDK, streaming with tool calling.
   Model from ``FRESHMESH_LLM_MODEL`` (default ``claude-sonnet-5-5``), key from ``ANTHROPIC_API_KEY``.
   Without a key it raises :class:`LLMUnavailableError` with a Vietnamese message (never a stack trace).
-* :class:`ScriptedClient`: replays a recorded scenario (see ``agent.scripted``) with no network. It reads
-  the tool results present in the conversation exactly like a real model would, so the scripted path
-  runs through the same loop, guardrail and audit as the LLM path.
+  There is no offline/scripted fallback: without a key the chat is unavailable (HTTP 503 at the API).
 
 Messages use the Anthropic Messages shape (``role`` + content blocks). Assistant content returned by a
 client is appended back verbatim (``LLMResponse.assistant_content``) so provider-specific blocks such as
@@ -24,7 +22,14 @@ from agent.guardrail import redact_for_llm, unwrap_untrusted, wrap_untrusted
 
 DEFAULT_MODEL = "claude-sonnet-5-5"
 FALLBACK_BETA = "server-side-fallback-2026-07-01"
-MSG_NO_KEY_VI = "Chưa cấu hình ANTHROPIC_API_KEY nên không dùng được trợ lý AI; hãy dùng chế độ kịch bản."
+# Models that accept the server-side refusal fallback (`fallbacks: "default"`). Claude Haiku 5.5 has none: a
+# declined request stays declined, so the parameter is never sent to it (refusals are handled by the loop).
+FALLBACK_MODELS = frozenset({"claude-fable-5-1", "claude-opus-5-5", "claude-opus-5", "claude-sonnet-5-5"})
+MSG_NO_KEY_VI = (
+    "Trợ lý AI cần khóa Anthropic nhưng máy chủ chưa có ANTHROPIC_API_KEY. Hãy đặt biến môi trường "
+    "ANTHROPIC_API_KEY=<khóa của bạn> (tùy chọn FRESHMESH_LLM_MODEL, mặc định claude-sonnet-5-5) "
+    "rồi khởi động lại API. Các bảng dự báo, nhập hàng, xử lý tồn và lộ trình vẫn dùng được không cần khóa."
+)
 
 
 class LLMUnavailableError(RuntimeError):
@@ -181,7 +186,7 @@ class AnthropicClient:
         self.effort = effort or os.environ.get("FRESHMESH_LLM_EFFORT", "").strip() or "medium"
         if use_fallbacks is None:
             use_fallbacks = os.environ.get("FRESHMESH_LLM_FALLBACKS", "1").strip() != "0"
-        self.use_fallbacks = use_fallbacks
+        self.use_fallbacks = use_fallbacks and self.model in FALLBACK_MODELS
         if sdk_client is not None:
             self._sdk = sdk_client
             return
@@ -224,16 +229,19 @@ class AnthropicClient:
                 message = stream.get_final_message()
         except anthropic.AuthenticationError:
             raise LLMUnavailableError(
-                "Khóa ANTHROPIC_API_KEY không hợp lệ; hãy dùng chế độ kịch bản."
+                "Khóa ANTHROPIC_API_KEY không hợp lệ; hãy kiểm tra lại khóa trên máy chủ "
+                "rồi khởi động lại API."
             ) from None
         except anthropic.RateLimitError:
             raise LLMUnavailableError("Dịch vụ AI đang quá tải, vui lòng thử lại sau ít phút.") from None
         except anthropic.APIStatusError as exc:
             raise LLMUnavailableError(
-                f"Dịch vụ AI trả lỗi (mã {exc.status_code}); hãy dùng chế độ kịch bản."
+                f"Dịch vụ AI trả lỗi (mã {exc.status_code}); vui lòng thử lại sau."
             ) from None
         except anthropic.APIConnectionError:
-            raise LLMUnavailableError("Không kết nối được dịch vụ AI; hãy dùng chế độ kịch bản.") from None
+            raise LLMUnavailableError(
+                "Không kết nối được dịch vụ AI; hãy kiểm tra mạng của máy chủ rồi thử lại."
+            ) from None
         except ValueError:
             raise LLMUnavailableError("Mô hình trả về tham số công cụ hỏng; vui lòng thử lại.") from None
         text_parts: list[str] = []
@@ -245,53 +253,3 @@ class AnthropicClient:
                 args = block.input if isinstance(block.input, dict) else {}
                 calls.append(ToolCall(block.id, block.name, dict(args)))
         return LLMResponse("".join(text_parts), calls, str(message.stop_reason), list(message.content))
-
-
-# ---------------------------------------------------------------- scripted
-
-
-class ScriptStep(Protocol):
-    tool: str
-
-    def build_args(self, user_message: str, outputs: list[TurnOutput]) -> dict[str, Any]: ...
-
-
-class Script(Protocol):
-    plan_vi: str
-
-    @property
-    def steps(self) -> Sequence[ScriptStep]: ...
-
-    def build_answer(self, user_message: str, outputs: list[TurnOutput]) -> str: ...
-
-
-class ScriptedClient:
-    """Replays a recorded scenario: one tool call per step, then the templated answer."""
-
-    name = "scripted"
-
-    def __init__(self, script: Script):
-        self.script = script
-
-    def complete(self, request: LLMRequest, on_text: TextCallback | None = None) -> LLMResponse:
-        user_message = turn_user_message(request.messages)
-        outputs = turn_outputs(request.messages)
-        step_index = len(outputs)
-        if (
-            request.purpose == "agent"
-            and request.allow_tools
-            and step_index < len(self.script.steps)
-            and all(o.error is None for o in outputs)
-        ):
-            step = self.script.steps[step_index]
-            call = ToolCall(f"scripted-{step_index + 1}", step.tool, step.build_args(user_message, outputs))
-            text = self.script.plan_vi if step_index == 0 else ""
-            content: list[Any] = [{"type": "text", "text": text}] if text else []
-            content.append({"type": "tool_use", "id": call.id, "name": call.name, "input": call.args})
-            if on_text and text:
-                on_text(text)
-            return LLMResponse(text, [call], "tool_use", content)
-        answer = self.script.build_answer(user_message, outputs)
-        if on_text:
-            on_text(answer)
-        return LLMResponse(answer, [], "end_turn", [{"type": "text", "text": answer}])

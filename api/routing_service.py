@@ -7,13 +7,17 @@
 * The counter pickup point ``<store_id>-counter`` is added by the routing adapter itself, so it is not
   passed in ``Batch.pickup_points`` (it is still listed in the map nodes).
 * Results are cached by a SHA-256 of the batch + routing config: in-process LRU + JSON files under
-  ``<data_dir>/cache/routing``. A per-hash lock prevents solving the same batch twice concurrently.
+  ``<data_dir>/cache/routing``. A per-hash lock prevents solving the same batch twice concurrently. The
+  cache only ever holds real solver output; each entry keeps ``solved_at`` (UTC time of the solver run) and
+  responses say ``cached`` + ``solved_at`` so users can see when a result was reused. Nothing is pre-solved
+  at startup.
 * Solver failures raise ``ApiError`` with a Vietnamese message; no route is ever invented.
 """
 
 from __future__ import annotations
 
 import dataclasses
+import datetime as dt
 import hashlib
 import json
 import logging
@@ -23,9 +27,10 @@ from collections import OrderedDict
 from pathlib import Path
 from typing import Any
 
+from api import provenance_view
 from api.errors import ApiError
 from api.repo import ChainRepo
-from data_sim import SIM_BATCH_START, SOURCE, batch_created_range, counter_point_id
+from data_sim import SIM_BATCH_START, batch_created_range, counter_point_id
 from routing.baseline import one_trip_per_order
 from routing.client import SolverClient, SolverError
 from routing.config import RoutingConfig
@@ -53,7 +58,6 @@ REASONS_VI = {
 }
 _MODES = {"home": DeliveryMode.HOME, "pickup": DeliveryMode.PICKUP, "flexible": DeliveryMode.FLEXIBLE}
 ROUTING_ASSUMPTIONS_VI = [
-    "Dữ liệu giả lập (SIMULATED).",
     "Tốc độ xe máy trung bình 20 km/h, quãng đường thực ≈ 1,3 × đường chim bay (ước tính).",
     "Bản đồ nối các điểm dừng bằng đường thẳng theo thứ tự giao, không phải đường phố thật.",
     "Bạn duyệt trước khi gửi lộ trình cho shipper.",
@@ -87,7 +91,15 @@ def plan_from_dict(d: dict[str, Any]) -> RoutePlan:
         at_risk=[AtRiskOrder(a["order_id"], a["reason"]) for a in d["at_risk"]],
         solver=d["solver"],
         runtime_s=float(d["runtime_s"]),
-        source=d.get("source", SOURCE),
+    )
+
+
+def cache_note_vi(solved_at: str | None) -> str:
+    """Explanation line for a routing result reused from the cache (real solver output, not re-solved)."""
+    when = f"lúc {solved_at} (UTC)" if solved_at else "trước đây (không ghi thời điểm giải)"
+    return (
+        f"Lộ trình lấy từ bộ nhớ đệm: cùng đợt đơn và cấu hình đã được bộ giải PACO giải {when}, "
+        "không giải lại."
     )
 
 
@@ -123,14 +135,15 @@ class RoutingService:
         self.cfg = cfg or RoutingConfig()
         self.fleet_vehicles = fleet_vehicles
         self.fleet_capacity = fleet_capacity
-        self._lru: OrderedDict[str, RoutePlan] = OrderedDict()
+        self._lru: OrderedDict[str, tuple[RoutePlan, str | None]] = OrderedDict()  # hash -> (plan, solved_at)
         self._lru_lock = threading.Lock()
         self._locks: dict[str, list[Any]] = {}  # batch hash -> [lock, number of callers using it]
         self.in_flight = 0  # solves currently running (the solver does not answer /health while busy)
+        self._last = threading.local()  # (cached, solved_at, batch_hash) of this thread's last router() call
 
     # ------------------------------------------------------------ cache + solve
 
-    def _cache_get(self, key: str) -> RoutePlan | None:
+    def _cache_get(self, key: str) -> tuple[RoutePlan, str | None] | None:
         with self._lru_lock:
             if key in self._lru:
                 self._lru.move_to_end(key)
@@ -138,17 +151,19 @@ class RoutingService:
         path = self.cache_dir / f"{key}.json"
         if path.exists():
             try:
-                plan = plan_from_dict(json.loads(path.read_text(encoding="utf-8"))["plan"])
+                body = json.loads(path.read_text(encoding="utf-8"))
+                plan = plan_from_dict(body["plan"])
             except (OSError, ValueError, KeyError, TypeError):
                 log.warning("ignoring unreadable routing cache file %s", path)
                 return None
-            self._cache_put(key, plan, persist=False)
-            return plan
+            solved_at = body.get("solved_at")  # absent in files written before solved_at existed
+            self._cache_put(key, plan, solved_at, persist=False)
+            return plan, solved_at
         return None
 
-    def _cache_put(self, key: str, plan: RoutePlan, *, persist: bool = True) -> None:
+    def _cache_put(self, key: str, plan: RoutePlan, solved_at: str | None, *, persist: bool = True) -> None:
         with self._lru_lock:
-            self._lru[key] = plan
+            self._lru[key] = (plan, solved_at)
             self._lru.move_to_end(key)
             while len(self._lru) > LRU_SIZE:
                 self._lru.popitem(last=False)
@@ -156,16 +171,22 @@ class RoutingService:
             self.cache_dir.mkdir(parents=True, exist_ok=True)
             tmp = self.cache_dir / f"{key}.json.tmp"
             tmp.write_text(
-                json.dumps({"plan": dataclasses.asdict(plan)}, ensure_ascii=False), encoding="utf-8"
+                json.dumps({"plan": dataclasses.asdict(plan), "solved_at": solved_at}, ensure_ascii=False),
+                encoding="utf-8",
             )
             tmp.replace(self.cache_dir / f"{key}.json")
 
     def solve(self, batch: Batch) -> tuple[RoutePlan, bool, str]:
         """(plan, cached, batch_hash). Raises ApiError on solver failure."""
+        plan, cached, key, _ = self.solve_info(batch)
+        return plan, cached, key
+
+    def solve_info(self, batch: Batch) -> tuple[RoutePlan, bool, str, str | None]:
+        """(plan, cached, batch_hash, solved_at ISO UTC or None for legacy cache files)."""
         key = batch_hash(batch, self.cfg)
         hit = self._cache_get(key)
         if hit is not None:
-            return hit, True, key
+            return hit[0], True, key, hit[1]
         with self._lru_lock:
             entry = self._locks.setdefault(key, [threading.Lock(), 0])
             entry[1] += 1  # waiters on this hash; the entry is dropped when the last one leaves
@@ -177,11 +198,13 @@ class RoutingService:
                 if entry[1] == 0:
                     self._locks.pop(key, None)
 
-    def _solve_locked(self, batch: Batch, key: str, lock: threading.Lock) -> tuple[RoutePlan, bool, str]:
+    def _solve_locked(
+        self, batch: Batch, key: str, lock: threading.Lock
+    ) -> tuple[RoutePlan, bool, str, str | None]:
         with lock:
             hit = self._cache_get(key)
             if hit is not None:
-                return hit, True, key
+                return hit[0], True, key, hit[1]
             if self.solver is None:
                 raise solver_error_to_api(SolverError("cannot reach solver: not configured"))
             t0 = time.perf_counter()
@@ -198,12 +221,22 @@ class RoutingService:
             log.info(
                 "solved batch %s (%d orders) in %.1fs", key[:12], len(batch.orders), time.perf_counter() - t0
             )
-            self._cache_put(key, plan)
-            return plan, False, key
+            solved_at = dt.datetime.now(dt.UTC).isoformat(timespec="seconds")
+            self._cache_put(key, plan, solved_at)
+            return plan, False, key, solved_at
 
     def router(self, batch: Batch) -> RoutePlan:
-        """Callable for decision.transfer_stock (same cache)."""
-        return self.solve(batch)[0]
+        """Callable for decision.transfer_stock (same cache); see :meth:`last_router_info`."""
+        plan, cached, key, solved_at = self.solve_info(batch)
+        self._last.info = (cached, solved_at, key)
+        return plan
+
+    def reset_router_info(self) -> None:
+        self._last.info = None
+
+    def last_router_info(self) -> tuple[bool, str | None, str] | None:
+        """(cached, solved_at, batch_hash) of this thread's last :meth:`router` call, or None."""
+        return getattr(self._last, "info", None)
 
     # ------------------------------------------------------------ online batch
 
@@ -265,7 +298,7 @@ class RoutingService:
             raise ApiError(
                 404, "empty_batch", f"Cửa hàng {store_id} không có đơn online nào trong đợt giao hiện tại."
             )
-        plan, cached, key = self.solve(batch)
+        plan, cached, key, solved_at = self.solve_info(batch)
         baseline = one_trip_per_order(batch, self.cfg)
         coords = {r["order_id"]: (r["lat"], r["lng"]) for r in meta["rows"]}
         point_coords = {p["pickup_point_id"]: (p["lat"], p["lng"]) for p in meta["points"]}
@@ -376,11 +409,9 @@ class RoutingService:
                 }
                 for r in meta["rows"]
             ],
-            "pickup_points": [
-                {**p, "is_counter": p["pickup_point_id"] == counter}
-                for p in meta["points"]
-            ],
+            "pickup_points": [{**p, "is_counter": p["pickup_point_id"] == counter} for p in meta["points"]],
             "cached": cached,
+            "solved_at": solved_at,
             "late_stops": late,
             "confidence": level,
             "confidence_reason": why
@@ -389,8 +420,9 @@ class RoutingService:
                 *ROUTING_ASSUMPTIONS_VI,
                 f"Đội giao mỗi cửa hàng: {batch.num_vehicles} xe máy, mỗi xe chở tối đa "
                 f"{batch.vehicle_capacity} đơn vị hàng (giả định của API).",
+                *([cache_note_vi(solved_at)] if cached else []),
             ],
-            "source": SOURCE,
+            **repo.provenance(provenance_view.ROUTING_TABLES),
         }
 
 

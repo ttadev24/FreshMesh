@@ -7,6 +7,7 @@ from fastapi.testclient import TestClient
 
 from api.config import Settings
 from api.main import create_app
+from tests.agent.fake_llm import PlannedFakeClient
 from tests.api.helpers import BrokenSolver, FakeSolver, build_data
 
 SECRET = "test-secret-0123456789-0123456789-test"
@@ -23,7 +24,6 @@ def make_settings(data_dir: Path, cache: Path, **kw) -> Settings:
         secret=SECRET,
         token_ttl_s=kw.pop("token_ttl_s", 3600),
         solver_url="http://127.0.0.1:9",
-        warm_cache=False,
         cache_root=cache,
         **kw,
     )
@@ -37,6 +37,24 @@ def fake_solver() -> FakeSolver:
 @pytest.fixture(scope="session")
 def client(data_dir, fake_solver, tmp_path_factory) -> TestClient:
     app = create_app(make_settings(data_dir, tmp_path_factory.mktemp("cache")), solver=fake_solver)
+    with TestClient(app) as c:
+        yield c
+
+
+@pytest.fixture(scope="session")
+def llm_plan() -> dict:
+    """Tool plan of the deterministic fake LLM used by ``llm_client`` (tests set ``llm_plan["steps"]``)."""
+    return {"steps": []}
+
+
+@pytest.fixture(scope="session")
+def llm_client(data_dir, fake_solver, llm_plan, tmp_path_factory) -> TestClient:
+    """Same data as ``client`` but the chat runs on an injected fake LLM (never the network)."""
+    app = create_app(
+        make_settings(data_dir, tmp_path_factory.mktemp("llm_cache")),
+        solver=fake_solver,
+        llm_client_factory=lambda: PlannedFakeClient(llm_plan["steps"]),
+    )
     with TestClient(app) as c:
         yield c
 

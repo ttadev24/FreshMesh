@@ -16,13 +16,13 @@ from collections.abc import Callable
 from typing import Any
 
 from agent.charts import make_render_chart_tool
-from agent.sql_guard import make_query_data_tool
+from agent.sql_guard import make_query_data_tool, view_columns_hint
 from agent.tools import Tool, ToolContext, ToolError, ToolRegistry, ToolResult
 from api.drafts import SqlDraftStore
 from api.errors import ApiError
 from api.repo import ensure_store_access, resolve_store_id
 from api.services import DEFAULT_NOW_HOUR, Services, plan_key
-from data_sim import SOURCE, chain_db_path
+from data_sim import CHAIN_IDS, chain_db_path
 from decision.text import units, vnd
 
 _STR_LIST = {"type": "array", "items": {"type": "string", "minLength": 1, "maxLength": 64}, "maxItems": 50}
@@ -46,6 +46,20 @@ PLAN_NAMES = ["An toàn", "Cân bằng", "Tiết kiệm", "safe", "balanced", "l
 
 def _obj(props: dict[str, Any], required: tuple[str, ...] = ()) -> dict[str, Any]:
     return {"type": "object", "properties": props, "required": list(required), "additionalProperties": False}
+
+
+def _provenance(result: dict[str, Any]) -> dict[str, list[str]]:
+    """Carry the provenance of the computation a draft was built from into the draft payload."""
+    return {"sources": list(result["sources"]), "source_labels_vi": list(result["source_labels_vi"])}
+
+
+def _schema_hint(services: Services) -> str:
+    """Column list of the query views, read from the first chain DB present (all chains share the schema)."""
+    for chain_id in CHAIN_IDS:
+        hint = view_columns_hint(chain_db_path(services.data_dir, chain_id))
+        if hint:
+            return hint
+    return ""
 
 
 def _tool_errors(fn: Callable[[dict, ToolContext], ToolResult]) -> Callable[[dict, ToolContext], ToolResult]:
@@ -170,7 +184,7 @@ def build_registry(services: Services, drafts: SqlDraftStore) -> ToolRegistry:
             "total_cost_vnd": sum(ln["cost_vnd"] for ln in lines),
             "lines_from_user": bool(lines_in),
             "options": options,
-            "source": SOURCE,
+            **_provenance(result),
         }
         _set_po_plan_metrics(payload)
         return ToolResult(payload, [f"plan_inventory:{ctx.chain_id}/{store_id}"])
@@ -206,7 +220,7 @@ def build_registry(services: Services, drafts: SqlDraftStore) -> ToolRegistry:
             "now": result["now"],
             "items": items,
             "cash_gain_total_vnd": sum(i["cash_gain_vnd"] for i in items),
-            "source": SOURCE,
+            **_provenance(result),
         }
         return ToolResult(payload, [f"suggest_markdown:{ctx.chain_id}/{store_id}"])
 
@@ -228,13 +242,14 @@ def build_registry(services: Services, drafts: SqlDraftStore) -> ToolRegistry:
             "km": t["km"],
             "vehicles": t["vehicles"],
             "trip_cost_vnd": t["trip_cost_vnd"],
-            "saved_value_vnd": t["saved_value_vnd"],
+            # Cash only: the non-cash stockout value is its own field and never enters a saving or a net.
+            "saved_value_vnd": t["saved_cash_vnd"],
             "saved_cash_vnd": t["saved_cash_vnd"],
             "stockout_avoided_value_vnd": t["stockout_avoided_value_vnd"],
-            "net_saving_vnd": t["net_saving_vnd"],
+            "net_saving_vnd": t["saved_cash_vnd"] - t["trip_cost_vnd"],
             "recommended": t["recommended"],
             "rationale_vi": t["rationale_vi"],
-            "source": SOURCE,
+            **_provenance(result),
         }
         return ToolResult(payload, [f"transfer_stock:{ctx.chain_id}/{store_id}"])
 
@@ -273,7 +288,7 @@ def build_registry(services: Services, drafts: SqlDraftStore) -> ToolRegistry:
                 for r in plan["routes"]
             ],
             "at_risk": [{"order_id": a["order_id"], "reason_vi": a["reason_vi"]} for a in plan["at_risk"]],
-            "source": SOURCE,
+            **_provenance(plan),
         }
         return ToolResult(payload, [f"optimize_routes:{ctx.chain_id}/{store_id}"])
 
@@ -326,9 +341,8 @@ def build_registry(services: Services, drafts: SqlDraftStore) -> ToolRegistry:
         ),
         make_query_data_tool(
             lambda chain: chain_db_path(services.data_dir, chain),
-            schema_hint_vi="Cột chính: v_sales_daily(store_id, sku_id, sku_name, category, date, "
-            "units, revenue); "
-            "v_stock(store_id, sku_id, qty, expires_on, days_to_expiry); v_stores; v_skus; v_online_orders.",
+            provenance_for=lambda chain, tables: services.repo(chain).provenance(tables),
+            schema_hint_vi=_schema_hint(services),
         ),
         make_render_chart_tool(),
         Tool(
@@ -461,10 +475,12 @@ def _recompute_transfer_totals(payload: dict[str, Any], before: dict[str, Any]) 
     dests = {ln["to_store_id"] for ln in lines}
     payload["units_moved"] = sum(ln["qty"] for ln in lines)
     payload["destinations"] = len(dests)
-    payload["saved_value_vnd"] = sum(ln["value_vnd"] for ln in lines)
     if all("cash_value_vnd" in ln for ln in lines):
         payload["saved_cash_vnd"] = sum(ln["cash_value_vnd"] for ln in lines)
         payload["stockout_avoided_value_vnd"] = sum(ln["stockout_value_vnd"] for ln in lines)
+        payload["saved_value_vnd"] = payload["saved_cash_vnd"]
+    else:
+        payload["saved_value_vnd"] = sum(ln["value_vnd"] for ln in lines)
     trip = payload.get("trip_cost_vnd") or 0
     payload["net_saving_vnd"] = payload["saved_value_vnd"] - trip
     payload["recommended"] = bool(lines) and payload["net_saving_vnd"] > 0

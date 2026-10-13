@@ -172,22 +172,38 @@ def test_missing_db_gives_vietnamese_error(tmp_path):
 
 def test_query_data_tool(db):
     reg = ToolRegistry()
-    reg.register(make_query_data_tool(lambda chain: db))
+    seen = []
+
+    def provenance_for(chain, tables):
+        seen.append((chain, list(tables)))
+        return {"sources": ["ds_x"], "source_labels_vi": ["Bộ X"]}
+
+    reg.register(make_query_data_tool(lambda chain: db, provenance_for=provenance_for))
     ctx = ToolContext(chain_id="CHAIN_A", actor="owner_a", extras={"role": "owner"})
     res = reg.call("query_data", {"sql": "SELECT SUM(qty) AS qty FROM v_stock"}, ctx)
     assert res.data["rows"] == [[30]]
-    assert res.data["source"] == "SIMULATED"
+    # provenance is computed from the base tables actually read through the view
+    assert res.data["tables"] == ["inventory_lots", "stores"] and seen == [
+        ("CHAIN_A", ["inventory_lots", "stores"])
+    ]
+    assert res.data["sources"] == ["ds_x"] and res.data["source_labels_vi"] == ["Bộ X"]
     assert "query_data:v_stock" in res.citations
     with pytest.raises(ToolError, match="SELECT"):
         reg.call("query_data", {"sql": "DELETE FROM stores"}, ctx)
 
 
+def test_query_data_without_provenance_hook_claims_no_source(db):
+    reg = ToolRegistry()
+    reg.register(make_query_data_tool(lambda chain: db))
+    ctx = ToolContext(chain_id="CHAIN_A", actor="owner_a", extras={"role": "owner"})
+    res = reg.call("query_data", {"sql": "SELECT name FROM v_skus"}, ctx)
+    assert "sources" not in res.data and res.data["tables"] == ["skus"]
+
+
 def test_store_scope_filters_store_views_and_binds_parameter(db):
     out = validate_readonly_sql("SELECT * FROM v_sales_daily", "CHAIN_A", DEFAULT_VIEWS, 50, store_id="A1")
     assert "WHERE chain_id = :chain_id AND store_id = :store_id" in out
-    res = run_query_data(
-        db, "SELECT DISTINCT store_id FROM v_sales_daily", "CHAIN_A", store_id="A1"
-    )
+    res = run_query_data(db, "SELECT DISTINCT store_id FROM v_sales_daily", "CHAIN_A", store_id="A1")
     assert res["rows"] == [["A1"]]
     # Without a store scope (owner) the whole chain is visible.
     full = run_query_data(db, "SELECT DISTINCT store_id FROM v_sales_daily", "CHAIN_A")
@@ -279,9 +295,7 @@ def test_literal_numbers_from_query_data_are_not_verified_sources(db):
     owner = ToolContext("CHAIN_A", "o", None, {"role": "owner"})
     with pytest.raises(ToolError):
         reg.call("query_data", {"sql": "SELECT 987654 AS x"}, owner)
-    res = reg.call(
-        "query_data", {"sql": "SELECT store_id FROM v_stores WHERE 987654 > 0 LIMIT 3"}, owner
-    )
+    res = reg.call("query_data", {"sql": "SELECT store_id FROM v_stores WHERE 987654 > 0 LIMIT 3"}, owner)
     assert not verify_numbers("Doanh số là 987.654 đ.", [res]).ok
     assert verify_numbers(f"Có {res.data['row_count']} cửa hàng.", [res]).ok
 
@@ -343,3 +357,11 @@ def test_nested_limit_cannot_mint_numbers(sql):
 
 def test_outer_limit_still_allowed():
     validate_readonly_sql("SELECT sku_id FROM v_skus ORDER BY sku_id LIMIT 20", "CHAIN_A", DEFAULT_VIEWS, 50)
+
+
+def test_view_columns_hint_accepts_relative_paths(db, monkeypatch):
+    from agent.sql_guard import view_columns_hint
+
+    monkeypatch.chdir(db.parent)
+    hint = view_columns_hint(db.name)
+    assert hint.startswith("Cột có sẵn") and "v_sales_daily(" in hint

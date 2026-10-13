@@ -82,6 +82,6 @@ def test_registered_tool_is_read_and_non_verifiable():
         {"chart_type": "bar", "title": "T", "x": ["a"], "series": [{"name": "s", "values": [1]}]},
         CTX,
     )
-    assert res.data["option"]["series"][0]["data"] == [1] and res.data["source"] == "SIMULATED"
+    assert res.data["option"]["series"][0]["data"] == [1] and "sources" not in res.data
     with pytest.raises(ToolError):
         reg.call("render_chart", {"chart_type": "pie", "title": "T", "x": ["a"]}, CTX)

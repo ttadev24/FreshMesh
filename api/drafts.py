@@ -24,9 +24,11 @@ from pathlib import Path
 from typing import Any
 
 from agent.audit import AuditLog
+from agent.template import UNKNOWN_SOURCE_ID
+from api import provenance_view
 from api.auth import User
 from api.errors import ApiError
-from data_sim import SOURCE, chain_db_path
+from data_sim import chain_db_path
 
 DRAFT_KINDS = ("create_purchase_order", "apply_markdown", "create_transfer", "dispatch_routes")
 KIND_LABEL_VI = {
@@ -41,14 +43,14 @@ EDITABLE_FIELDS = {
     "create_transfer": {"lines", "note"},
     "dispatch_routes": {"note"},
 }
-SIM_NOTE_VI = "Thực thi giả lập (SIMULATED): chưa kết nối hệ thống thật."
+SIM_NOTE_VI = "Thực thi giả lập: chưa kết nối hệ thống thật (nhà cung cấp, máy POS, shipper)."
 
 
 def _now() -> str:
     return dt.datetime.now(dt.UTC).isoformat(timespec="seconds")
 
 
-def _row_to_dict(row: sqlite3.Row) -> dict[str, Any]:
+def _row_to_dict(row: sqlite3.Row, data_dir: Path) -> dict[str, Any]:
     payload = json.loads(row["payload_json"] or "{}")
     return {
         "draft_id": row["draft_id"],
@@ -62,8 +64,16 @@ def _row_to_dict(row: sqlite3.Row) -> dict[str, Any]:
         "created_at": row["created_at"],
         "decided_at": row["decided_at"],
         "decided_by": row["decided_by"],
-        "source": row["source"] or SOURCE,
+        **_draft_provenance(payload, row["source"], data_dir),
     }
+
+
+def _draft_provenance(payload: dict[str, Any], column: str | None, data_dir: Path) -> dict[str, list[str]]:
+    """Provenance of the computation the draft was built from (stored in the payload); drafts written before
+    provenance existed fall back to the DB column, whose unknown ids are labelled "không rõ nguồn"."""
+    if payload.get("sources"):
+        return provenance_view.labelled(payload["sources"], data_dir)
+    return provenance_view.labelled((column or "").split(";"), data_dir)
 
 
 class SqlDraftStore:
@@ -102,7 +112,8 @@ class SqlDraftStore:
         if kind not in DRAFT_KINDS:
             raise ApiError(422, "bad_draft_kind", f"Loại bản nháp '{kind}' không được hỗ trợ.")
         draft_id = f"draft-{uuid.uuid4().hex[:12]}"
-        body = {**payload, "source": SOURCE}
+        body = dict(payload)
+        source_column = ";".join(sorted(set(body.get("sources") or [UNKNOWN_SOURCE_ID])))
         con = self._connect(chain_id)
         try:
             with con:
@@ -117,7 +128,7 @@ class SqlDraftStore:
                         "draft",
                         created_by,
                         _now(),
-                        SOURCE,
+                        source_column,
                     ),
                 )
                 self._audit(
@@ -145,7 +156,7 @@ class SqlDraftStore:
         sql += " ORDER BY created_at DESC, draft_id"
         con = self._connect(user.chain_id)
         try:
-            return [_row_to_dict(r) for r in con.execute(sql, params).fetchall()]
+            return [_row_to_dict(r, self.data_dir) for r in con.execute(sql, params).fetchall()]
         finally:
             con.close()
 
@@ -159,7 +170,7 @@ class SqlDraftStore:
             con.close()
         if row is None:
             raise ApiError(404, "draft_not_found", "Không tìm thấy bản nháp.")
-        draft = _row_to_dict(row)
+        draft = _row_to_dict(row, self.data_dir)
         self._check_scope(user, draft)
         return draft
 
@@ -191,7 +202,7 @@ class SqlDraftStore:
                 ).fetchone()
                 if row is None:
                     raise ApiError(404, "draft_not_found", "Không tìm thấy bản nháp.")
-                draft = _row_to_dict(row)
+                draft = _row_to_dict(row, self.data_dir)
                 self._check_scope(user, draft)
                 if draft["status"] != "draft":
                     raise ApiError(
@@ -277,7 +288,7 @@ def execution_record(draft: dict[str, Any], user: User) -> tuple[dict[str, Any],
     p = draft["payload"]
     now = _now()
     kind = draft["kind"]
-    base = {"executed_at": now, "approved_by": user.username, "note_vi": SIM_NOTE_VI, "source": SOURCE}
+    base = {"executed_at": now, "approved_by": user.username, "note_vi": SIM_NOTE_VI}
     suffix = draft["draft_id"].split("-")[-1][:8].upper()
     if kind == "create_purchase_order":
         suppliers: dict[str, dict[str, Any]] = {}

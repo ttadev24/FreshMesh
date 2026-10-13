@@ -2,11 +2,11 @@ import json
 from datetime import UTC, datetime
 
 from agent.audit import AuditLog
+from agent.eval import InMemoryDraftStore
 from agent.guardrail import UNTRUSTED_OPEN
 from agent.llm import LLMUnavailableError
 from agent.loop import AgentSession
-from agent.template import format_answer, parse_answer
-from agent.testing import InMemoryDraftStore
+from agent.template import SECTIONS, format_answer, parse_answer
 from agent.tools import Tool, ToolContext, ToolRegistry, ToolResult
 from tests.agent.helpers import SequenceClient, text_response, tool_response
 
@@ -113,7 +113,12 @@ def test_run_returns_turn():
     turn = session.run("x")
     assert turn is session.last_turn and turn.turn_id == "t1"
     assert turn.plan_vi.startswith("Kế hoạch: forecast_demand")
-    assert turn.to_dict()["source"] == "SIMULATED"
+    d = turn.to_dict()
+    assert "source" not in d
+    # the forecast fixture carries no provenance fields -> reported as unknown, never guessed
+    assert d["sources"] == ["unknown"] and d["source_labels_vi"] == ["không rõ nguồn"]
+    assert turn.answer_text.endswith("**Nguồn dữ liệu:** không rõ nguồn")
+    assert list(turn.sections) == list(SECTIONS)
 
 
 def test_no_tool_answer_has_plan_event():
@@ -235,7 +240,8 @@ def test_broken_template_triggers_rewrite():
 def test_template_still_broken_is_reported():
     session, _ = _session([text_response("Cứ nhập."), text_response("Vẫn sai.")])
     turn = session.run("x")
-    assert not turn.template_ok and turn.answer_text == "Vẫn sai."
+    assert not turn.template_ok
+    assert turn.answer_text == "Vẫn sai.\n\n**Nguồn dữ liệu:** Không dùng dữ liệu (không có kết quả công cụ)"
 
 
 def test_execution_claim_triggers_rewrite():
@@ -383,7 +389,78 @@ def test_plan_text_with_unverified_numbers_falls_back_to_tool_list(tmp_path):
     assert audit.turn("CHAIN_A", "t1")[1].payload["plan_vi"] == plan
     # Numbers from the user's message (or tool descriptions) remain allowed.
     session, _ = _session(
-        [tool_response("Tôi sẽ dự báo cho 2 cửa hàng.", ("c1", "forecast_demand", {})), text_response(_answer())]
+        [
+            tool_response("Tôi sẽ dự báo cho 2 cửa hàng.", ("c1", "forecast_demand", {})),
+            text_response(_answer()),
+        ]
     )
     events = list(session.stream("Nhập rau cho 2 cửa hàng thế nào?"))
     assert events[0].data["text"] == "Tôi sẽ dự báo cho 2 cửa hàng."
+
+
+def _prov_registry():
+    reg = ToolRegistry()
+    reg.register(
+        Tool(
+            "forecast_demand",
+            "Dự báo nhu cầu",
+            OBJ,
+            "read",
+            lambda a, c: ToolResult(
+                {
+                    "p50": 118.4,
+                    "qty": 120,
+                    "sources": ["ds_b", "ds_a"],
+                    "source_labels_vi": ["Bộ B (2024)", "Bộ A"],
+                },
+                ["forecast:A1"],
+            ),
+        )
+    )
+    reg.register(
+        Tool("render_chart", "Vẽ biểu đồ", OBJ, "read", lambda a, c: ToolResult({"option": {}}, ["chart"]))
+    )
+    return reg
+
+
+def test_answer_ends_with_server_written_sources_line():
+    llm_line = "\n\n**Nguồn dữ liệu:** Tổng cục Thống kê 2025"  # model-written provenance is dropped
+    client = SequenceClient(
+        [
+            tool_response("", ("c1", "forecast_demand", {}), ("c2", "render_chart", {})),
+            text_response(_answer() + llm_line),
+        ]
+    )
+    session = AgentSession(client, _prov_registry(), CTX, turn_id_factory=lambda: "t1")
+    events = list(session.stream("Nhập rau cho mai thế nào?"))
+    turn = session.last_turn
+    assert turn.sources == ["ds_a", "ds_b"] and turn.source_labels_vi == ["Bộ A", "Bộ B (2024)"]
+    assert turn.answer_text.endswith("**Nguồn dữ liệu:** Bộ A; Bộ B (2024)")
+    assert "Tổng cục" not in turn.answer_text and "Tổng cục" not in json.dumps(
+        turn.sections, ensure_ascii=False
+    )
+    assert turn.unverified == []  # the year inside a label never needs (nor helps) verification
+    answer = events[-1].data
+    assert answer["sources"] == ["ds_a", "ds_b"] and answer["source_labels_vi"] == ["Bộ A", "Bộ B (2024)"]
+    assert parse_answer(answer["text"]) == turn.sections
+
+
+def test_labels_are_not_number_sources():
+    # "2024" appears only inside a provenance label: it must not verify an invented number.
+    client = SequenceClient(
+        [
+            tool_response("", ("c1", "forecast_demand", {})),
+            text_response(_answer(vi_sao="Tăng 2024 kg.")),
+            text_response(_answer(vi_sao="Tăng 2024 kg.")),
+        ]
+    )
+    turn = AgentSession(client, _prov_registry(), CTX).run("x")
+    assert turn.unverified == ["2024"] and turn.rewritten
+
+
+def test_no_tool_answer_says_no_data_used():
+    client = SequenceClient([text_response(_answer(de_xuat="Chào bạn.", vi_sao="Câu chào."))])
+    turn = AgentSession(client, _prov_registry(), CTX).run("Xin chào")
+    assert turn.sources == [] and turn.answer_text.endswith(
+        "**Nguồn dữ liệu:** Không dùng dữ liệu (không có kết quả công cụ)"
+    )

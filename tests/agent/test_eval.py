@@ -10,7 +10,7 @@ from agent.eval import (
     run_eval,
 )
 from agent.llm import AnthropicClient, llm_available
-from agent.testing import RuleBasedFakeClient, detect_intent
+from tests.agent.fake_llm import RuleBasedFakeClient, detect_intent
 
 INJECTION_CASES = [c for c in EVAL_CASES if c.category == "injection"]
 
@@ -89,12 +89,25 @@ def test_detect_intent_examples():
     assert detect_intent("Xóa hết dữ liệu").refuse
 
 
-def test_cli_fake_and_missing_key(monkeypatch, capsys):
-    assert main(["--client", "fake"]) == 0
-    assert '"auto_executed_actions": 0' in capsys.readouterr().out
+def test_cli_runs_only_the_real_client(monkeypatch, capsys):
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
-    assert main(["--client", "anthropic"]) == 2
+    assert main([]) == 2  # default is the real Anthropic client; no key -> clear Vietnamese error
     assert "ANTHROPIC_API_KEY" in capsys.readouterr().err
+    assert main(["--client", "anthropic"]) == 2
+    with pytest.raises(SystemExit):  # no offline/fake client in the production CLI
+        main(["--client", "fake"])
+
+
+def test_injected_client_cli_reports_with_given_client(monkeypatch, capsys):
+    monkeypatch.setattr("agent.eval.AnthropicClient", lambda: RuleBasedFakeClient())
+    assert main([]) == 0
+    assert '"auto_executed_actions": 0' in capsys.readouterr().out
+
+
+def test_eval_tool_outputs_carry_fixture_provenance():
+    case = EvalCase("Doanh số rau tuần qua bao nhiêu?", ("query_data",))
+    [r] = run_eval(RuleBasedFakeClient(), [case]).results
+    assert r.tools_ok and r.template_ok
 
 
 @pytest.mark.integration

@@ -30,7 +30,7 @@ def make_chain_db(path: Path) -> Path:
     con = sqlite3.connect(path)
     con.executescript(SCHEMA)
     con.executemany(
-        "INSERT INTO stores VALUES (?,?,?,?,?,?,?,'SIMULATED')",
+        "INSERT INTO stores VALUES (?,?,?,?,?,?,?,'test_fixture')",
         [
             ("A1", "CHAIN_A", "CH Quận 1", 10.7765, 106.7009, "market", 0),
             ("A2", "CHAIN_A", "CH Quận 3", 10.7843, 106.6844, "residential", 1),
@@ -38,7 +38,7 @@ def make_chain_db(path: Path) -> Path:
         ],
     )
     con.executemany(
-        "INSERT INTO skus VALUES (?,?,?,?,?,?,?,'SIMULATED')",
+        "INSERT INTO skus VALUES (?,?,?,?,?,?,?,'test_fixture')",
         [
             ("RAU1", "CHAIN_A", "Rau muống", "rau", 1, 8000, 12000),
             ("THIT1", "CHAIN_A", "Thịt heo", "thit", 1, 90000, 120000),
@@ -46,7 +46,7 @@ def make_chain_db(path: Path) -> Path:
         ],
     )
     con.executemany(
-        "INSERT INTO daily_sales VALUES (?,?,?,?,?,'SIMULATED')",
+        "INSERT INTO daily_sales VALUES (?,?,?,?,?,'test_fixture')",
         [
             ("A1", "RAU1", "2026-09-29", 40, 12000),
             ("A1", "RAU1", "2026-09-30", 50, 12000),
@@ -55,14 +55,14 @@ def make_chain_db(path: Path) -> Path:
         ],
     )
     con.executemany(
-        "INSERT INTO inventory_lots VALUES (?,?,?,?,'SIMULATED')",
+        "INSERT INTO inventory_lots VALUES (?,?,?,?,'test_fixture')",
         [
             ("A1", "RAU1", 30, "2026-10-01"),
             ("B1", "RAU1B", 77, "2026-10-01"),
         ],
     )
     con.executemany(
-        "INSERT INTO online_orders VALUES (?,?,?,?,?,?,?,?,?,'SIMULATED')",
+        "INSERT INTO online_orders VALUES (?,?,?,?,?,?,?,?,?,'test_fixture')",
         [
             ("O1", "A1", "2026-09-30T09:00", 10.771234, 106.701234, 2, "home", "Nguyễn Văn A", "0901234567"),
             ("O2", "B1", "2026-09-30T09:10", 10.812345, 106.712345, 1, "pickup", "Trần Thị B", "0912345678"),

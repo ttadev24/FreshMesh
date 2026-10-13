@@ -1,8 +1,9 @@
 """Service layer shared by the API endpoints, the agent tools and ``decision.cli``.
 
 Every function reads the caller's chain DB only (tenant = ``chain_id`` from the token), calls the real
-modules (``forecasting``, ``decision``, ``routing``) and returns JSON-ready dicts labelled
-``source = "SIMULATED"``. Store access rules are checked by the callers (API / tools).
+modules (``forecasting``, ``decision``, ``routing``) and returns JSON-ready dicts carrying the provenance of
+the data actually used (``sources`` dataset ids + ``source_labels_vi``, see ``api.provenance_view``). Store
+access rules are checked by the callers (API / tools).
 
 Decision parameters (docs/data-assumptions.md):
 * stockout penalty per SKU = ``stockout_penalty_ratio`` × unit margin. ``plan_inventory`` and
@@ -33,9 +34,10 @@ from typing import Any
 
 from api.config import REPO_ROOT
 from api.errors import ApiError
+from api.provenance_view import FORECAST_TABLES, STOCK_TABLES
 from api.repo import ChainRepo, SkuInfo, StoreInfo
-from api.routing_service import RoutingService
-from data_sim import ASSUMPTION_DESCRIPTIONS_VI, ASSUMPTIONS, SIM_AS_OF, SOURCE, assumptions_sections
+from api.routing_service import RoutingService, cache_note_vi
+from data_sim import ASSUMPTION_DESCRIPTIONS_VI, ASSUMPTIONS, SIM_AS_OF, assumptions_sections
 from decision import (
     Constraints,
     ForecastQuantiles,
@@ -75,7 +77,6 @@ PLAN_KEYS = {
     "Tiết kiệm": "lean",
 }
 MARKDOWN_ASSUMPTIONS_VI = (
-    "Dữ liệu giả lập (SIMULATED).",
     "Hệ số co giãn giá theo nhóm hàng là giả định (docs/data-assumptions.md), "
     "chưa ước lượng từ dữ liệu thật.",
     "Tồn hiện tại = tồn đầu ngày trừ lượng bán kỳ vọng (P50 × tỷ trọng các giờ đã qua), "
@@ -149,7 +150,6 @@ class Services:
             "p90": r.p90,
             "confidence": r.confidence,
             "reason": r.reason,
-            "source": SOURCE,
         }
 
     def _drift(self, chain_id: str, store_id: str) -> dict[str, Any]:
@@ -165,7 +165,6 @@ class Services:
             "n_points": d.n_points,
             "alert": d.alert,
             "message_vi": d.message_vi,
-            "source": SOURCE,
         }
 
     def forecast(self, chain_id: str, store_id: str, skus: Sequence[SkuInfo], horizon_days: int = 1) -> dict:
@@ -180,7 +179,7 @@ class Services:
             "horizon_days": horizon_days,
             "rows": [self._row_dict(r, names) for r in rows],
             "drift": self._drift(chain_id, store_id),
-            "source": SOURCE,
+            **repo.provenance(FORECAST_TABLES),
         }
 
     # ------------------------------------------------------------ inventory (flow 1)
@@ -266,7 +265,7 @@ class Services:
             "stockout_penalty_ratio": ASSUMPTIONS["stockout_penalty_ratio"],
             "constraints": {"budget_vnd": budget_vnd, "cold_storage_units": cold_storage_units},
             "assumptions_vi": [*plans[0].assumptions_vi, penalty_note],
-            "source": SOURCE,
+            **repo.provenance(STOCK_TABLES),
         }
 
     def purchase_order_lines(self, chain_id: str, lines: Sequence[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -362,7 +361,10 @@ class Services:
         self, chain_id: str, store_id: str, skus: Sequence[SkuInfo], *, now_hour: int = DEFAULT_NOW_HOUR
     ) -> dict:
         store, now, core, skipped = self._markdown_core(chain_id, store_id, skus, now_hour)
-        return self._markdown_dict(store, now, core, skipped)
+        return {
+            **self._markdown_dict(store, now, core, skipped),
+            **self.repo(chain_id).provenance(STOCK_TABLES),
+        }
 
     @staticmethod
     def _markdown_dict(
@@ -392,7 +394,6 @@ class Services:
             "cash_gain_total_vnd": sum(p["cash_gain_vnd"] for p in plans),
             "discount_levels_pct": [round(100 * x) for x in ASSUMPTIONS["markdown_discount_levels"]],
             "assumptions_vi": list(MARKDOWN_ASSUMPTIONS_VI),
-            "source": SOURCE,
         }
 
     @staticmethod
@@ -445,6 +446,7 @@ class Services:
             for r in rows
         ]
         economics = {s.sku_id: s.economics(price=s.unit_price + self._penalty(s)) for s in fresh}
+        self.routing.reset_router_info()
         try:
             plan = transfer_stock(
                 forecasts,
@@ -470,6 +472,11 @@ class Services:
                 "Không tính được điều chuyển: thiếu dự báo hoặc dữ liệu cửa hàng không hợp lệ.",
             ) from None
         tdict = plan.to_dict()
+        if isinstance(tdict.get("route_plan"), dict):
+            tdict["route_plan"].pop("source", None)  # routing's dataclass default label, not provenance
+        route_info = self.routing.last_router_info()
+        tdict["route_cached"] = bool(route_info and route_info[0])
+        tdict["route_solved_at"] = route_info[1] if route_info else None
         by_sku = {s.sku_id: s for s in fresh}
         store_names = {s.store_id: s.name for s in stores}
         for line in tdict["lines"]:
@@ -557,8 +564,9 @@ class Services:
                 "(P10/P50/P90 nhân tỷ trọng các giờ còn lại).",
                 "Hai cách là phương án thay thế nhau; chưa đánh giá kết hợp điều chuyển "
                 "rồi giảm giá phần còn lại.",
+                *([cache_note_vi(tdict["route_solved_at"])] if tdict["route_cached"] else []),
             ],
-            "source": SOURCE,
+            **repo.provenance(STOCK_TABLES),
         }
 
     # ------------------------------------------------------------ routing (flow 3)
@@ -584,14 +592,13 @@ def assumptions_payload() -> dict[str, Any]:
                 for m in re.finditer(r"(?ms)^\d+\.\s+(.*?)(?=^\d+\.\s|\Z)", s["body"])
             ]
     return {
-        "label": SOURCE,
-        "source": SOURCE,
         "title": "Giả định dữ liệu FreshMesh",
         "sections": sections,
         "roadmap": roadmap,
         "parameters": [
             {"key": k, "value": v, "description_vi": ASSUMPTION_DESCRIPTIONS_VI[k]}
             for k, v in ASSUMPTIONS.items()
+            if k != "source"  # data origin is provenance (GET /api/provenance), not a model parameter
         ],
     }
 
@@ -625,7 +632,6 @@ def fl_summary_payload(data_dir: Path) -> dict[str, Any]:
         data["forecast_model_active"] = resolve_model_kind()
     except ValueError:  # misconfigured env: forecasts would fail too, so don't claim any model is active
         data["forecast_model_active"] = "invalid"
-    data.setdefault("source", SOURCE)
     return data
 
 
@@ -638,7 +644,8 @@ def plan_key(name: str) -> str:
 def fmt_flow1_text(result: dict[str, Any]) -> str:
     """Vietnamese flow-1 report (used by decision.cli)."""
     lines = [
-        f"FreshMesh — phương án nhập hàng (dữ liệu: {result['source']})",
+        "FreshMesh — phương án nhập hàng",
+        f"Nguồn dữ liệu: {'; '.join(result['source_labels_vi'])}",
         f"Cửa hàng: {result['store_id']} ({result['store_name']}) | Ngày nhận hàng: {result['order_date']}",
         "",
         "Dự báo nhu cầu (P10 / P50 / P90, đơn vị/ngày):",

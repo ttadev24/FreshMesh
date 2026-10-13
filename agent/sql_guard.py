@@ -325,7 +325,9 @@ def validate_readonly_sql(
     return f"SELECT * FROM ({' '.join(out)}) LIMIT {int(max_rows)}"
 
 
-def _connect_readonly(db_path: Path | str, allowed_views: Iterable[str]) -> sqlite3.Connection:
+def _connect_readonly(
+    db_path: Path | str, allowed_views: Iterable[str], tables_read: set[str] | None = None
+) -> sqlite3.Connection:
     path = Path(db_path).resolve()
     if not path.is_file():
         raise SqlGuardError("Không tìm thấy cơ sở dữ liệu của chuỗi.")
@@ -341,6 +343,8 @@ def _connect_readonly(db_path: Path | str, allowed_views: Iterable[str]) -> sqli
         if action == sqlite3.SQLITE_READ:
             table = (arg1 or "").lower()
             if table in views or (source or "").lower() in views:
+                if tables_read is not None and table not in views:
+                    tables_read.add(table)  # base table read through a whitelisted view (provenance)
                 return sqlite3.SQLITE_OK
             return sqlite3.SQLITE_DENY
         if action == sqlite3.SQLITE_FUNCTION and (arg2 or "").lower() in ALLOWED_FUNCTIONS:
@@ -367,10 +371,12 @@ def run_query_data(
     max_rows: int = DEFAULT_MAX_ROWS,
     store_id: str | None = None,
 ) -> dict[str, Any]:
-    """Validate and execute; returns ``{columns, rows, row_count, truncated, views, sql}``."""
+    """Validate and execute; returns ``{columns, rows, row_count, truncated, views, tables, sql}``
+    (``tables`` = base tables actually read through the views, for data provenance)."""
     safe_sql = validate_readonly_sql(sql, chain_id, allowed_views, max_rows + 1, store_id)
     used = sorted({v for v in allowed_views if re.search(rf"\bFROM {re.escape(v.lower())} WHERE", safe_sql)})
-    con = _connect_readonly(db_path, allowed_views)
+    tables: set[str] = set()
+    con = _connect_readonly(db_path, allowed_views, tables)
     try:
         cur = con.execute(safe_sql, {"chain_id": chain_id, "store_id": store_id})
         columns = [d[0] for d in cur.description or []]
@@ -393,8 +399,28 @@ def run_query_data(
         "row_count": len(rows),
         "truncated": truncated,
         "views": used,
+        "tables": sorted(tables),
         "sql": safe_sql,
     }
+
+
+def view_columns_hint(db_path: Path | str, views: Sequence[str] = DEFAULT_VIEWS) -> str:
+    """ "Cột: v_x(a, b); ..." read from the DB itself, so the model never has to guess column names
+    (``chain_id`` and ``source`` are omitted: the tenant filter and provenance are handled by the system)."""
+    path = Path(db_path).resolve()
+    if not path.is_file():
+        return ""
+    con = sqlite3.connect(f"{path.as_uri()}?mode=ro", uri=True)
+    try:
+        parts = []
+        for v in views:
+            cols = [r[0] for r in con.execute("SELECT name FROM pragma_table_info(?)", (v,))]
+            cols = [c for c in cols if c not in ("chain_id", "source")]
+            if cols:
+                parts.append(f"{v}({', '.join(cols)})")
+    finally:
+        con.close()
+    return ("Cột có sẵn (chỉ dùng các cột này): " + "; ".join(parts) + ".") if parts else ""
 
 
 QUERY_DATA_SCHEMA = {
@@ -419,8 +445,11 @@ def make_query_data_tool(
     allowed_views: Sequence[str] = DEFAULT_VIEWS,
     max_rows: int = DEFAULT_MAX_ROWS,
     schema_hint_vi: str = "",
+    provenance_for: Callable[[str, Sequence[str]], dict[str, Any]] | None = None,
 ) -> Tool:
-    """``query_data`` read tool. ``db_path_for(chain_id)`` maps the caller's tenant to its DB file."""
+    """``query_data`` read tool. ``db_path_for(chain_id)`` maps the caller's tenant to its DB file;
+    ``provenance_for(chain_id, tables)`` returns ``{sources, source_labels_vi}`` for the base tables read
+    (without it the output carries no provenance and the agent reports "không rõ nguồn")."""
 
     def fn(args: dict[str, Any], ctx: ToolContext) -> ToolResult:
         path = db_path_for(ctx.chain_id) if callable(db_path_for) else db_path_for
@@ -438,7 +467,8 @@ def make_query_data_tool(
             max_rows=max_rows,
             store_id=scope_store,
         )
-        result["source"] = "SIMULATED"
+        if provenance_for is not None:
+            result.update(provenance_for(ctx.chain_id, result["tables"]))
         return ToolResult(data=result, citations=[f"query_data:{v}" for v in result["views"]])
 
     description = (

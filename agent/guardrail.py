@@ -28,7 +28,8 @@ number the user typed in that turn). Decisions:
 * **Sources.** All int/float leaves of read-tool results (booleans skipped), numbers written inside
   their string leaves (e.g. ``rationale_vi``) and the length of every list (so "3 phương án" verifies).
   Keys in ``NON_SOURCE_KEYS`` are skipped: ``sql`` echoes the query the model wrote, so its literals
-  (``WHERE 987654 > 0``, ``LIMIT 201``) are not data.
+  (``WHERE 987654 > 0``, ``LIMIT 201``) are not data; provenance (``sources``, ``source_labels_vi``) and
+  cache timestamps (``solved_at``) are metadata, not data.
 """
 
 from __future__ import annotations
@@ -178,7 +179,9 @@ def extract_numbers(text: str) -> list[NumberMention]:
 # ---------------------------------------------------------------- sources & verification
 
 
-NON_SOURCE_KEYS = frozenset({"sql"})
+# ``sql`` echoes the query the model wrote; provenance ids/labels and cache timestamps are metadata whose
+# digits (years, dates) must never "verify" a number in the answer.
+NON_SOURCE_KEYS = frozenset({"sql", "sources", "source_labels_vi", "solved_at", "route_solved_at"})
 
 
 def _walk(obj: Any, out: list[float]) -> None:

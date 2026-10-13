@@ -37,7 +37,7 @@ def test_missing_key_fails_gracefully_in_vietnamese(monkeypatch):
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     with pytest.raises(LLMUnavailableError) as ei:
         AnthropicClient()
-    assert "ANTHROPIC_API_KEY" in ei.value.message_vi and "kịch bản" in ei.value.message_vi
+    assert "ANTHROPIC_API_KEY" in ei.value.message_vi and "kịch bản" not in ei.value.message_vi
 
 
 def test_client_constructs_with_key_without_network(monkeypatch):
@@ -171,3 +171,14 @@ def test_real_sdk_accepts_request_parameters_offline():
     sdk = anthropic.Anthropic(api_key="sk-test", base_url="http://127.0.0.1:9", max_retries=0, timeout=2)
     with pytest.raises(LLMUnavailableError, match="kết nối"):
         AnthropicClient(sdk_client=sdk, use_fallbacks=True).complete(REQ)
+
+
+def test_haiku_never_gets_the_fallback_parameter():
+    sdk = FakeSDK(FakeStream([], NS(content=[NS(type="text", text="ok")], stop_reason="end_turn")))
+    client = AnthropicClient(sdk_client=sdk, model="claude-haiku-5-5", use_fallbacks=True, effort="medium")
+    client.complete(REQ)
+    params = sdk.calls[0]
+    assert params["model"] == "claude-haiku-5-5"
+    assert "betas" not in params and "fallbacks" not in params
+    assert "thinking" not in params and "temperature" not in params  # adaptive default, no sampling params
+    assert params["output_config"] == {"effort": "medium"}

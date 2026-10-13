@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# FreshMesh bootstrap (SIMULATED data):
+# FreshMesh bootstrap (provenance of every table: `uv run python -m provenance show`):
 #   1. generate the 3 simulated chain DBs (seed 42)        -> data/chains/<chain>.sqlite
 #   2. train the local forecasting model of every chain     -> data/models/<chain>.npz/.json
 #   3. federated learning (if forecasting/fl exists): experiments -> docs/experiments, FL models -> data/models

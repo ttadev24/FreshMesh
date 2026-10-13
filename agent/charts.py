@@ -130,9 +130,7 @@ def build_chart_option(args: dict[str, Any]) -> dict[str, Any]:
 
 def render_chart(args: dict[str, Any], ctx: ToolContext | None = None) -> ToolResult:
     option = build_chart_option(args)
-    return ToolResult(
-        {"chart_type": args["chart_type"], "option": option, "source": "SIMULATED"}, ["render_chart"]
-    )
+    return ToolResult({"chart_type": args["chart_type"], "option": option}, ["render_chart"])
 
 
 def make_render_chart_tool() -> Tool:

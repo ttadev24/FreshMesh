@@ -11,8 +11,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from api import provenance_view
 from api.errors import ApiError
-from data_sim import SOURCE, chain_db_path, open_chain_db
+from data_sim import chain_db_path, open_chain_db
 from decision.types import SkuEconomics, StockLot
 
 # Vietnamese / ASCII item words → SKU categories (the agent and the CLI accept both).
@@ -52,6 +53,7 @@ class StoreInfo:
     is_new: bool
     history_days: int
     opened_date: str
+    source: str | None = None  # dataset id of this row (provenance), as stored in the DB
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -63,7 +65,6 @@ class StoreInfo:
             "is_new": self.is_new,
             "history_days": self.history_days,
             "opened_date": self.opened_date,
-            "source": SOURCE,
         }
 
 
@@ -80,9 +81,10 @@ class SkuInfo:
     moq: int
     supplier_id: str
     cold_storage_units: float
+    source: str | None = None  # dataset id of this row (provenance), as stored in the DB
 
     def to_dict(self) -> dict[str, Any]:
-        return {**self.__dict__, "source": SOURCE}
+        return {k: v for k, v in self.__dict__.items() if k != "source"}
 
     def economics(self, *, price: float | None = None) -> SkuEconomics:
         return SkuEconomics(
@@ -107,7 +109,7 @@ class ChainRepo:
             raise ApiError(
                 503,
                 "data_not_ready",
-                "Chưa có dữ liệu giả lập cho chuỗi này; hãy chạy scripts/bootstrap.sh trước.",
+                "Chưa có dữ liệu cho chuỗi này; hãy chạy scripts/bootstrap.sh trước.",
             )
 
     @property
@@ -122,6 +124,20 @@ class ChainRepo:
         finally:
             con.close()
 
+    def provenance(self, tables: Sequence[str]) -> dict[str, list[str]]:
+        """``{sources, source_labels_vi}`` of the data in ``tables`` of this chain DB."""
+        with self.read() as con:
+            return provenance_view.for_tables(con, tables, self.data_dir)
+
+    @staticmethod
+    def labelled_id(raw: str | None) -> str:
+        """The dataset id :meth:`labelled` reports for one raw row value."""
+        return provenance_view.clean_id(raw)
+
+    def labelled(self, ids: Sequence[str | None]) -> dict[str, list[str]]:
+        """``{sources, source_labels_vi}`` for row-level dataset ids of this chain DB."""
+        return provenance_view.labelled(ids, self.data_dir)
+
     def chain_name(self) -> str:
         with self.read() as con:
             row = con.execute("SELECT name FROM chains WHERE chain_id = ?", (self.chain_id,)).fetchone()
@@ -130,7 +146,7 @@ class ChainRepo:
     def stores(self) -> list[StoreInfo]:
         with self.read() as con:
             rows = con.execute(
-                "SELECT store_id, name, lat, lng, area_type, is_new, history_days, opened_date "
+                "SELECT store_id, name, lat, lng, area_type, is_new, history_days, opened_date, source "
                 "FROM stores WHERE chain_id = ? ORDER BY store_id",
                 (self.chain_id,),
             ).fetchall()
@@ -144,6 +160,7 @@ class ChainRepo:
                 bool(r["is_new"]),
                 r["history_days"],
                 r["opened_date"],
+                r["source"],
             )
             for r in rows
         ]
@@ -158,7 +175,7 @@ class ChainRepo:
         with self.read() as con:
             rows = con.execute(
                 "SELECT sku_id, name, category, is_fresh, shelf_life_days, unit_cost, unit_price, "
-                "salvage_price, moq, supplier_id, cold_storage_units FROM skus ORDER BY sku_id"
+                "salvage_price, moq, supplier_id, cold_storage_units, source FROM skus ORDER BY sku_id"
             ).fetchall()
         return [
             SkuInfo(
@@ -173,6 +190,7 @@ class ChainRepo:
                 r["moq"],
                 r["supplier_id"],
                 r["cold_storage_units"],
+                r["source"],
             )
             for r in rows
         ]

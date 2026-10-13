@@ -1,0 +1,134 @@
+{
+  "files": [
+    {
+      "path": "raw/nso/README.md",
+      "url": "https://huggingface.co/datasets/letrinhan/vn-provinces-trade-tourism-transport-master/resolve/main/README.md",
+      "request": null,
+      "retrieved_at": "2026-10-13T07:47:02+00:00",
+      "sha256": "9ebdc74c5b799aa954d0eeb224c394b1ece512d8047d69e5c2f65089090d1e87",
+      "bytes": 2001,
+      "license": "HF card: license 'other' (no terms stated); underlying figures: NSO/GSO published statistics",
+      "dataset_id": "NSO_HCMC_RETAIL_REF"
+    },
+    {
+      "path": "raw/nso/provinces.csv",
+      "url": "https://huggingface.co/datasets/letrinhan/vn-provinces-trade-tourism-transport-master/resolve/main/data/provinces.csv",
+      "request": null,
+      "retrieved_at": "2026-10-13T07:47:02+00:00",
+      "sha256": "baf1f4721578b2efb0009714b3d364b274341fb8ea5aeba3093f31c8e83ee7f3",
+      "bytes": 198701,
+      "license": "HF card: license 'other' (no terms stated); underlying figures: NSO/GSO published statistics",
+      "dataset_id": "NSO_HCMC_RETAIL_REF"
+    },
+    {
+      "path": "raw/osm/buildings_0.json",
+      "url": "https://overpass-api.de/api/interpreter",
+      "request": "[out:json][timeout:170];(nwr[\"building\"~\"^(apartments|residential|house|terrace)$\"](10.7,106.6,10.78,106.71););out center tags;",
+      "retrieved_at": "2026-10-13T07:38:31+00:00",
+      "sha256": "62c00e46613ddc9049b253a15d880340fc267798cf66bb52ebb319e2557f7d24",
+      "bytes": 531905,
+      "license": "ODbL 1.0 — © OpenStreetMap contributors",
+      "dataset_id": "OSM_HCMC"
+    },
+    {
+      "path": "raw/osm/buildings_1.json",
+      "url": "https://overpass-api.de/api/interpreter",
+      "request": "[out:json][timeout:170];(nwr[\"building\"~\"^(apartments|residential|house|terrace)$\"](10.7,106.71,10.78,106.82););out center tags;",
+      "retrieved_at": "2026-10-13T07:39:09+00:00",
+      "sha256": "5f955fbd2a936177e1a356d6513d5df09790e26cf54eb88391af207be219fa1c",
+      "bytes": 128535,
+      "license": "ODbL 1.0 — © OpenStreetMap contributors",
+      "dataset_id": "OSM_HCMC"
+    },
+    {
+      "path": "raw/osm/buildings_2.json",
+      "url": "https://overpass.private.coffee/api/interpreter",
+      "request": "[out:json][timeout:170];(nwr[\"building\"~\"^(apartments|residential|house|terrace)$\"](10.78,106.6,10.86,106.71););out center tags;",
+      "retrieved_at": "2026-10-13T07:41:44+00:00",
+      "sha256": "36b730891d5c150c2803b79d10156aa28690b90085e1f1a0b851d0a439bf0907",
+      "bytes": 188558,
+      "license": "ODbL 1.0 — © OpenStreetMap contributors",
+      "dataset_id": "OSM_HCMC"
+    },
+    {
+      "path": "raw/osm/buildings_3.json",
+      "url": "https://overpass-api.de/api/interpreter",
+      "request": "[out:json][timeout:170];(nwr[\"building\"~\"^(apartments|residential|house|terrace)$\"](10.78,106.71,10.86,106.82););out center tags;",
+      "retrieved_at": "2026-10-13T07:41:45+00:00",
+      "sha256": "1e41c7c2e4e02dea2e55deb06e9d19a6ca3cfe827c76fa88330afcca14cb306d",
+      "bytes": 273224,
+      "license": "ODbL 1.0 — © OpenStreetMap contributors",
+      "dataset_id": "OSM_HCMC"
+    },
+    {
+      "path": "raw/osm/markets.json",
+      "url": "https://overpass-api.de/api/interpreter",
+      "request": "[out:json][timeout:170];(nwr[\"amenity\"=\"marketplace\"](10.7,106.6,10.86,106.82););out center tags;",
+      "retrieved_at": "2026-10-13T07:41:52+00:00",
+      "sha256": "9e4db10d28e8878852c17432a8e8541b03ae4fa34cfcab0b8a6780f36405e3a8",
+      "bytes": 47309,
+      "license": "ODbL 1.0 — © OpenStreetMap contributors",
+      "dataset_id": "OSM_HCMC"
+    },
+    {
+      "path": "raw/osm/offices.json",
+      "url": "https://overpass-api.de/api/interpreter",
+      "request": "[out:json][timeout:170];(nwr[\"office\"](10.7,106.6,10.86,106.82);nwr[\"building\"~\"^(office|commercial)$\"](10.7,106.6,10.86,106.82););out center tags;",
+      "retrieved_at": "2026-10-13T07:41:58+00:00",
+      "sha256": "4f66bf1f27c6e9c557b641b193d93fa95989e668b99f9559561dc722e5115068",
+      "bytes": 383151,
+      "license": "ODbL 1.0 — © OpenStreetMap contributors",
+      "dataset_id": "OSM_HCMC"
+    },
+    {
+      "path": "raw/osm/places.json",
+      "url": "https://overpass-api.de/api/interpreter",
+      "request": "[out:json][timeout:170];(node[\"place\"~\"^(suburb|quarter|neighbourhood)$\"](10.7,106.6,10.86,106.82););out center tags;",
+      "retrieved_at": "2026-10-13T07:42:42+00:00",
+      "sha256": "152bb047a877b4451361d429ec581fef3c7e77097b6cf73154a4b138f2683f32",
+      "bytes": 416742,
+      "license": "ODbL 1.0 — © OpenStreetMap contributors",
+      "dataset_id": "OSM_HCMC"
+    },
+    {
+      "path": "raw/osm/shops.json",
+      "url": "https://overpass-api.de/api/interpreter",
+      "request": "[out:json][timeout:170];(nwr[\"shop\"~\"^(convenience|supermarket)$\"](10.7,106.6,10.86,106.82););out center tags;",
+      "retrieved_at": "2026-10-13T07:33:03+00:00",
+      "sha256": "e3e4b83d4b92db2388409f43fb054ea14ac704f985366699b8376d22429a8eba",
+      "bytes": 326009,
+      "license": "ODbL 1.0 — © OpenStreetMap contributors",
+      "dataset_id": "OSM_HCMC"
+    },
+    {
+      "path": "raw/osrm/routes.jsonl",
+      "url": "https://router.project-osrm.org/route/v1/driving/",
+      "request": null,
+      "retrieved_at": "2026-10-13T07:46:12+00:00",
+      "sha256": "5f2718fccd2860e5a8d671c4f35009fb0615681d836c8b36177764aeac60a4a9",
+      "bytes": 154269,
+      "license": "Routes derived from OSM (ODbL 1.0); OSRM demo server: non-commercial, ≤1 req/s",
+      "dataset_id": "OSRM_DETOUR_HCMC"
+    },
+    {
+      "path": "raw/weather/openmeteo_archive.json",
+      "url": "https://archive-api.open-meteo.com/v1/archive?latitude=10.78&longitude=106.7&start_date=2025-08-19&end_date=2026-10-12&daily=precipitation_sum&timezone=Asia%2FHo_Chi_Minh",
+      "request": null,
+      "retrieved_at": "2026-10-13T07:14:40+00:00",
+      "sha256": "438f238256fc578a2944e9745311307c2e034f65044dbc48f966280ce14cac1d",
+      "bytes": 7947,
+      "license": "CC BY 4.0 (Open-Meteo); free API non-commercial only",
+      "dataset_id": "WEATHER_OPENMETEO_ARCHIVE"
+    },
+    {
+      "path": "raw/weather/openmeteo_forecast.json",
+      "url": "https://api.open-meteo.com/v1/forecast?latitude=10.78&longitude=106.7&daily=precipitation_sum&timezone=Asia%2FHo_Chi_Minh&past_days=7&forecast_days=7",
+      "request": null,
+      "retrieved_at": "2026-10-13T07:14:41+00:00",
+      "sha256": "34b107bb7c841346c8c14c448c0bf4ec02119390f4c3240879bf91085f70d249",
+      "bytes": 549,
+      "license": "CC BY 4.0 (Open-Meteo); free API non-commercial only",
+      "dataset_id": "WEATHER_OPENMETEO_FORECAST"
+    }
+  ]
+}

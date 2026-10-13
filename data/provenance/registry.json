@@ -1,0 +1,196 @@
+{
+  "datasets": [
+    {
+      "description_vi": "Ngày nghỉ lễ hưởng nguyên lương theo Bộ luật Lao động 2019 Điều 112 (1/1; 5 ngày Tết Âm lịch; Giỗ Tổ 10/3 âm; 30/4; 1/5; 2/9 và 1 ngày liền kề) với ngày cụ thể theo thông báo hằng năm của Bộ LĐ-TB&XH/Bộ Nội vụ, cộng Ngày Văn hóa Việt Nam 24/11 (Nghị quyết 28/2026/QH16, hiệu lực 1/7/2026). Ngày âm lịch, rằm, mùng 1 tính bằng lunardate. Danh sách ngày và trích dẫn: data_real/holidays_vn.json.",
+      "details": {
+        "sources": {
+          "BLLD2019_D112": {
+            "title": "Bộ luật Lao động số 45/2019/QH14, Điều 112 (Nghỉ lễ, tết)",
+            "url": "https://thuvienphapluat.vn/van-ban/Lao-dong-Tien-luong/Bo-Luat-lao-dong-2019-333670.aspx"
+          },
+          "BNV_TET2026": {
+            "title": "Thông báo của Bộ Nội vụ (theo ý kiến đồng ý của Thủ tướng) về lịch nghỉ Tết Bính Ngọ và các ngày lễ năm 2026, đưa tin ngày 31/12/2025",
+            "url": "https://tuoitre.vn/chi-tiet-so-ngay-nghi-trong-cac-dip-le-nam-2026-20251231230420433.htm"
+          },
+          "NQ28_2026": {
+            "title": "Nghị quyết 28/2026/QH16 về phát triển văn hóa Việt Nam: 24/11 hằng năm là Ngày Văn hóa Việt Nam, người lao động được nghỉ hưởng nguyên lương (hiệu lực 01/7/2026)",
+            "url": "https://www.sggp.org.vn/ngay-van-hoa-viet-nam-24-11-nguoi-lao-dong-duoc-nghi-lam-va-huong-nguyen-luong-post849574.html"
+          },
+          "TB6150_2024": {
+            "title": "Thông báo 6150/TB-BLĐTBXH ngày 03/12/2024 về nghỉ Tết Âm lịch và các ngày lễ năm 2025",
+            "url": "https://daibieunhandan.vn/thong-bao-chinh-thuc-ve-nghi-tet-nguyen-dan-at-ty-va-nghi-le-nam-2025-10353630.html"
+          },
+          "TB9441_BNV": {
+            "title": "Thông báo 9441/TB-BNV của Bộ Nội vụ về nghỉ lễ Quốc khánh 2/9/2026",
+            "url": "https://fptshop.com.vn/tin-tuc/for-gamers/lich-nghi-le-quoc-khanh-292026-chinh-thuc-210752"
+          }
+        },
+        "years_covered": [
+          2025,
+          2026
+        ]
+      },
+      "id": "CALENDAR_VN",
+      "kind": "public",
+      "license": "Văn bản quy phạm pháp luật và văn bản hành chính không thuộc đối tượng bảo hộ quyền tác giả (Luật Sở hữu trí tuệ, Điều 15); âm lịch tính bằng thư viện lunardate (GPL-3.0-or-later)",
+      "name_vi": "Lịch nghỉ lễ Việt Nam theo văn bản pháp luật + âm lịch",
+      "retrieved_at": "2026-10-13",
+      "url": "https://thuvienphapluat.vn/van-ban/Lao-dong-Tien-luong/Bo-Luat-lao-dong-2019-333670.aspx"
+    },
+    {
+      "description_vi": "Không có dữ liệu công khai cấp cửa hàng–mặt hàng ở Việt Nam, nên các lớp sau do chương trình data_sim sinh ngẫu nhiên có seed cố định: tên chuỗi, danh mục SKU và giá, doanh số ngày, khuyến mãi, tồn kho theo lô, đơn online (thời điểm, số lượng, khung giờ, hình thức nhận), tài khoản demo và bảng giả định. Vị trí giao hàng của đơn online là tọa độ tòa nhà thật lấy từ OSM_HCMC; lượng mưa dùng trong mô hình doanh số là số liệu thật (WEATHER_OPENMETEO_ARCHIVE). Đây KHÔNG phải số liệu kinh doanh thật; tham số và giả định ghi tại docs/data-assumptions.md.",
+      "id": "GEN_PROGRAM_V1",
+      "kind": "synthetic_code",
+      "license": "Mã nguồn FreshMesh (data_sim/)",
+      "name_vi": "Mô phỏng bằng chương trình (tham số giả định)",
+      "retrieved_at": null,
+      "url": null
+    },
+    {
+      "description_vi": "Bảng tỉnh × năm (tỷ đồng) do bên thứ ba tổng hợp từ niên giám NSO/GSO. Chỉ dùng làm mốc tham chiếu độ lớn trong docs/data-provenance.md; không đưa vào DB và không dùng để chỉnh tham số mô phỏng.",
+      "details": {
+        "card_license": "other",
+        "years": [
+          1995,
+          2024
+        ]
+      },
+      "id": "NSO_HCMC_RETAIL_REF",
+      "kind": "public",
+      "license": "Thẻ dữ liệu ghi 'other', không nêu điều khoản cụ thể; số liệu gốc là thống kê công bố của Cục Thống kê (NSO/GSO)",
+      "name_vi": "Doanh thu bán lẻ hàng hóa và dịch vụ TP.HCM theo năm — NSO/GSO (qua Hugging Face)",
+      "retrieved_at": "2026-10-13T07:47:02+00:00",
+      "url": "https://huggingface.co/datasets/letrinhan/vn-provinces-trade-tourism-transport-master"
+    },
+    {
+      "description_vi": "Trích xuất OpenStreetMap khu vực nội thành TP.HCM (vĩ độ 10,70–10,86; kinh độ 106,60–106,82) qua Overpass API: cửa hàng shop=convenience|supermarket, tòa nhà building=apartments|residential|house|terrace, chợ amenity=marketplace, văn phòng office=* / building=office|commercial, địa danh place=suburb|quarter|neighbourhood. Dữ liệu OSM do cộng đồng đóng góp, có thể thiếu hoặc lỗi thời; trích xuất dẫn xuất phát hành lại theo ODbL.",
+      "details": {
+        "bbox_s_w_n_e": [
+          10.7,
+          106.6,
+          10.86,
+          106.82
+        ],
+        "counts": {
+          "buildings": 5908,
+          "markets": 174,
+          "offices": 1070,
+          "places": 2176,
+          "shops": 1185
+        },
+        "endpoints": [
+          "https://overpass-api.de/api/interpreter",
+          "https://overpass.private.coffee/api/interpreter"
+        ],
+        "osm_base_timestamps": [
+          "2026-05-31T22:37:44Z",
+          "2026-10-13T07:31:06Z",
+          "2026-10-13T07:37:05Z",
+          "2026-10-13T07:38:05Z",
+          "2026-10-13T07:40:11Z",
+          "2026-10-13T07:41:17Z"
+        ],
+        "snapshot": "data_real/snapshot/osm_hcmc.json"
+      },
+      "id": "OSM_HCMC",
+      "kind": "public",
+      "license": "ODbL 1.0",
+      "name_vi": "© OpenStreetMap contributors (ODbL)",
+      "retrieved_at": "2026-10-13T07:42:42+00:00",
+      "url": "https://www.openstreetmap.org/copyright"
+    },
+    {
+      "description_vi": "Cửa hàng và điểm nhận hàng của demo: tọa độ là tọa độ thật của cửa hàng tiện lợi/siêu thị mini và tòa chung cư trong OSM_HCMC; tên hiển thị trung tính 'CH<n> <địa danh OSM gần nhất>' (không dùng tên/thương hiệu thật); loại khu vực (dân cư/gần chợ/văn phòng) suy ra từ số chợ và văn phòng OSM trong bán kính quanh cửa hàng. Việc gán cửa hàng vào chuỗi A/B/C, mã cửa hàng, ngày mở cửa và khung giờ điểm nhận do chương trình (GEN_PROGRAM_V1) gán. Mã OSM gốc lưu trong bảng osm_refs.",
+      "id": "OSM_HCMC_SITES",
+      "kind": "derived",
+      "license": "ODbL 1.0 (cơ sở dữ liệu dẫn xuất)",
+      "name_vi": "Vị trí thật từ OpenStreetMap (ODbL), gán chuỗi bằng chương trình",
+      "retrieved_at": "2026-10-13T07:42:42+00:00",
+      "url": "https://www.openstreetmap.org/copyright"
+    },
+    {
+      "description_vi": "Tỷ số quãng đường đi theo đường bộ (OSRM, hồ sơ ô tô) / khoảng cách đường chim bay giữa cửa hàng OSM và tòa nhà OSM ngẫu nhiên tại TP.HCM. Chỉ dùng để kiểm tra giả định detour_factor của routing; xem docs/data-real-detour.md.",
+      "details": {
+        "pairs_ok": 200,
+        "summary": {
+          "0.3-1.0km": {
+            "mean": 2.285,
+            "median": 1.665,
+            "n": 67,
+            "p10": 1.234,
+            "p90": 3.803,
+            "q1": 1.425,
+            "q3": 2.352
+          },
+          "1.0-2.0km": {
+            "mean": 1.991,
+            "median": 1.632,
+            "n": 67,
+            "p10": 1.309,
+            "p90": 3.075,
+            "q1": 1.466,
+            "q3": 2.127
+          },
+          "2.0-3.3km": {
+            "mean": 1.63,
+            "median": 1.472,
+            "n": 66,
+            "p10": 1.245,
+            "p90": 2.061,
+            "q1": 1.362,
+            "q3": 1.704
+          },
+          "all": {
+            "mean": 1.971,
+            "median": 1.578,
+            "n": 200,
+            "p10": 1.264,
+            "p90": 3.032,
+            "q1": 1.403,
+            "q3": 1.988
+          }
+        }
+      },
+      "id": "OSRM_DETOUR_HCMC",
+      "kind": "derived",
+      "license": "Kết quả định tuyến dẫn xuất từ dữ liệu OSM (ODbL 1.0); máy chủ demo OSRM chỉ cho dùng phi thương mại, ≤ 1 yêu cầu/giây",
+      "name_vi": "Hệ số đường vòng đo bằng OSRM trên bản đồ OSM (ODbL)",
+      "retrieved_at": "2026-10-13T07:46:12+00:00",
+      "url": "https://github.com/Project-OSRM/osrm-backend/wiki/Demo-server"
+    },
+    {
+      "description_vi": "Tổng lượng mưa ngày (precipitation_sum, mm, múi giờ Asia/Ho_Chi_Minh) tại tọa độ 10,78°N 106,70°E. Đây là dữ liệu tái phân tích/mô hình phân tích (ERA5, ECMWF IFS…) do Open-Meteo tổng hợp, không phải số đo trạm; vài ngày gần nhất có thể là số liệu sơ bộ và được cập nhật sau.",
+      "details": {
+        "days": 420,
+        "first": "2025-08-19",
+        "last": "2026-10-12",
+        "location": {
+          "lat": 10.78,
+          "lng": 106.7,
+          "timezone": "Asia/Ho_Chi_Minh"
+        }
+      },
+      "id": "WEATHER_OPENMETEO_ARCHIVE",
+      "kind": "public",
+      "license": "CC BY 4.0 (dữ liệu); API miễn phí chỉ cho mục đích phi thương mại (https://open-meteo.com/en/terms)",
+      "name_vi": "Lượng mưa ngày TP.HCM — Open-Meteo Historical Weather API (CC BY 4.0)",
+      "retrieved_at": "2026-10-13T07:14:40+00:00",
+      "url": "https://open-meteo.com/en/docs/historical-weather-api"
+    },
+    {
+      "description_vi": "Lượng mưa ngày từ API dự báo của Open-Meteo cho các ngày mà API lưu trữ chưa có số liệu (cuối bảng weather).",
+      "details": {
+        "dates": [
+          "2026-10-13",
+          "2026-10-14"
+        ]
+      },
+      "id": "WEATHER_OPENMETEO_FORECAST",
+      "kind": "public",
+      "license": "CC BY 4.0 (dữ liệu); API miễn phí chỉ cho mục đích phi thương mại (https://open-meteo.com/en/terms)",
+      "name_vi": "Dự báo mưa TP.HCM — Open-Meteo Forecast API (CC BY 4.0)",
+      "retrieved_at": "2026-10-13T07:14:41+00:00",
+      "url": "https://open-meteo.com/en/docs"
+    }
+  ]
+}

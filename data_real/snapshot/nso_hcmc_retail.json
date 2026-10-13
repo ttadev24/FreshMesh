@@ -1,0 +1,243 @@
+{
+ "meta": {
+  "dataset_id": "NSO_HCMC_RETAIL_REF",
+  "url": "https://huggingface.co/datasets/letrinhan/vn-provinces-trade-tourism-transport-master/resolve/main/data/provinces.csv",
+  "card_license": "other",
+  "license": "HF card: license 'other' (no terms stated); underlying figures: NSO/GSO published statistics",
+  "retrieved_at": "2026-10-13T07:47:02+00:00",
+  "unit_revenue": "tỷ đồng, giá hiện hành (quy ước niên giám NSO; bảng nguồn không ghi đơn vị)",
+  "geo": "Ho Chi Minh City (63-tỉnh cũ)",
+  "years": [
+   1995,
+   2024
+  ],
+  "raw_files": [
+   {
+    "path": "raw/nso/README.md",
+    "url": "https://huggingface.co/datasets/letrinhan/vn-provinces-trade-tourism-transport-master/resolve/main/README.md",
+    "retrieved_at": "2026-10-13T07:47:02+00:00",
+    "sha256": "9ebdc74c5b799aa954d0eeb224c394b1ece512d8047d69e5c2f65089090d1e87",
+    "bytes": 2001
+   },
+   {
+    "path": "raw/nso/provinces.csv",
+    "url": "https://huggingface.co/datasets/letrinhan/vn-provinces-trade-tourism-transport-master/resolve/main/data/provinces.csv",
+    "retrieved_at": "2026-10-13T07:47:02+00:00",
+    "sha256": "baf1f4721578b2efb0009714b3d364b274341fb8ea5aeba3093f31c8e83ee7f3",
+    "bytes": 198701
+   }
+  ]
+ },
+ "rows": [
+  {
+   "year": 1995,
+   "retail_trade_and_service_revenue": 34080.7,
+   "markets": null,
+   "supermarkets": null,
+   "shopping_centers": null
+  },
+  {
+   "year": 1996,
+   "retail_trade_and_service_revenue": 40448.0,
+   "markets": null,
+   "supermarkets": null,
+   "shopping_centers": null
+  },
+  {
+   "year": 1997,
+   "retail_trade_and_service_revenue": 43292.0,
+   "markets": null,
+   "supermarkets": null,
+   "shopping_centers": null
+  },
+  {
+   "year": 1998,
+   "retail_trade_and_service_revenue": 52563.8,
+   "markets": null,
+   "supermarkets": null,
+   "shopping_centers": null
+  },
+  {
+   "year": 1999,
+   "retail_trade_and_service_revenue": 54197.2,
+   "markets": null,
+   "supermarkets": null,
+   "shopping_centers": null
+  },
+  {
+   "year": 2000,
+   "retail_trade_and_service_revenue": 57988.0,
+   "markets": null,
+   "supermarkets": null,
+   "shopping_centers": null
+  },
+  {
+   "year": 2001,
+   "retail_trade_and_service_revenue": 62319.0,
+   "markets": null,
+   "supermarkets": null,
+   "shopping_centers": null
+  },
+  {
+   "year": 2002,
+   "retail_trade_and_service_revenue": 71493.0,
+   "markets": null,
+   "supermarkets": null,
+   "shopping_centers": null
+  },
+  {
+   "year": 2003,
+   "retail_trade_and_service_revenue": 81274.6,
+   "markets": null,
+   "supermarkets": null,
+   "shopping_centers": null
+  },
+  {
+   "year": 2004,
+   "retail_trade_and_service_revenue": 95993.4,
+   "markets": null,
+   "supermarkets": null,
+   "shopping_centers": null
+  },
+  {
+   "year": 2005,
+   "retail_trade_and_service_revenue": 107977.4,
+   "markets": null,
+   "supermarkets": 82.0,
+   "shopping_centers": null
+  },
+  {
+   "year": 2006,
+   "retail_trade_and_service_revenue": 136506.3,
+   "markets": null,
+   "supermarkets": null,
+   "shopping_centers": null
+  },
+  {
+   "year": 2007,
+   "retail_trade_and_service_revenue": 167934.2,
+   "markets": null,
+   "supermarkets": null,
+   "shopping_centers": null
+  },
+  {
+   "year": 2008,
+   "retail_trade_and_service_revenue": 231607.0,
+   "markets": 238.0,
+   "supermarkets": null,
+   "shopping_centers": 18.0
+  },
+  {
+   "year": 2009,
+   "retail_trade_and_service_revenue": 291030.1,
+   "markets": 249.0,
+   "supermarkets": null,
+   "shopping_centers": 21.0
+  },
+  {
+   "year": 2010,
+   "retail_trade_and_service_revenue": 448749.2,
+   "markets": 255.0,
+   "supermarkets": null,
+   "shopping_centers": 24.0
+  },
+  {
+   "year": 2011,
+   "retail_trade_and_service_revenue": 560558.5,
+   "markets": 247.0,
+   "supermarkets": null,
+   "shopping_centers": 27.0
+  },
+  {
+   "year": 2012,
+   "retail_trade_and_service_revenue": 606393.6,
+   "markets": 243.0,
+   "supermarkets": null,
+   "shopping_centers": 26.0
+  },
+  {
+   "year": 2013,
+   "retail_trade_and_service_revenue": 614137.6,
+   "markets": 243.0,
+   "supermarkets": 185.0,
+   "shopping_centers": 31.0
+  },
+  {
+   "year": 2014,
+   "retail_trade_and_service_revenue": 664268.1,
+   "markets": 240.0,
+   "supermarkets": 173.0,
+   "shopping_centers": 33.0
+  },
+  {
+   "year": 2015,
+   "retail_trade_and_service_revenue": 711206.7,
+   "markets": 240.0,
+   "supermarkets": 179.0,
+   "shopping_centers": 37.0
+  },
+  {
+   "year": 2016,
+   "retail_trade_and_service_revenue": 779293.6,
+   "markets": 240.0,
+   "supermarkets": 193.0,
+   "shopping_centers": 40.0
+  },
+  {
+   "year": 2017,
+   "retail_trade_and_service_revenue": 871796.3,
+   "markets": 239.0,
+   "supermarkets": 207.0,
+   "shopping_centers": 43.0
+  },
+  {
+   "year": 2018,
+   "retail_trade_and_service_revenue": 967210.8,
+   "markets": 238.0,
+   "supermarkets": 204.0,
+   "shopping_centers": 45.0
+  },
+  {
+   "year": 2019,
+   "retail_trade_and_service_revenue": 1057217.51,
+   "markets": 238.0,
+   "supermarkets": 206.0,
+   "shopping_centers": 49.0
+  },
+  {
+   "year": 2020,
+   "retail_trade_and_service_revenue": 1006129.1,
+   "markets": 237.0,
+   "supermarkets": 237.0,
+   "shopping_centers": 45.0
+  },
+  {
+   "year": 2021,
+   "retail_trade_and_service_revenue": 705653.12,
+   "markets": 236.0,
+   "supermarkets": 237.0,
+   "shopping_centers": 46.0
+  },
+  {
+   "year": 2022,
+   "retail_trade_and_service_revenue": 843255.48,
+   "markets": 235.0,
+   "supermarkets": 240.0,
+   "shopping_centers": 47.0
+  },
+  {
+   "year": 2023,
+   "retail_trade_and_service_revenue": 927759.53,
+   "markets": 233.0,
+   "supermarkets": 267.0,
+   "shopping_centers": 48.0
+  },
+  {
+   "year": 2024,
+   "retail_trade_and_service_revenue": 997330.11,
+   "markets": 232.0,
+   "supermarkets": 273.0,
+   "shopping_centers": 52.0
+  }
+ ]
+}

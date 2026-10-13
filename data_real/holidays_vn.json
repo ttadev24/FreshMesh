@@ -1,0 +1,59 @@
+{
+  "dataset_id": "CALENDAR_VN",
+  "description_vi": "Ngày nghỉ lễ, Tết hưởng nguyên lương của người lao động tại Việt Nam năm 2025–2026. 'statutory' = ngày lễ theo luật; 'compensatory' = ngày nghỉ bù khi ngày lễ trùng ngày nghỉ hằng tuần (Bộ luật Lao động 2019, Điều 112 khoản 3). Ngày hoán đổi/làm bù cho khu vực công ('bridge') ghi riêng và KHÔNG bật cờ is_holiday.",
+  "sources": {
+    "BLLD2019_D112": {
+      "title": "Bộ luật Lao động số 45/2019/QH14, Điều 112 (Nghỉ lễ, tết)",
+      "url": "https://thuvienphapluat.vn/van-ban/Lao-dong-Tien-luong/Bo-Luat-lao-dong-2019-333670.aspx"
+    },
+    "TB6150_2024": {
+      "title": "Thông báo 6150/TB-BLĐTBXH ngày 03/12/2024 về nghỉ Tết Âm lịch và các ngày lễ năm 2025",
+      "url": "https://daibieunhandan.vn/thong-bao-chinh-thuc-ve-nghi-tet-nguyen-dan-at-ty-va-nghi-le-nam-2025-10353630.html"
+    },
+    "BNV_TET2026": {
+      "title": "Thông báo của Bộ Nội vụ (theo ý kiến đồng ý của Thủ tướng) về lịch nghỉ Tết Bính Ngọ và các ngày lễ năm 2026, đưa tin ngày 31/12/2025",
+      "url": "https://tuoitre.vn/chi-tiet-so-ngay-nghi-trong-cac-dip-le-nam-2026-20251231230420433.htm"
+    },
+    "TB9441_BNV": {
+      "title": "Thông báo 9441/TB-BNV của Bộ Nội vụ về nghỉ lễ Quốc khánh 2/9/2026",
+      "url": "https://fptshop.com.vn/tin-tuc/for-gamers/lich-nghi-le-quoc-khanh-292026-chinh-thuc-210752"
+    },
+    "NQ28_2026": {
+      "title": "Nghị quyết 28/2026/QH16 về phát triển văn hóa Việt Nam: 24/11 hằng năm là Ngày Văn hóa Việt Nam, người lao động được nghỉ hưởng nguyên lương (hiệu lực 01/7/2026)",
+      "url": "https://www.sggp.org.vn/ngay-van-hoa-viet-nam-24-11-nguoi-lao-dong-duoc-nghi-lam-va-huong-nguyen-luong-post849574.html"
+    }
+  },
+  "years_covered": [2025, 2026],
+  "verified_at": "2026-10-13",
+  "holidays": [
+    {"date": "2025-01-01", "name_vi": "Tết Dương lịch", "type": "statutory", "source": "BLLD2019_D112"},
+    {"date": "2025-01-27", "name_vi": "Tết Âm lịch Ất Tỵ (28 tháng Chạp)", "type": "statutory", "source": "TB6150_2024"},
+    {"date": "2025-01-28", "name_vi": "Tết Âm lịch Ất Tỵ (29 tháng Chạp)", "type": "statutory", "source": "TB6150_2024"},
+    {"date": "2025-01-29", "name_vi": "Tết Âm lịch Ất Tỵ (mùng 1)", "type": "statutory", "source": "TB6150_2024"},
+    {"date": "2025-01-30", "name_vi": "Tết Âm lịch Ất Tỵ (mùng 2)", "type": "statutory", "source": "TB6150_2024"},
+    {"date": "2025-01-31", "name_vi": "Tết Âm lịch Ất Tỵ (mùng 3)", "type": "statutory", "source": "TB6150_2024"},
+    {"date": "2025-04-07", "name_vi": "Giỗ Tổ Hùng Vương (10/3 âm lịch)", "type": "statutory", "source": "BLLD2019_D112"},
+    {"date": "2025-04-30", "name_vi": "Ngày Chiến thắng", "type": "statutory", "source": "BLLD2019_D112"},
+    {"date": "2025-05-01", "name_vi": "Ngày Quốc tế lao động", "type": "statutory", "source": "BLLD2019_D112"},
+    {"date": "2025-09-01", "name_vi": "Quốc khánh (ngày liền kề)", "type": "statutory", "source": "TB6150_2024"},
+    {"date": "2025-09-02", "name_vi": "Quốc khánh", "type": "statutory", "source": "BLLD2019_D112"},
+    {"date": "2026-01-01", "name_vi": "Tết Dương lịch", "type": "statutory", "source": "BLLD2019_D112"},
+    {"date": "2026-02-16", "name_vi": "Tết Âm lịch Bính Ngọ (29 tháng Chạp)", "type": "statutory", "source": "BNV_TET2026"},
+    {"date": "2026-02-17", "name_vi": "Tết Âm lịch Bính Ngọ (mùng 1)", "type": "statutory", "source": "BNV_TET2026"},
+    {"date": "2026-02-18", "name_vi": "Tết Âm lịch Bính Ngọ (mùng 2)", "type": "statutory", "source": "BNV_TET2026"},
+    {"date": "2026-02-19", "name_vi": "Tết Âm lịch Bính Ngọ (mùng 3)", "type": "statutory", "source": "BNV_TET2026"},
+    {"date": "2026-02-20", "name_vi": "Tết Âm lịch Bính Ngọ (mùng 4)", "type": "statutory", "source": "BNV_TET2026"},
+    {"date": "2026-04-26", "name_vi": "Giỗ Tổ Hùng Vương (10/3 âm lịch, Chủ nhật)", "type": "statutory", "source": "BLLD2019_D112"},
+    {"date": "2026-04-27", "name_vi": "Nghỉ bù Giỗ Tổ Hùng Vương", "type": "compensatory", "source": "BNV_TET2026"},
+    {"date": "2026-04-30", "name_vi": "Ngày Chiến thắng", "type": "statutory", "source": "BLLD2019_D112"},
+    {"date": "2026-05-01", "name_vi": "Ngày Quốc tế lao động", "type": "statutory", "source": "BLLD2019_D112"},
+    {"date": "2026-09-01", "name_vi": "Quốc khánh (ngày liền kề)", "type": "statutory", "source": "TB9441_BNV"},
+    {"date": "2026-09-02", "name_vi": "Quốc khánh", "type": "statutory", "source": "BLLD2019_D112"},
+    {"date": "2026-11-24", "name_vi": "Ngày Văn hóa Việt Nam", "type": "statutory", "source": "NQ28_2026"}
+  ],
+  "bridge_days": [
+    {"date": "2025-05-02", "name_vi": "Hoán đổi với thứ Bảy 26/4/2025 (khu vực công)", "source": "TB6150_2024"},
+    {"date": "2026-01-02", "name_vi": "Hoán đổi với thứ Bảy 10/1/2026 (khu vực công)", "source": "BNV_TET2026"},
+    {"date": "2026-08-31", "name_vi": "Hoán đổi với thứ Bảy 22/8/2026 (khu vực công)", "source": "TB9441_BNV"}
+  ]
+}

@@ -1,0 +1,693 @@
+.right {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  height: 100%;
+  min-height: 0;
+}
+
+/* ---------- tabs ---------- */
+
+.tabs {
+  display: flex;
+  gap: 2px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.tab {
+  position: relative;
+  height: 42px;
+  padding: 0 12px;
+  border: 0;
+  background: none;
+  color: var(--ink-2);
+  font-weight: 500;
+  white-space: nowrap;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+}
+
+.tab:hover {
+  color: var(--ink);
+}
+
+/* The strip scrolls horizontally on phones, which clips an outer focus ring: draw it inside. */
+.tab:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--green);
+}
+
+.tab[aria-selected="true"] {
+  color: var(--green-strong);
+  font-weight: 600;
+}
+
+.tab[aria-selected="true"]::after {
+  content: "";
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: -1px;
+  height: 2px;
+  background: var(--green);
+}
+
+.tabBody {
+  position: relative;
+  overflow-y: auto;
+  min-height: 0;
+  overscroll-behavior: contain;
+}
+
+.panelWrap {
+  padding: 16px;
+}
+
+.panelWrap[hidden] {
+  display: none;
+}
+
+.stack {
+  display: grid;
+  gap: 14px;
+  max-width: 1080px;
+  min-width: 0;
+}
+
+.context {
+  color: var(--ink-2);
+  font-size: 13px;
+}
+
+.context b {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+/* ---------- shared bits ---------- */
+
+.flowGuide {
+  margin: 4px 0 0;
+  display: grid;
+  gap: 0;
+  max-width: 640px;
+}
+
+.flowGuide > div {
+  display: grid;
+  grid-template-columns: 150px 1fr;
+  gap: 12px;
+  padding: 8px 0;
+  border-top: 1px solid var(--line);
+}
+
+.flowGuide dt {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.flowGuide dd {
+  margin: 0;
+}
+
+@media (max-width: 520px) {
+  .flowGuide > div {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+}
+
+.muted {
+  color: var(--ink-3);
+  font-size: 12px;
+}
+
+.warn {
+  padding: 9px 12px;
+  border-radius: var(--radius);
+  background: var(--amber-tint);
+  color: var(--amber);
+  border: 1px solid color-mix(in srgb, var(--amber) 30%, transparent);
+  font-size: 13px;
+}
+
+.warnText {
+  color: var(--amber);
+}
+
+.pos {
+  color: var(--green);
+}
+
+.neg {
+  color: var(--red);
+}
+
+.controls {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+
+.miniSelect {
+  height: 28px;
+  padding: 0 6px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  max-width: 220px;
+}
+
+.details summary {
+  cursor: pointer;
+  color: var(--ink-2);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 2px 0;
+  border-radius: var(--radius-sm);
+}
+
+.details[open] summary {
+  margin-bottom: 8px;
+}
+
+.bullets {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 3px;
+  color: var(--ink-2);
+  font-size: 13px;
+}
+
+/* ---------- tables ---------- */
+
+.tableScroll {
+  position: relative;
+  overflow-x: auto;
+  min-width: 0;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.table th,
+.table td {
+  padding: 8px 10px 8px 0;
+  text-align: left;
+  vertical-align: top;
+}
+
+.table thead th {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-3);
+  border-bottom: 1px solid var(--line-strong);
+  white-space: nowrap;
+}
+
+.table tbody > tr > th,
+.table tbody > tr > td {
+  border-bottom: 1px solid var(--line);
+}
+
+.table tbody th {
+  font-weight: 500;
+}
+
+.numCell {
+  text-align: right !important;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.planTable thead th:nth-child(2),
+.planTable thead th:nth-child(3),
+.planTable thead th:nth-child(4) {
+  text-align: right;
+}
+
+.reasonCol {
+  color: var(--ink-2);
+  min-width: 220px;
+  max-width: 380px;
+}
+
+.reasonInline {
+  display: none;
+  color: var(--ink-2);
+  margin-bottom: 8px;
+}
+
+.planToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px;
+  margin: -2px;
+  border: 0;
+  background: none;
+  border-radius: var(--radius-sm);
+}
+
+.chev {
+  width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line-strong);
+  color: var(--ink-2);
+  font-size: 12px;
+  line-height: 1;
+}
+
+.constrained {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--amber);
+}
+
+.subRow > td {
+  background: var(--surface-2);
+  padding: 10px 12px !important;
+}
+
+.subTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+
+.subTable th {
+  text-align: left;
+  color: var(--ink-3);
+  font-weight: 500;
+  padding: 0 8px 4px 0;
+}
+
+.subTable td {
+  padding: 3px 8px 3px 0;
+}
+
+.subTable th:not(:first-child),
+.subTable td:not(:first-child) {
+  text-align: right;
+}
+
+/* ---------- stats ---------- */
+
+.stats {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 0;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+/* Hairlines drawn per cell so an incomplete last row leaves no grey filler. */
+.stats > div {
+  background: var(--surface);
+  box-shadow:
+    1px 0 0 var(--line),
+    0 1px 0 var(--line);
+  padding: 9px 12px;
+  display: grid;
+  gap: 2px;
+}
+
+.stats dt {
+  font-size: 12px;
+  color: var(--ink-3);
+}
+
+.stats dd {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+/* ---------- stock comparison ---------- */
+
+.compare {
+  display: grid;
+  gap: 8px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.compareHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.compareHead > :last-child {
+  margin-left: auto;
+}
+
+.compareBars {
+  display: grid;
+  gap: 6px;
+}
+
+.compareRow {
+  display: grid;
+  grid-template-columns: minmax(150px, 190px) 1fr auto;
+  gap: 10px;
+  align-items: center;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+
+.compareRow[data-best="true"] {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.bar {
+  height: 10px;
+  display: block;
+}
+
+.bar > span {
+  display: block;
+  height: 100%;
+  min-width: 2px;
+  border-radius: 2px;
+  background: var(--line-strong);
+}
+
+.compareRow[data-best="true"] .bar > span {
+  background: var(--green);
+}
+
+.subBlock {
+  display: grid;
+  gap: 8px;
+}
+
+.subBlock h3 {
+  font-size: 13px;
+}
+
+.mdBlock {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.slots {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.slots li {
+  display: grid;
+  gap: 1px;
+  padding: 6px 9px;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  min-width: 86px;
+}
+
+.slots li[data-off="true"] {
+  border-color: color-mix(in srgb, var(--amber) 40%, var(--line));
+  background: var(--amber-tint);
+}
+
+.slotTime {
+  font-size: 12px;
+  color: var(--ink-3);
+}
+
+.slotPct {
+  font-weight: 600;
+}
+
+.slots li[data-off="true"] .slotPct {
+  color: var(--amber);
+}
+
+/* ---------- routes ---------- */
+
+.map {
+  height: 380px;
+  border-radius: var(--radius);
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: var(--surface-3);
+  isolation: isolate;
+}
+
+.mapEmpty {
+  padding: 16px;
+  color: var(--ink-2);
+}
+
+.legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: var(--ink-2);
+}
+
+.legend li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.vehicles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 10px;
+}
+
+.vehicle {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  display: grid;
+  gap: 6px;
+  align-content: start;
+}
+
+.vehicle h3 {
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.vehicle h3 .muted {
+  margin-left: auto;
+  font-weight: 400;
+}
+
+.swatch {
+  width: 14px;
+  height: 4px;
+  border-radius: 2px;
+}
+
+.etaList {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 2px;
+  font-size: 12px;
+}
+
+.etaList li {
+  color: var(--ink-2);
+}
+
+.etaList li > span {
+  margin-left: 6px;
+}
+
+.eta {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.etaList li[data-late="true"] .eta {
+  color: var(--red);
+}
+
+.atRisk {
+  border-radius: var(--radius);
+  border: 1px solid color-mix(in srgb, var(--amber) 35%, var(--line));
+  background: var(--amber-tint);
+  padding: 10px 12px;
+  display: grid;
+  gap: 6px;
+}
+
+.atRisk h3 {
+  font-size: 13px;
+  color: var(--amber);
+}
+
+.atRisk ul {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13px;
+  display: grid;
+  gap: 2px;
+}
+
+@media (max-width: 1023px) {
+  .right {
+    height: auto;
+  }
+
+  .tabs {
+    position: sticky;
+    top: 47px;
+    z-index: 10;
+  }
+
+  .tabBody {
+    overflow: visible;
+  }
+}
+
+@media (max-width: 640px) {
+  .panelWrap {
+    padding: 12px;
+  }
+
+  /* Four tabs do not fit 390px: tighter tabs leave the next label half visible, which signals the scroll. */
+  .tabs {
+    padding: 0 8px;
+    scroll-padding-inline: 8px;
+  }
+
+  .tab {
+    padding: 0 10px;
+    font-size: 13px;
+  }
+
+  /* Let the plan headers wrap so the three money / percent columns fit without sideways scrolling. */
+  .planTable thead th {
+    white-space: normal;
+    vertical-align: bottom;
+  }
+
+  .table th,
+  .table td {
+    padding-right: 8px;
+  }
+
+  .reasonCol {
+    display: none;
+  }
+
+  .reasonInline {
+    display: block;
+  }
+
+  .compareRow {
+    grid-template-columns: 1fr auto;
+  }
+
+  .bar {
+    grid-column: 1 / -1;
+    order: 3;
+  }
+
+  .map {
+    height: 300px;
+  }
+
+  .stats dd {
+    font-size: 16px;
+  }
+}
+
+/* ---------- recommendation ---------- */
+
+.recommendedRow > th,
+.recommendedRow > td {
+  background: var(--green-tint);
+}
+
+.recommendedTag {
+  display: inline-block;
+  margin-left: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--green-strong);
+}
+
+.recommendNote {
+  font-size: 13px;
+  color: var(--ink-2);
+}
+
+.recommendNote b {
+  color: var(--green-strong);
+}
+
+.h3 {
+  font-size: 13px;
+  color: var(--ink-2);
+}
+
+.summaryBox {
+  display: grid;
+  gap: 8px;
+}
+
+.stats > div[data-best="true"] {
+  background: var(--green-tint);
+}
+
+.stats > div[data-best="true"] dd {
+  color: var(--green-strong);
+}
+
+/* Non-cash value (avoided stockout): visibly apart from the cash figures. */
+.nonCash {
+  padding: 7px 10px;
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius);
+  color: var(--ink-2);
+  font-size: 12px;
+}
+
+.nonCashLabel {
+  font-style: italic;
+}

@@ -1,0 +1,168 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+
+.neutral {
+  background: var(--surface-3);
+  color: var(--ink-2);
+}
+
+.green {
+  background: var(--green-tint);
+  color: var(--green-strong);
+}
+
+.amber {
+  background: var(--amber-tint);
+  color: var(--amber);
+}
+
+.red {
+  background: var(--red-tint);
+  color: var(--red);
+}
+
+.blue {
+  background: var(--blue-tint);
+  color: var(--blue);
+}
+
+.simulated {
+  background: var(--amber-tint);
+  color: var(--amber);
+  border-color: color-mix(in srgb, var(--amber) 35%, transparent);
+  font-family: var(--font-mono);
+  letter-spacing: 0.04em;
+  font-size: 11px;
+}
+
+/* Data-source tooltip on numbers. */
+.source {
+  position: relative;
+  display: inline;
+  border-bottom: 1px dotted var(--ink-3);
+  cursor: help;
+  border-radius: 2px;
+}
+
+.sourceTip {
+  position: absolute;
+  z-index: 30;
+  left: 50%;
+  bottom: calc(100% + 6px);
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: min(260px, 70vw);
+  padding: 7px 9px;
+  border-radius: var(--radius);
+  background: var(--ink);
+  color: var(--surface);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.4;
+  white-space: normal;
+  text-align: left;
+  pointer-events: none;
+  /* display:none (not visibility) so hidden tips never widen the page on phones. */
+  display: none;
+}
+
+.source:hover .sourceTip,
+.source:focus-visible .sourceTip {
+  display: block;
+  animation: rise 0.12s ease both;
+}
+
+.sourceTip b {
+  font-weight: 600;
+}
+
+/* States */
+.state {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+  padding: 18px;
+  border-radius: var(--radius);
+  border: 1px dashed var(--line-strong);
+  color: var(--ink-2);
+}
+
+.state h3 {
+  font-size: 14px;
+  color: var(--ink);
+}
+
+.stateError {
+  border-style: solid;
+  border-color: color-mix(in srgb, var(--red) 45%, var(--line));
+  background: var(--red-tint);
+  color: var(--ink);
+}
+
+.stateError h3 {
+  color: var(--red);
+}
+
+.skeleton {
+  display: grid;
+  gap: 10px;
+}
+
+.skeletonLine {
+  height: 12px;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(90deg, var(--surface-3) 0, var(--surface-2) 50%, var(--surface-3) 100%);
+  background-size: 400px 100%;
+  animation: shimmer 1.2s linear infinite;
+}
+
+.skeletonBlock {
+  height: 120px;
+}
+
+.spinner {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  animation: spin 0.7s linear infinite;
+  flex: none;
+}
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.panelHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.panelHead h2 {
+  font-size: 15px;
+}
+
+.panelSub {
+  color: var(--ink-3);
+  font-size: 12px;
+}

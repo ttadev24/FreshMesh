@@ -1,0 +1,313 @@
+.stack {
+  display: grid;
+  gap: 14px;
+  max-width: 1080px;
+  min-width: 0;
+}
+
+.muted {
+  color: var(--ink-3);
+  font-size: 12px;
+}
+
+.pos {
+  color: var(--green);
+  font-weight: 600;
+}
+
+.neg {
+  color: var(--red);
+  font-weight: 600;
+}
+
+.h3 {
+  font-size: 13px;
+  color: var(--ink-2);
+}
+
+/* ---------- audit ---------- */
+
+.filters {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.filter {
+  height: 28px;
+  padding: 0 10px;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  font-size: 13px;
+  color: var(--ink-2);
+}
+
+.filter[aria-checked="true"] {
+  border-color: var(--green);
+  background: var(--green-tint);
+  color: var(--green-strong);
+  font-weight: 600;
+}
+
+.timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+}
+
+.timelineItem {
+  display: grid;
+  grid-template-columns: 128px 1fr;
+  gap: 12px;
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+  content-visibility: auto;
+  contain-intrinsic-size: auto 64px;
+}
+
+.time {
+  font-size: 12px;
+  color: var(--ink-3);
+  padding-top: 2px;
+}
+
+.timelineBody {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.timelineHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.actor {
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.eventCode {
+  color: var(--ink-3);
+  font-size: 11px;
+}
+
+/* Long agent answers stay scannable in the timeline; the full payload is under "Chi tiết". */
+.payload {
+  font-size: 13px;
+  color: var(--ink-2);
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  overflow: hidden;
+  max-width: 90ch;
+}
+
+.raw summary {
+  font-size: 12px;
+  color: var(--ink-3);
+  cursor: pointer;
+}
+
+.raw pre {
+  margin: 6px 0 0;
+  padding: 8px 10px;
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  font-size: 11px;
+  max-height: 240px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* ---------- FL ---------- */
+
+.kpis {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+}
+
+.kpis > div {
+  display: grid;
+  gap: 2px;
+  align-content: start;
+}
+
+.kpis dt {
+  font-size: 12px;
+  color: var(--ink-3);
+}
+
+.kpis dd {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.metrics {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0;
+}
+
+.metrics li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+  font-size: 15px;
+}
+
+.metricLabel {
+  display: grid;
+  font-weight: 500;
+}
+
+/* ---------- assumptions ---------- */
+
+.banner {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  background: var(--amber-tint);
+  border: 1px solid color-mix(in srgb, var(--amber) 30%, transparent);
+}
+
+.banner p {
+  color: var(--ink);
+}
+
+.toc {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.toc a {
+  font-size: 12px;
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  text-decoration: none;
+  color: var(--ink-2);
+}
+
+.toc a:hover {
+  border-color: var(--green);
+  color: var(--green-strong);
+}
+
+.doc {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  display: grid;
+  gap: 10px;
+  scroll-margin-top: 12px;
+  min-width: 0;
+}
+
+.doc h2 {
+  font-size: 15px;
+}
+
+.md {
+  display: grid;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--ink-2);
+  max-width: 80ch;
+  overflow-wrap: anywhere;
+}
+
+.md strong {
+  color: var(--ink);
+}
+
+.mdH {
+  font-size: 13px;
+  color: var(--ink);
+  margin-top: 4px;
+}
+
+.mdList {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 3px;
+}
+
+.mdTableWrap {
+  position: relative;
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.mdTable {
+  border-collapse: collapse;
+  font-size: 12px;
+  min-width: 100%;
+}
+
+.mdTable th,
+.mdTable td {
+  text-align: left;
+  padding: 6px 10px 6px 0;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}
+
+.mdTable th {
+  color: var(--ink-3);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .timelineItem {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+}
+
+.kpiNote {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--ink-2);
+}
+
+.paramDetails summary {
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--ink-2);
+  font-weight: 500;
+}
+
+.paramDetails[open] summary {
+  margin-bottom: 8px;
+}
+
+.paramValue {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  max-width: 260px;
+  overflow-wrap: anywhere;
+}

@@ -1,0 +1,549 @@
+.pane {
+  position: relative;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  height: 100%;
+  min-height: 0;
+}
+
+/* ---------- quick flows ---------- */
+
+.flows {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.flowBtn {
+  display: grid;
+  gap: 2px;
+  text-align: left;
+  padding: 9px 11px;
+  border-radius: var(--radius);
+  border: 1px solid var(--line-strong);
+  background: var(--surface-2);
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease,
+    transform 0.1s ease;
+  min-width: 0;
+}
+
+.flowBtn:hover:not(:disabled) {
+  border-color: var(--green);
+  background: var(--green-tint);
+}
+
+.flowBtn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.flowBtn:disabled {
+  opacity: 0.55;
+}
+
+.flowLabel {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.flowHint {
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--ink-3);
+}
+
+/* ---------- conversation ---------- */
+
+/* position: relative makes the scroller the containing block of absolutely positioned descendants
+   (.sr-only captions): without it they escape to the document and make the whole page scroll. */
+.scroll {
+  position: relative;
+  overflow-y: auto;
+  min-height: 0;
+  padding: 16px;
+  overscroll-behavior: contain;
+}
+
+.intro {
+  max-width: 520px;
+}
+
+.turns {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 22px;
+}
+
+.turn {
+  display: grid;
+  gap: 10px;
+  animation: rise 0.25s ease both;
+}
+
+.question {
+  justify-self: end;
+  max-width: 88%;
+  padding: 9px 13px;
+  border-radius: var(--radius);
+  background: var(--green);
+  color: var(--green-ink);
+  display: grid;
+  gap: 2px;
+}
+
+.flowTag {
+  font-size: 11px;
+  font-weight: 600;
+  opacity: 0.85;
+}
+
+.reply {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+/* ---------- step list ---------- */
+
+.steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0;
+  border-left: 2px solid var(--line);
+  margin-left: 9px;
+}
+
+.step {
+  display: grid;
+  grid-template-columns: 20px 1fr;
+  gap: 8px;
+  padding: 3px 0 7px;
+  margin-left: -11px;
+}
+
+.stepIcon {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  font-weight: 700;
+  background: var(--surface);
+  border: 1.5px solid var(--line-strong);
+  color: var(--ink-3);
+}
+
+.step[data-state="done"] .stepIcon {
+  background: var(--green-tint);
+  border-color: var(--green);
+  color: var(--green);
+}
+
+.step[data-state="running"] .stepIcon {
+  border-color: var(--green);
+  color: var(--green);
+}
+
+.step[data-state="error"] .stepIcon {
+  background: var(--red-tint);
+  border-color: var(--red);
+  color: var(--red);
+}
+
+.stepBody {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+.stepTitle {
+  font-weight: 600;
+  font-size: 13px;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.stepDetail {
+  font-size: 12px;
+  color: var(--ink-3);
+  overflow-wrap: anywhere;
+}
+
+.stepError {
+  font-size: 12px;
+  color: var(--red);
+}
+
+.draftTag {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 0 6px;
+  border-radius: var(--radius-sm);
+  background: var(--amber-tint);
+  color: var(--amber);
+}
+
+/* ---------- answer ---------- */
+
+.answer {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.sections {
+  margin: 0;
+}
+
+.section {
+  display: grid;
+  grid-template-columns: 112px 1fr;
+  gap: 12px;
+  padding: 10px 14px;
+  border-top: 1px solid var(--line);
+}
+
+.section:first-child {
+  border-top: 0;
+  background: var(--green-tint);
+}
+
+.section dt {
+  font-weight: 600;
+  font-size: 12px;
+  color: var(--ink-2);
+  padding-top: 1px;
+}
+
+.section:first-child dt {
+  color: var(--green-strong);
+}
+
+.section[data-section="Việc cần bạn duyệt"] dt {
+  color: var(--amber);
+}
+
+.section dd {
+  margin: 0;
+  min-width: 0;
+}
+
+.rt {
+  display: grid;
+  gap: 6px;
+  overflow-wrap: anywhere;
+}
+
+.rtList {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 3px;
+}
+
+.unverified {
+  background: var(--amber-tint);
+  color: var(--amber);
+  font-weight: 600;
+  padding: 0 3px;
+  border-radius: 3px;
+  text-decoration: underline wavy color-mix(in srgb, var(--amber) 70%, transparent);
+  text-underline-offset: 3px;
+}
+
+.unverifiedNote {
+  padding: 8px 14px;
+  background: var(--amber-tint);
+  color: var(--amber);
+  font-size: 13px;
+  border-bottom: 1px solid color-mix(in srgb, var(--amber) 35%, transparent);
+}
+
+.templateWarn {
+  padding: 8px 14px;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+
+.answer > .rt {
+  padding: 0 14px 12px;
+}
+
+/* ---------- proposals ---------- */
+
+.proposals {
+  display: grid;
+  gap: 8px;
+}
+
+.proposal {
+  display: grid;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  border: 1px solid var(--line-strong);
+  border-left: 3px solid var(--amber-fill);
+  background: var(--surface);
+}
+
+.proposal[data-status="approved"],
+.proposal[data-status="dispatched"] {
+  border-left-color: var(--green);
+}
+
+.proposal[data-status="rejected"] {
+  border-left-color: var(--line-strong);
+  opacity: 0.85;
+}
+
+.proposalHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.proposalActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.proposalError {
+  padding: 8px 10px;
+  border-radius: var(--radius);
+  background: var(--red-tint);
+  color: var(--red);
+  font-size: 13px;
+}
+
+.lineTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.lineTable th {
+  text-align: left;
+  font-weight: 500;
+  color: var(--ink-3);
+  font-size: 12px;
+  padding: 0 6px 4px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.lineTable td {
+  padding: 4px 6px 4px 0;
+}
+
+.lineTable th:not(:first-child),
+.lineTable td:not(:first-child) {
+  text-align: right;
+}
+
+.qtyInput {
+  width: 84px;
+  height: 28px;
+  padding: 0 6px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  text-align: right;
+}
+
+.muted {
+  color: var(--ink-3);
+  font-size: 12px;
+}
+
+.dashLink {
+  justify-self: start;
+}
+
+.dashLink[aria-pressed="true"] {
+  border-color: var(--green);
+  color: var(--green-strong);
+  background: var(--green-tint);
+}
+
+/* ---------- composer ---------- */
+
+.composer {
+  border-top: 1px solid var(--line);
+  padding: 10px 16px 12px;
+  display: grid;
+  gap: 6px;
+  background: var(--surface);
+}
+
+.input {
+  width: 100%;
+  resize: none;
+  padding: 9px 11px;
+  border-radius: var(--radius);
+  border: 1px solid var(--line-strong);
+  background: var(--surface-2);
+  line-height: 1.45;
+}
+
+.input:focus-visible {
+  border-color: var(--green);
+  background: var(--surface);
+}
+
+.input::placeholder {
+  color: var(--ink-3);
+}
+
+.composerBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+@media (max-width: 1023px) {
+  .pane {
+    height: auto;
+  }
+
+  .scroll {
+    overflow: visible;
+  }
+
+  .composer {
+    position: sticky;
+    bottom: 0;
+  }
+}
+
+@media (max-width: 560px) {
+  .flows {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .flowBtn {
+    grid-template-columns: auto 1fr;
+    align-items: baseline;
+    gap: 8px;
+  }
+
+  .section {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+
+  .question {
+    max-width: 100%;
+  }
+}
+
+/* ---------- draft body & editor ---------- */
+
+.draftBody {
+  display: grid;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.draftMeta {
+  color: var(--ink-2);
+}
+
+.draftMeta b {
+  color: var(--ink);
+}
+
+.draftList {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 2px;
+  color: var(--ink-2);
+}
+
+.execNote {
+  padding: 6px 10px;
+  border-radius: var(--radius);
+  background: var(--green-tint);
+  color: var(--green-strong);
+  font-size: 12px;
+}
+
+/* A figure the server could not recompute after an edit: amber, it needs the reader's attention. */
+.draftNote {
+  padding: 6px 10px;
+  border-left: 3px solid var(--amber-fill);
+  background: var(--amber-tint);
+  color: var(--ink);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  font-size: 12px;
+}
+
+.draftNonCash {
+  font-style: italic;
+  color: var(--ink-3);
+}
+
+.execRecord {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--green) 35%, var(--line));
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+
+.execTitle {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.execTitle code {
+  color: var(--ink-3);
+  font-size: 12px;
+}
+
+.editForm {
+  display: grid;
+  gap: 10px;
+}
+
+.editField {
+  display: grid;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--ink-2);
+  font-weight: 500;
+}
+
+.editField select {
+  width: auto;
+  max-width: 220px;
+  text-align: left;
+}
+
+.noteInput {
+  width: 100%;
+  resize: vertical;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--ink);
+}

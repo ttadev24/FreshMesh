@@ -1,0 +1,178 @@
+.page {
+  min-height: 100dvh;
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(360px, 1fr);
+}
+
+.brand {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 32px;
+  padding: 40px 48px;
+  background:
+    radial-gradient(120% 80% at 0% 100%, rgb(255 255 255 / 0.08), transparent 60%),
+    #134f35;
+  color: #eef7f1;
+}
+
+.brandTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.logo {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius);
+  background: #eef7f1;
+  color: #134f35;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.brandBody {
+  max-width: 520px;
+  display: grid;
+  gap: 18px;
+}
+
+.brandBody h1 {
+  font-size: clamp(32px, 4vw, 48px);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.brandBody p {
+  color: #c9dfd2;
+  font-size: 16px;
+  max-width: 48ch;
+}
+
+.flows {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0;
+  border-top: 1px solid rgb(238 247 241 / 0.18);
+}
+
+.flows li {
+  display: grid;
+  grid-template-columns: 72px 1fr;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid rgb(238 247 241 / 0.18);
+  color: #e0eee6;
+}
+
+.flows b {
+  color: #f5c46a;
+  font-weight: 600;
+}
+
+.brandFoot {
+  color: #a9c9b6;
+  font-size: 13px;
+}
+
+.formWrap {
+  display: grid;
+  place-items: center;
+  padding: 40px 24px;
+  background: var(--surface);
+}
+
+.form {
+  width: 100%;
+  max-width: 380px;
+  display: grid;
+  gap: 16px;
+  animation: rise 0.35s ease both;
+}
+
+.form h2 {
+  font-size: 24px;
+}
+
+.lead {
+  color: var(--ink-2);
+  margin-top: 4px;
+}
+
+.field {
+  display: grid;
+  gap: 6px;
+}
+
+.field label {
+  font-weight: 500;
+}
+
+.submit {
+  height: 40px;
+  width: 100%;
+}
+
+.error,
+.errorNetwork {
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  background: var(--red-tint);
+  color: var(--red);
+  font-weight: 500;
+}
+
+.errorNetwork {
+  border: 1px solid color-mix(in srgb, var(--red) 40%, transparent);
+}
+
+.hint {
+  display: grid;
+  gap: 6px;
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  color: var(--ink-2);
+  font-size: 13px;
+}
+
+.hint ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.hint code {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+@media (max-width: 860px) {
+  .page {
+    grid-template-columns: 1fr;
+  }
+
+  .brand {
+    padding: 24px 16px;
+    gap: 16px;
+  }
+
+  .brandBody p {
+    font-size: 14px;
+  }
+
+  .flows,
+  .brandFoot {
+    display: none;
+  }
+
+  .formWrap {
+    place-items: start center;
+    padding: 24px 16px 40px;
+  }
+}

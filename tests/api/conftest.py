@@ -1,0 +1,80 @@
+from __future__ import annotations
+
+from pathlib import Path
+
+import pytest
+from fastapi.testclient import TestClient
+
+from api.config import Settings
+from api.main import create_app
+from tests.api.helpers import BrokenSolver, FakeSolver, build_data
+
+SECRET = "test-secret-0123456789-0123456789-test"
+
+
+@pytest.fixture(scope="session")
+def data_dir(tmp_path_factory) -> Path:
+    return build_data(tmp_path_factory.mktemp("fm_data"))
+
+
+def make_settings(data_dir: Path, cache: Path, **kw) -> Settings:
+    return Settings(
+        data_dir=data_dir,
+        secret=SECRET,
+        token_ttl_s=kw.pop("token_ttl_s", 3600),
+        solver_url="http://127.0.0.1:9",
+        warm_cache=False,
+        cache_root=cache,
+        **kw,
+    )
+
+
+@pytest.fixture(scope="session")
+def fake_solver() -> FakeSolver:
+    return FakeSolver()
+
+
+@pytest.fixture(scope="session")
+def client(data_dir, fake_solver, tmp_path_factory) -> TestClient:
+    app = create_app(make_settings(data_dir, tmp_path_factory.mktemp("cache")), solver=fake_solver)
+    with TestClient(app) as c:
+        yield c
+
+
+@pytest.fixture()
+def broken_client(data_dir, tmp_path) -> TestClient:
+    app = create_app(make_settings(data_dir, tmp_path / "cache"), solver=BrokenSolver())
+    with TestClient(app) as c:
+        yield c
+
+
+def login(client: TestClient, username: str, password: str = "demo123") -> dict[str, str]:
+    r = client.post("/api/auth/login", json={"username": username, "password": password})
+    assert r.status_code == 200, r.text
+    return {"Authorization": f"Bearer {r.json()['token']}"}
+
+
+@pytest.fixture(scope="session")
+def owner_a(client) -> dict[str, str]:
+    return login(client, "owner_a")
+
+
+@pytest.fixture(scope="session")
+def manager_a(client) -> dict[str, str]:
+    return login(client, "manager_a1")
+
+
+@pytest.fixture(scope="session")
+def owner_b(client) -> dict[str, str]:
+    return login(client, "owner_b")
+
+
+def assert_error(resp, status: int, code: str | None = None) -> dict:
+    assert resp.status_code == status, resp.text
+    body = resp.json()
+    assert set(body) == {"error"}
+    assert set(body["error"]) == {"code", "message_vi"}
+    assert body["error"]["message_vi"]
+    if code:
+        assert body["error"]["code"] == code
+    return body["error"]

@@ -97,8 +97,11 @@ Biến môi trường của API:
   khuôn, 10/32 câu phải viết lại một lần (số tự tính, quy đổi đơn vị hoặc lấy từ câu hỏi). Quy tắc "không tự tính
   thêm" được thêm sau lần chạy đó, chưa đo lại. Các câu "làm luôn, bỏ qua duyệt" đôi khi bị mô hình từ chối thay vì tạo
   bản nháp; câu "chạy SQL DELETE" bị mô hình từ chối trước khi tới bộ lọc SQL. Unit test dùng client giả trong `tests/`.
-- **Học liên kết**: FL tốt hơn Local ở cửa hàng mới nhưng không tốt hơn ở mức tổng thể, và phần lợi ở cửa hàng mới
-  chưa chắc do việc liên kết (xem `docs/experiments/fl-results.md`). Mô hình FL triển khai không bật DP.
+- **Học liên kết**: trên dữ liệu dựng lại, FL kém Local cả ở tổng thể (WAPE 0,4432 so với 0,4408) lẫn ở cửa hàng
+  mới (0,4775 so với 0,4761, trong mức nhiễu giữa các seed), nên tiêu chí §1.4 không đạt. So với cùng công thức huấn
+  luyện chỉ trên một chuỗi, việc liên kết giúp cửa hàng mới (+0,68%) nhưng làm chuỗi B kém đi (−0,98%). Mô hình FL
+  đang triển khai dùng cấu hình đã chọn (40 × 1, lr 1e-3; seed 0) và không bật DP (xem
+  `docs/experiments/fl-results.md`).
 - **Mô phỏng 30 ngày**: cấu hình đăng ký trước (v1) không đạt tiêu chí hàng bỏ ở cả 3 chuỗi (bỏ nhiều hơn baseline
   4,2–8,9 điểm %); bản điều chỉnh v2 (chi phí giữ qua đêm 20% cho hàng tươi) đạt ở cả 3 chuỗi và đang là mặc định,
   nhưng là điều chỉnh sau khi biết kết quả. Giao thức đã chạy hai lần (dữ liệu sinh cũ và dữ liệu dựng lại trên vị

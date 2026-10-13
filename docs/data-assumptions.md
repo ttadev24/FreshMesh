@@ -1,21 +1,33 @@
 # Giả định dữ liệu FreshMesh
 
-Toàn bộ dữ liệu trong hệ thống hiện tại là **dữ liệu giả lập** (`source = 'SIMULATED'`). Mọi bảng có cột
-`source` đều mang giá trị `SIMULATED`; mọi kết quả hiển thị cho người dùng đều gắn nhãn này. Tài liệu này
-liệt kê các tham số giả lập, các giả định kinh tế dùng cho ra quyết định và lộ trình chuyển sang dữ liệu thật.
-Mã nguồn tương ứng: `data_sim/` (hằng số Python `data_sim.ASSUMPTIONS`, bảng `assumptions` trong mỗi DB chuỗi).
+Dữ liệu FreshMesh gồm hai phần, mỗi dòng ghi rõ nguồn trong cột `source` (mã nguồn dữ liệu, xem
+`docs/data-provenance.md`):
+
+- **Dữ liệu công khai thật**: vị trí cửa hàng, điểm nhận và điểm giao (OpenStreetMap, `OSM_HCMC`/`OSM_HCMC_SITES`),
+  lượng mưa ngày TP.HCM (Open-Meteo, `WEATHER_OPENMETEO_ARCHIVE`/`_FORECAST`), ngày lễ và âm lịch (`CALENDAR_VN`).
+- **Do chương trình sinh** (`GEN_PROGRAM_V1`, nhãn "Mô phỏng bằng chương trình (tham số giả định)"): doanh số,
+  giá, khuyến mãi, tồn kho, đơn online, tên chuỗi. Không có dữ liệu công khai cấp cửa hàng–mặt hàng ở Việt Nam;
+  các tham số dưới đây là giả định, **không phải số liệu kinh doanh thật**.
+
+Tài liệu này liệt kê các tham số mô phỏng, các giả định kinh tế dùng cho ra quyết định và lộ trình chuyển sang dữ
+liệu bán hàng thật. Mã nguồn: `data_sim/` (hằng số `data_sim.ASSUMPTIONS`, bảng `assumptions` trong mỗi DB chuỗi),
+`data_real/` (tải và lưu dữ liệu công khai).
 
 ## Tổng quan và cách tạo lại dữ liệu
 
-- Lệnh: `uv run python -m data_sim --out data --seed 42`. Chạy lại sẽ ghi đè; cùng seed cho nội dung DB giống hệt.
+- Lệnh: `uv run python -m data_real build` (= `uv run python -m data_sim --out data --seed 42`). Không cần mạng:
+  dữ liệu công khai đọc từ các tệp đã cam kết trong `data_real/snapshot/` và `data_real/holidays_vn.json`. Chạy lại
+  sẽ ghi đè; cùng seed và cùng snapshot cho nội dung DB giống hệt. Tải lại nguồn: `uv run python -m data_real fetch`.
 - Mỗi chuỗi một file SQLite riêng: `data/chains/<chain_id>.sqlite` (cách ly tenant bằng file DB riêng).
 - Ngày cuối của lịch sử (ngày "hôm nay" của demo): **`SIM_AS_OF = 2026-09-30`** (`data_sim.SIM_AS_OF`).
 - Lịch sử bán hàng: 365 ngày (2025-10-01 → 2026-09-30) cho cửa hàng đã hoạt động; 14 ngày cho cửa hàng mới.
 - Bảng `calendar` kéo dài thêm 60 ngày sau `SIM_AS_OF` để mô hình dự báo có đặc trưng lịch cho tương lai.
-- Bảng `weather` gồm 365 ngày lịch sử + 14 ngày sau `SIM_AS_OF` (coi là "dự báo thời tiết" giả lập); giống
-  nhau ở cả 3 chuỗi vì cùng một thành phố.
-- Mọi phần ngẫu nhiên lấy từ `numpy.random.default_rng([seed, ...])`: luồng riêng cho thời tiết, vị trí cửa
-  hàng và từng chuỗi.
+- Bảng `weather` gồm 365 ngày lịch sử + 14 ngày sau `SIM_AS_OF`, là **lượng mưa thật** của TP.HCM từ Open-Meteo
+  (lưu trữ tới 2026-10-12, 2026-10-13 và 2026-10-14 là dự báo); giống nhau ở cả 3 chuỗi.
+- Bảng `calendar`: `is_holiday` theo danh sách ngày nghỉ chính thức 2025–2026 (`data_real/holidays_vn.json`,
+  có trích dẫn văn bản); ngày âm, Tết, rằm, mùng 1 tính bằng `lunardate`.
+- Mọi phần ngẫu nhiên lấy từ `numpy.random.default_rng([seed, ...])`: luồng riêng cho chọn vị trí cửa hàng và
+  từng chuỗi.
 
 ## Chuỗi, cửa hàng và tọa độ
 
@@ -25,14 +37,21 @@ Mã nguồn tương ứng: `data_sim/` (hằng số Python `data_sim.ASSUMPTIONS
 | `CHAIN_B` | Tiện Lợi Phố | Nhân viên văn phòng, giờ trưa, đồ uống/đồ ăn liền, vắng cuối tuần | 5: văn phòng, văn phòng, dân cư, văn phòng, gần chợ | — |
 | `CHAIN_C` | Chợ Nhà | Khách đi chợ truyền thống, nhạy rằm/mùng 1 và mưa, mua sáng sớm | 7: chợ, chợ, dân cư, chợ, dân cư, văn phòng, chợ | CH7 |
 
-- Mã cửa hàng: `<A|B|C>-CH<n>`; tên hiển thị `CH<n> <khu vực>` (khu vực là quận/phường gần nhất theo tâm
-  xấp xỉ, chỉ để dễ đọc).
+- Mã cửa hàng: `<A|B|C>-CH<n>`; tên hiển thị `CH<n> <phường>` với phường là nút `place=suburb` OSM gần nhất
+  (tên phường sau sắp xếp 2025). Không dùng tên/thương hiệu thật của cửa hàng OSM; mã OSM gốc ở bảng `osm_refs`.
 - Cửa hàng mới (cold-start): `is_new = 1`, `history_days = 14`, `opened_date = SIM_AS_OF − 13 ngày`. Cửa hàng
   khác: `history_days = 365`, ngày mở cửa trước đầu kỳ lịch sử.
-- **Ánh xạ tọa độ**: lấy 100 điểm khách hàng của instance routing-PL `routing/routing-PL/src/data/100/R101_co_100.txt`
-  (mặt phẳng x ∈ [2, 67], y ∈ [3, 77]). Ánh xạ tuyến tính x → kinh độ [106,62; 106,78], y → vĩ độ [10,72; 10,84]
-  (khoảng 17 km × 13 km nội thành TP.HCM). Cửa hàng được chọn từ các điểm này theo thứ tự hoán vị theo seed,
-  giữ khoảng cách tối thiểu 1,2 km giữa hai cửa hàng bất kỳ.
+- **Tọa độ thật từ OpenStreetMap**: cửa hàng đặt tại vị trí của cửa hàng tiện lợi/siêu thị mini thật
+  (`shop=convenience|supermarket`) trong trích xuất OSM nội thành (vĩ độ 10,70–10,86; kinh độ 106,60–106,82).
+  (Trước đây tọa độ lấy từ instance routing-PL `R101_co_100` ánh xạ lên TP.HCM; cách này đã bỏ.)
+- **Chuỗi theo cụm địa lý** (tâm, bán kính): A — Bình Thạnh/Phú Nhuận/Gò Vấp (10,805; 106,700; 3,2 km);
+  B — Quận 1/3/4 cũ (10,776; 106,697; 2,6 km); C — Quận 5/6/10/11 cũ, Chợ Lớn (10,756; 106,655; 3,2 km).
+  Cửa hàng OSM thuộc cụm có tâm gần nhất trong bán kính.
+- **Loại khu vực suy ra từ OSM**: có chợ (`amenity=marketplace`) trong 350 m → gần chợ; ≥ 8 văn phòng
+  (`office=*`, `building=office|commercial`) trong 400 m → văn phòng; còn lại → dân cư.
+- **Điều kiện chọn**: quanh cửa hàng phải có ≥ 60 tòa nhà ở trong 0,3–3 km, ≥ 4 tòa ở 2,6–3,3 km, ≥ 3 tòa chung
+  cư ở 0,4–1,2 km và ≥ 3 tòa nhà trong 0,5 km; hai cửa hàng bất kỳ cách nhau ≥ 1,2 km. Chọn ngẫu nhiên theo seed,
+  ô khan hiếm nhất trước, thử lại tối đa 200 lần.
 
 ## Danh mục hàng (SKU)
 
@@ -73,11 +92,12 @@ Hàng khô: `staple` (gạo ST25, mì gói), `condiment` (nước mắm, dầu �
   - 10 ngày trước Tết: tăng dần tới × (1 + 0,9·s) với thịt/hải sản, × (1 + 0,55·s) với nhóm khác.
   - Mùng 1–3 Tết: × max(0,15; 1 − 0,65·s) (khách về quê, cửa hàng mở ngắn giờ); mùng 4–7: × 0,8.
   - Rằm và mùng 1 hằng tháng: rau/đậu hũ × (1 + 0,35·s) (ăn chay); thịt/hải sản × max(0,5; 1 − 0,18·s).
-- **Ngày lễ dương lịch** (1/1, 30/4, 1/5, 1/9, 2/9) và Giỗ Tổ (10/3 âm): văn phòng × 0,45; khu khác × 1,1.
-  Cờ `is_holiday` cũng bật cho mùng 1–5 Tết.
+- **Ngày nghỉ lễ chính thức** (`is_holiday`, không tính các ngày Tết đã xử lý ở trên): văn phòng × 0,45; khu
+  khác × 1,1. Năm 2025–2026: 1/1; 5 ngày Tết theo thông báo (27–31/1/2025, 16–20/2/2026); Giỗ Tổ (7/4/2025;
+  26/4/2026 và nghỉ bù 27/4/2026); 30/4; 1/5; 1/9 và 2/9; 24/11/2026 (Ngày Văn hóa Việt Nam).
 - **Mưa**: ≥ 2 mm là mưa nhẹ, ≥ 20 mm là mưa lớn. Hệ số (nhẹ / lớn): dân cư 0,97 / 0,85; gần chợ 0,93 / 0,72;
   văn phòng 0,96 / 0,80; mức giảm nhân với độ nhạy mưa của chuỗi (A 1,0; B 0,8; C 1,3).
-  Lượng mưa: mùa mưa (5–11) xác suất mưa 62%, lượng ~ Gamma(0,9; 16) mm; mùa khô xác suất 10%, Gamma(0,6; 5) mm.
+  Lượng mưa là số liệu thật của Open-Meteo (cột `rain_mm`); chỉ phản ứng của doanh số với mưa là giả định.
 - **Khuyến mãi**: đợt 3 ngày, xác suất bắt đầu mỗi ngày mỗi SKU theo chuỗi (A 2,0%; B 3,5%; C 1,2%; hàng tươi
   × 0,6); giá × 0,85, lượng bán × 1,45. Cột `price` là giá thực bán ngày đó, `promo = 1` khi có khuyến mãi.
 - **Xu hướng**: tăng trưởng/năm A 6%, B 10%, C 3% (bằng 1,0 tại `SIM_AS_OF`).
@@ -95,7 +115,7 @@ lô nào đã hết hạn. m = trung bình bán/ngày 7 ngày gần nhất của
 - Hàng khô: 1–2 lô nhập 3–45 ngày trước, mỗi lô 4–12·m.
 - **Kịch bản dư hàng**: ở mọi chuỗi, cửa hàng CH3 có lô rau (`vegetable`) 2,6–3,4·m hết hạn ngày mai
   ("Còn nhiều rau ở CH3"). **Kịch bản thiếu hàng**: cửa hàng đã hoạt động gần CH3 nhất chỉ còn 0,05–0,2·m rau.
-  Với seed 42: `CHAIN_A` dư ở `A-CH3`, thiếu ở `A-CH2`.
+  Với seed 42: `CHAIN_A` dư ở `A-CH3`, thiếu ở `A-CH1` (cách 1,38 km).
 - View `v_stock` có cột `days_to_expiry` tính so với `SIM_AS_OF` (không phụ thuộc đồng hồ máy).
 - **Quy ước hạn dùng**: `expires_on` là **ngày bán được cuối cùng (tính cả ngày đó)**; lô bị hủy vào cuối ngày
   `expires_on`. Hàng nhập về cuối ngày `received_date`, nên số ngày bán được = `shelf_life_days` (từ
@@ -112,15 +132,17 @@ lô nào đã hết hạn. m = trung bình bán/ngày 7 ngày gần nhất của
   cửa hàng mới 12–16), luôn ≤ `max_orders_per_batch` của routing.
 - Đơn lịch sử: 14 ngày gần nhất, số đơn/ngày theo khu vực (dân cư 70–110, chợ 50–85, văn phòng 40–70), phân bố
   theo giờ 6h–21h giống tỷ trọng doanh số theo giờ. Khung giờ của đơn lịch sử tính từ đầu đợt của chính nó.
-- Vị trí: trong bán kính 0,3–3 km quanh cửa hàng; đơn nhận tại điểm nhận nằm trong 0,5 km quanh điểm đó; 60%
-  đơn linh hoạt nằm trong 0,8 km quanh một sảnh chung cư (để solver có thể chọn điểm nhận).
+- Vị trí: tâm một **tòa nhà ở thật trong OSM** (chọn ngẫu nhiên): giao tận nhà trong 0,3–3 km quanh cửa hàng; đơn
+  nhận tại điểm nhận ở tòa nhà trong 0,5 km (quầy) hoặc 0,8 km (sảnh) quanh điểm đó; đơn linh hoạt luôn ở tòa
+  nhà trong 0,8 km quanh một sảnh (khách chọn "linh hoạt" vì gần điểm nhận). Mã OSM của tòa nhà ở `osm_refs`.
 - `delivery_mode`: tận nhà 55%, điểm nhận 20%, linh hoạt 25% (tương ứng customer type 1/2/3 của routing-PL).
   `demand` 1–3; `service` 3–6 phút (điểm nhận 2 phút).
 - Khung giờ: `earliest` ∈ {0, 15, …, 150}, `latest = earliest + 45–90` phút, nâng lên ít nhất thời gian đi + 10
   phút và không quá 240 phút (`shift_minutes`). Có chủ ý 1–2 đơn "gấp" mỗi đợt ở xa 2,6–3,3 km với `latest`
   nhỏ hơn thời gian đi → được báo **có nguy cơ trễ** (`unreachable_in_window`).
 - **Điểm nhận** (`pickup_points`): mỗi cửa hàng có quầy nhận tại cửa hàng (id `<store_id>-counter`, trùng
-  `routing.models.counter_id`) và 2–3 sảnh chung cư cách 0,4–1,2 km; khung giờ 0–240 phút.
+  `routing.models.counter_id`) và 2–3 tòa chung cư thật (`building=apartments` trong OSM) cách 0,4–1,2 km, ưu
+  tiên tòa có tên đọc được (tên hiển thị "Sảnh <tên OSM>"); khung giờ 0–240 phút.
   **Lưu ý tích hợp**: adapter routing tự thêm quầy cửa hàng, nên khi dựng `Batch` hãy bỏ dòng có
   `pickup_point_id = counter_id(store_id)` khỏi `pickup_points` (đơn vẫn được tham chiếu tới id đó hợp lệ).
 - View `v_online_orders` làm tròn tọa độ 3 chữ số thập phân (~100 m) và không có trường thông tin khách hàng
@@ -130,7 +152,9 @@ lô nào đã hết hạn. m = trung bình bán/ngày 7 ngày gần nhất của
 
 - Tốc độ xe máy trung bình nội thành: **20 km/h** (`RoutingConfig.speed_kmh`).
 - Hệ số đường vòng: **1,3** (quãng đường thực ≈ 1,3 × đường chim bay; `RoutingConfig.detour_factor`).
-  Như vậy 1 km đường chim bay ≈ 3,9 phút di chuyển.
+  Như vậy 1 km đường chim bay ≈ 3,9 phút di chuyển. Đo bằng OSRM (hồ sơ ô tô) trên 200 cặp cửa hàng–tòa nhà
+  thật cho trung vị 1,58 (IQR 1,40–1,99), tức 1,3 thấp hơn số đo ô tô; xe máy có thể thấp hơn ô tô. Chi tiết:
+  `docs/data-real-detour.md`.
 - Ca giao 240 phút; bán kính điểm nhận cho đơn linh hoạt 1 km; tối đa 50 đơn/đợt (theo `routing.config`).
 
 ## Giả định kinh tế cho ra quyết định
@@ -154,20 +178,22 @@ lô nào đã hết hạn. m = trung bình bán/ngày 7 ngày gần nhất của
 - Phạt mất khách khi hết hàng: 0,5 × biên lợi nhuận đơn vị (cộng thêm vào biên lợi nhuận bị mất).
 - Chi phí điều chuyển bằng xe máy: 5.000 đ/km đường + 20.000 đ/chuyến.
 
-## Nhãn SIMULATED và giới hạn
+## Nhãn nguồn dữ liệu và giới hạn
 
-- Mọi dòng trong các bảng có cột `source` đều là `SIMULATED`; API và giao diện luôn hiển thị nhãn này.
-- Tham số trên là giả định hợp lý cho mini-mart TP.HCM, chưa được hiệu chỉnh bằng dữ liệu bán hàng thật; kết
-  quả demo minh họa cách hệ thống hoạt động, không phải con số kinh doanh thực tế.
-- Thời tiết, khách hàng, vị trí đơn đều là giả lập; không có dữ liệu cá nhân thật.
+- Cột `source` chứa mã nguồn dữ liệu, không còn giá trị chung `SIMULATED`: `GEN_PROGRAM_V1` cho dữ liệu do chương
+  trình sinh, `OSM_HCMC_SITES` cho cửa hàng/điểm nhận đặt trên vị trí OSM thật; bảng `data_sources` ghi nguồn của
+  thời tiết, lịch và tọa độ. API/giao diện hiển thị nhãn theo `provenance.label_vi(mã)`.
+- Tham số doanh số, giá, tồn kho, đơn là giả định hợp lý cho mini-mart TP.HCM, chưa được hiệu chỉnh bằng dữ liệu
+  bán hàng thật; kết quả demo minh họa cách hệ thống hoạt động, không phải con số kinh doanh thực tế.
+- Vị trí đơn là tòa nhà thật nhưng đơn hàng là mô phỏng; không có khách hàng hay dữ liệu cá nhân thật.
 
 ## Lộ trình chuyển sang dữ liệu thật
 
 1. **Kết nối POS**: xuất dữ liệu từ KiotViet / Sapo (báo cáo bán hàng theo ngày–mặt hàng, tồn kho theo lô,
    nhập hàng, danh mục hàng hóa và giá vốn) qua file Excel/CSV hoặc API của nhà cung cấp POS.
 2. **Ánh xạ vào cùng schema**: `stores`, `skus`, `daily_sales`, `inventory_lots`, `online_orders` giữ nguyên cấu
-   trúc; cột `source` đổi thành `POS_KIOTVIET` / `POS_SAPO`; thời tiết lấy từ nguồn quan trắc công khai; lịch âm
-   và ngày lễ giữ nguyên cách tính.
+   trúc; cột `source` đổi thành mã nguồn mới đăng ký trong registry (ví dụ `POS_KIOTVIET` / `POS_SAPO`); thời tiết,
+   vị trí OSM, lịch âm và ngày lễ giữ nguyên nguồn hiện tại.
 3. **Pilot 2–3 mini-mart** trong 4–8 tuần: so sánh dự báo với thực tế, ước lượng lại hệ số co giãn giá từ các đợt
    giảm giá thật, đo tốc độ giao thực tế để hiệu chỉnh `speed_kmh` và `detour_factor`.
 4. Mở rộng lên nhiều chuỗi để học liên kết (mỗi chuỗi giữ dữ liệu tại chỗ, chỉ chia sẻ trọng số mô hình).

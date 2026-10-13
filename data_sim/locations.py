@@ -1,4 +1,8 @@
-"""Store coordinates: routing-PL instance customers mapped onto Ho Chi Minh City.
+"""Geometry helpers, plus the former synthetic store placement.
+
+The chain DBs place stores on real OpenStreetMap shops (`data_sim.sites`). `pick_store_locations` /
+`map_to_hcmc` below are the earlier synthetic placement (routing-PL instance customers mapped onto HCMC),
+no longer used by `generate_all`; they remain for experiments that still import them.
 
 Mapping (documented in docs/data-assumptions.md):
 the Solomon-style instance `R101_co_100.txt` has customer coordinates on a plane (x 2..67, y 3..77).

@@ -1,4 +1,12 @@
-"""Deterministic generator for the per-chain SQLite databases."""
+"""Deterministic builder of the per-chain SQLite databases.
+
+Real public inputs (offline, from the committed snapshots in `data_real/`): store / pickup-point / delivery
+locations (OpenStreetMap, ODbL), daily rain (Open-Meteo, CC BY 4.0), official holidays (CALENDAR_VN).
+Program-generated layers (dataset GEN_PROGRAM_V1, seed-determined): chains, SKU catalogue and prices,
+daily sales, promotions, inventory lots, online orders (time, size, window, mode), demo users.
+Every row's `source` column holds the dataset id; `data_sources` lists datasets of columns without a
+row-level source; `osm_refs` keeps the OSM element behind each located row.
+"""
 
 import datetime as dt
 import hashlib
@@ -20,7 +28,7 @@ from data_sim.assumptions import (
     SIM_BATCH_WINDOW_MINUTES,
 )
 from data_sim.auth import hash_password
-from data_sim.calendar_weather import PRE_TET_DAYS, CalendarDay, build_calendar, simulate_rain
+from data_sim.calendar_weather import PRE_TET_DAYS, CalendarDay, build_calendar, real_rain
 from data_sim.catalog import (
     AREA_CATEGORY_MIX,
     AREA_VOLUME,
@@ -36,26 +44,24 @@ from data_sim.catalog import (
     ChainProfile,
     SkuSpec,
 )
-from data_sim.locations import district_name, haversine_km, offset_latlng, pick_store_locations
+from data_sim.locations import haversine_km
 from data_sim.schema import TABLES_DDL, views_ddl
+from data_sim.sites import (
+    COUNTER_RADIUS_KM,
+    Point,
+    Site,
+    buildings_within,
+    lobby_candidates,
+    readable_name,
+    select_sites,
+)
 
-SOURCE = "SIMULATED"
+SOURCE = "GEN_PROGRAM_V1"  # dataset id of every program-generated row (see provenance/registry_defaults.json)
+SITES_SOURCE = "OSM_HCMC_SITES"  # stores and pickup points located on real OSM features
+OSM_SOURCE = "OSM_HCMC"
 DEMO_PASSWORD = "demo123"
 CALENDAR_FUTURE_DAYS = 60  # calendar rows after SIM_AS_OF so forecasts get future features
 WEATHER_FUTURE_DAYS = 14  # simulated "weather forecast" rows after SIM_AS_OF
-
-LOBBY_NAMES = (
-    "Sảnh chung cư Hoa Sen",
-    "Sảnh chung cư Bình Minh",
-    "Sảnh chung cư Phú An",
-    "Sảnh chung cư An Lạc",
-    "Sảnh chung cư Thanh Bình",
-    "Sảnh tòa nhà Ánh Dương",
-    "Sảnh chung cư Hưng Phát",
-    "Sảnh chung cư Tân Mỹ",
-    "Sảnh chung cư Sen Hồng",
-    "Sảnh chung cư Lộc Phát",
-)
 
 # Batch size range by area type (orders in one 45-minute window).
 BATCH_SIZE_RANGE = {"residential": (22, 36), "market": (16, 28), "office": (12, 22)}
@@ -84,6 +90,7 @@ class PickupRow:
     lat: float
     lng: float
     is_counter: bool
+    osm: str
 
 
 def counter_point_id(store_id: str) -> str:
@@ -142,12 +149,12 @@ def _rain_factor(rain_mm: float, area: str, sens: float) -> float:
     return max(0.3, 1.0 - (1.0 - base) * sens)
 
 
-def _build_stores(
-    profile: ChainProfile, locs: list[tuple[float, float]], rng: np.random.Generator
-) -> list[StoreRow]:
+def _build_stores(profile: ChainProfile, sites: list[Site], rng: np.random.Generator) -> list[StoreRow]:
     stores: list[StoreRow] = []
     for i, area in enumerate(profile.area_types):
-        lat, lng = locs[i]
+        site = sites[i]
+        if site.area_type != area:
+            raise ValueError(f"{profile.chain_id} CH{i + 1}: site area {site.area_type} != profile {area}")
         is_new = profile.new_store_index == i
         if is_new:
             opened = SIM_AS_OF - dt.timedelta(days=NEW_STORE_HISTORY_DAYS - 1)
@@ -157,7 +164,7 @@ def _build_stores(
             hist = HISTORY_DAYS
         store_id = f"{profile.letter.upper()}-CH{i + 1}"
         stores.append(
-            StoreRow(store_id, profile.chain_id, f"CH{i + 1} {district_name(lat, lng)}", lat, lng, area,
+            StoreRow(store_id, profile.chain_id, f"CH{i + 1} {site.place}", site.lat, site.lng, area,
                      opened, hist, is_new)
         )
     return stores
@@ -257,20 +264,34 @@ def _inventory_lots(
     return rows
 
 
-def _pickup_points(stores: list[StoreRow], rng: np.random.Generator) -> list[PickupRow]:
+def _lobby_name(p: Point) -> str:
+    return f"Sảnh {p.name}" if readable_name(p.name) else f"Sảnh tòa chung cư (OSM {p.osm})"
+
+
+def _pickup_points(stores: list[StoreRow], sites: list[Site], rng: np.random.Generator) -> list[PickupRow]:
+    """Counter at the store + 2–3 real OSM apartment buildings 0.4–1.2 km away (named ones preferred)."""
     points: list[PickupRow] = []
-    for store in stores:
+    for store, site in zip(stores, sites, strict=True):
         points.append(
             PickupRow(counter_point_id(store.store_id), store.store_id, f"Quầy nhận hàng tại {store.name}",
-                      store.lat, store.lng, True)
+                      store.lat, store.lng, True, site.osm)
         )
-        names = rng.permutation(len(LOBBY_NAMES))
-        for j in range(int(rng.integers(2, 4))):
-            lat, lng = offset_latlng(store.lat, store.lng, float(rng.uniform(0.4, 1.2)),
-                                     float(rng.uniform(0, 2 * math.pi)))
+        cands = lobby_candidates(store.lat, store.lng)
+        named = [p for p in cands if readable_name(p.name)]
+        pool = named if len(named) >= 3 else cands
+        taken = [p.osm for p in points]
+        k = int(rng.integers(2, 4))
+        picked: list[Point] = []
+        for i in rng.permutation(len(pool)):
+            p = pool[int(i)]
+            if p.osm not in taken and all(haversine_km(p.lat, p.lng, q.lat, q.lng) >= 0.15 for q in picked):
+                picked.append(p)
+            if len(picked) == k:
+                break
+        for j, p in enumerate(picked):
             points.append(
-                PickupRow(f"{store.store_id}-PP{j + 1}", store.store_id, LOBBY_NAMES[int(names[j])],
-                          round(lat, 6), round(lng, 6), False)
+                PickupRow(f"{store.store_id}-PP{j + 1}", store.store_id, _lobby_name(p), p.lat, p.lng, False,
+                          p.osm)
             )
     return points
 
@@ -281,22 +302,46 @@ def _travel_minutes(dist_km: float) -> int:
     return math.ceil(dist_km * detour * 60.0 / speed)
 
 
+@dataclass(frozen=True)
+class _StoreGeo:
+    """Real OSM buildings around one store, used as order destinations."""
+
+    home: list[Point]  # HOME_RADIUS_KM from the store
+    tight: list[Point]  # 2.6–3.3 km from the store
+    near_point: dict[str, list[Point]]  # pickup_point_id -> buildings within 0.5 km (0.8 km for lobbies)
+
+
+def _store_geo(store: StoreRow, points: list[PickupRow]) -> _StoreGeo:
+    near = {}
+    for p in points:
+        radius = COUNTER_RADIUS_KM if p.is_counter else 0.8
+        near[p.pickup_point_id] = buildings_within(p.lat, p.lng, 0.0, radius)
+    return _StoreGeo(buildings_within(store.lat, store.lng, 0.3, 3.0),
+                     buildings_within(store.lat, store.lng, 2.6, 3.3), near)
+
+
+def _choose(rng: np.random.Generator, pool: list[Point]) -> Point:
+    return pool[int(rng.integers(len(pool)))]
+
+
 def _make_order(
     rng: np.random.Generator,
     store: StoreRow,
     points: list[PickupRow],
+    geo: _StoreGeo,
     shift: int,
     tight: bool,
-) -> tuple[float, float, int, int, int, int, str, str | None]:
-    """(lat, lng, demand, earliest, latest, service, mode, pickup_point_id) relative to batch start."""
+) -> tuple[float, float, int, int, int, int, str, str | None, str]:
+    """(lat, lng, demand, earliest, latest, service, mode, pickup_point_id, osm) relative to batch start.
+
+    The destination is a real OSM residential building (its OSM id is returned)."""
     demand = int(rng.integers(1, 4))
     if tight:
         # Express request far from the store: the window closes before a rider can arrive.
-        lat, lng = offset_latlng(store.lat, store.lng, float(rng.uniform(2.6, 3.3)),
-                                 float(rng.uniform(0, 2 * math.pi)))
-        travel = _travel_minutes(haversine_km(store.lat, store.lng, lat, lng))
+        dest = _choose(rng, geo.tight)
+        travel = _travel_minutes(haversine_km(store.lat, store.lng, dest.lat, dest.lng))
         latest = int(travel * rng.uniform(0.35, 0.65))
-        return round(lat, 6), round(lng, 6), demand, 0, latest, 3, "home", None
+        return dest.lat, dest.lng, demand, 0, latest, 3, "home", None, dest.osm
 
     mode = str(rng.choice([m for m, _ in MODE_PROBS], p=[p for _, p in MODE_PROBS]))
     lobbies = [p for p in points if not p.is_counter]
@@ -304,22 +349,20 @@ def _make_order(
     if mode == "pickup":
         point = points[0] if rng.random() < 0.3 else lobbies[int(rng.integers(len(lobbies)))]
         pickup_id = point.pickup_point_id
-        center, radius = (point.lat, point.lng), 0.5
-    elif mode == "flexible" and rng.random() < 0.6:
+        pool = geo.near_point[point.pickup_point_id]
+    elif mode == "flexible":
+        # Customers offer "flexible" only when they live near a pickup lobby (within 0.8 km).
         point = lobbies[int(rng.integers(len(lobbies)))]
-        center, radius = (point.lat, point.lng), 0.8
+        pool = geo.near_point[point.pickup_point_id]
     else:
-        center, radius = (store.lat, store.lng), 3.0
-    dist = float(np.sqrt(rng.uniform(0.01, 1.0)) * radius)
-    if center == (store.lat, store.lng):
-        dist = max(dist, 0.3)
-    lat, lng = offset_latlng(center[0], center[1], dist, float(rng.uniform(0, 2 * math.pi)))
-    travel = _travel_minutes(haversine_km(store.lat, store.lng, lat, lng))
+        pool = geo.home
+    dest = _choose(rng, pool)
+    travel = _travel_minutes(haversine_km(store.lat, store.lng, dest.lat, dest.lng))
     earliest = int(rng.choice(np.arange(0, 151, 15)))
     latest = min(shift, earliest + int(rng.integers(45, 91)))
     latest = min(shift, max(latest, travel + 10))
     service = 2 if mode == "pickup" else int(rng.integers(3, 7))
-    return round(lat, 6), round(lng, 6), demand, earliest, latest, service, mode, pickup_id
+    return dest.lat, dest.lng, demand, earliest, latest, service, mode, pickup_id, dest.osm
 
 
 def _online_orders(
@@ -334,6 +377,7 @@ def _online_orders(
     hourly = ASSUMPTIONS["hourly_sales_share"]
     for store in stores:
         pts = [p for p in points if p.store_id == store.store_id]
+        geo = _store_geo(store, pts)
         # Historical orders over the last 14 days, hourly-distributed.
         shares = hourly[store.area_type]
         hours = np.array([int(h) for h in shares])
@@ -348,12 +392,12 @@ def _online_orders(
                 for h in rng.choice(hours, size=n, p=probs)
             )
             for seq, created in enumerate(stamps):
-                lat, lng, demand, earliest, latest, service, mode, pp = _make_order(
-                    rng, store, pts, shift, tight=rng.random() < 0.04
+                lat, lng, demand, earliest, latest, service, mode, pp, osm = _make_order(
+                    rng, store, pts, geo, shift, tight=rng.random() < 0.04
                 )
                 rows.append(
                     (f"{store.store_id}-H{day:%Y%m%d}-{seq + 1:04d}", store.store_id, created.isoformat(),
-                     lat, lng, demand, earliest, latest, service, mode, pp, SOURCE)
+                     lat, lng, demand, earliest, latest, service, mode, pp, SOURCE, osm)
                 )
         # The current batch: created in [SIM_BATCH_START - window, SIM_BATCH_START).
         lo, hi = BATCH_SIZE_RANGE[store.area_type]
@@ -366,10 +410,12 @@ def _online_orders(
         offsets = sorted(int(x) for x in rng.integers(0, int(window.total_seconds()), size=n_batch))
         for j, (off, tight) in enumerate(zip(offsets, tight_flags, strict=True)):
             created = SIM_BATCH_START - window + dt.timedelta(seconds=off)
-            lat, lng, demand, earliest, latest, service, mode, pp = _make_order(rng, store, pts, shift, tight)
+            lat, lng, demand, earliest, latest, service, mode, pp, osm = _make_order(
+                rng, store, pts, geo, shift, tight
+            )
             rows.append(
                 (f"{store.store_id}-B{j + 1:03d}", store.store_id, created.isoformat(), lat, lng, demand,
-                 earliest, latest, service, mode, pp, SOURCE)
+                 earliest, latest, service, mode, pp, SOURCE, osm)
             )
     return rows
 
@@ -395,12 +441,30 @@ def _remove_db(path: Path) -> None:
             p.unlink()
 
 
+def _data_sources(weather_sources: dict[str, str], history: set[str]) -> list[tuple[str, str, str, str]]:
+    """(table, column, dataset_id, note_vi) for data that has no row-level `source`."""
+    weather_ids = sorted(set(weather_sources.values()))
+    sales_weather = sorted({weather_sources[d] for d in history})
+    rows = [("weather", "rain_mm", w, "Lượng mưa ngày TP.HCM") for w in weather_ids]
+    rows += [("daily_sales", "rain_mm", w, "Lượng mưa ngày của dòng doanh số") for w in sales_weather]
+    rows += [
+        ("calendar", "is_holiday", "CALENDAR_VN", "Ngày lễ theo BLLĐ 2019 Điều 112 + thông báo hằng năm"),
+        ("calendar", "lunar_month,lunar_day,is_tet,is_ram,is_mung1", "CALENDAR_VN", "Âm lịch (lunardate)"),
+        ("stores", "lat,lng,name", OSM_SOURCE, "Tọa độ cửa hàng OSM; tên = địa danh OSM gần nhất"),
+        ("pickup_points", "lat,lng,name", OSM_SOURCE, "Tòa chung cư OSM làm điểm nhận"),
+        ("online_orders", "lat,lng", OSM_SOURCE, "Điểm giao = tâm tòa nhà ở OSM (đơn do chương trình sinh)"),
+    ]
+    return rows
+
+
 def _write_chain_db(
     path: Path,
     profile: ChainProfile,
     stores: list[StoreRow],
+    sites: list[Site],
     calendar: list[CalendarDay],
     weather: list[tuple[str, float]],
+    data_sources: list[tuple[str, str, str, str]],
     sales: list[tuple],
     lots: list[tuple],
     points: list[PickupRow],
@@ -416,7 +480,7 @@ def _write_chain_db(
             conn.executemany(
                 "INSERT INTO stores VALUES (?,?,?,?,?,?,?,?,?,?)",
                 [(s.store_id, s.chain_id, s.name, s.lat, s.lng, s.area_type, s.opened_date.isoformat(),
-                  s.history_days, int(s.is_new), SOURCE) for s in stores],
+                  s.history_days, int(s.is_new), SITES_SOURCE) for s in stores],
             )
             conn.executemany(
                 "INSERT INTO skus VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
@@ -435,49 +499,78 @@ def _write_chain_db(
             conn.executemany(
                 "INSERT INTO pickup_points VALUES (?,?,?,?,?,?,?,?)",
                 [(p.pickup_point_id, p.store_id, p.name, p.lat, p.lng, 0, int(ASSUMPTIONS["shift_minutes"]),
-                  SOURCE) for p in points],
+                  SITES_SOURCE) for p in points],
             )
-            conn.executemany("INSERT INTO online_orders VALUES (?,?,?,?,?,?,?,?,?,?,?,?)", orders)
+            conn.executemany("INSERT INTO online_orders VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+                             [o[:12] for o in orders])
             conn.executemany("INSERT INTO users VALUES (?,?,?,?,?,?)", users)
             conn.executemany(
                 "INSERT INTO assumptions VALUES (?,?,?,?)",
                 [(key, json.dumps(value, ensure_ascii=False, sort_keys=True), ASSUMPTION_DESCRIPTIONS_VI[key],
                   SOURCE) for key, value in ASSUMPTIONS.items()],
             )
+            conn.executemany("INSERT INTO data_sources VALUES (?,?,?,?)", data_sources)
+            refs = [("stores", st.store_id, site.osm, OSM_SOURCE)
+                    for st, site in zip(stores, sites, strict=True)]
+            refs += [("pickup_points", p.pickup_point_id, p.osm, OSM_SOURCE) for p in points]
+            refs += [("online_orders", o[0], o[12], OSM_SOURCE) for o in orders]
+            conn.executemany("INSERT INTO osm_refs VALUES (?,?,?,?)", refs)
     finally:
         conn.close()
 
 
+def calendar_dates() -> list[dt.date]:
+    return history_dates() + [SIM_AS_OF + dt.timedelta(days=i) for i in range(1, CALENDAR_FUTURE_DAYS + 1)]
+
+
+def history_inputs(seed: int) -> tuple[list[CalendarDay], np.ndarray, list[Site]]:
+    """Calendar and real rain of the history window, and the store sites of all chains in CHAINS order
+    (slice `len(profile.area_types)` per chain) — exactly what `generate_all(seed)` feeds `_build_stores`
+    and `_simulate_sales`."""
+    hist = history_dates()
+    calendar = build_calendar(hist)
+    rain, _ = real_rain(hist)
+    by_chain = select_sites({p.chain_id: p.area_types for p in CHAINS}, np.random.default_rng([seed, 1]))
+    return calendar, rain, [site for p in CHAINS for site in by_chain[p.chain_id]]
+
+
 def generate_all(out_dir: Path | str, seed: int = 42) -> dict[str, Path]:
-    """Create `<out_dir>/chains/<chain_id>.sqlite` for every chain. Re-running overwrites."""
+    """Create `<out_dir>/chains/<chain_id>.sqlite` for every chain and `<out_dir>/provenance/registry.json`.
+
+    Offline: real inputs come from the committed snapshots in `data_real/`. Re-running overwrites; the
+    same seed and snapshots give identical DB content."""
+    from data_real import snapshot
+    from provenance import write_registry
+
     out = Path(out_dir) / "chains"
     out.mkdir(parents=True, exist_ok=True)
 
-    hist = history_dates()
-    cal_dates = hist + [SIM_AS_OF + dt.timedelta(days=i) for i in range(1, CALENDAR_FUTURE_DAYS + 1)]
+    cal_dates = calendar_dates()
     calendar = build_calendar(cal_dates)
     weather_dates = cal_dates[: HISTORY_DAYS + WEATHER_FUTURE_DAYS]
-    rain_all = simulate_rain(weather_dates, np.random.default_rng([seed, 9001]))
+    rain_all, weather_sources = real_rain(weather_dates)
     weather = [(d.isoformat(), float(r)) for d, r in zip(weather_dates, rain_all, strict=True)]
     hist_cal = calendar[:HISTORY_DAYS]
     hist_rain = rain_all[:HISTORY_DAYS]
+    data_sources = _data_sources(weather_sources, {d.isoformat() for d in cal_dates[:HISTORY_DAYS]})
 
-    n_total = sum(len(p.area_types) for p in CHAINS)
-    locs = pick_store_locations(n_total, np.random.default_rng([seed, 1]))
+    wanted = {p.chain_id: p.area_types for p in CHAINS}
+    sites_by_chain = select_sites(wanted, np.random.default_rng([seed, 1]))
     shift = int(ASSUMPTIONS["shift_minutes"])
 
     paths: dict[str, Path] = {}
-    offset = 0
     for ci, profile in enumerate(CHAINS):
         rng = np.random.default_rng([seed, 100 + ci])
-        stores = _build_stores(profile, locs[offset : offset + len(profile.area_types)], rng)
-        offset += len(profile.area_types)
+        sites = sites_by_chain[profile.chain_id]
+        stores = _build_stores(profile, sites, rng)
         sales, recent = _simulate_sales(profile, stores, hist_cal, hist_rain, rng)
         lots = _inventory_lots(stores, recent, rng)
-        points = _pickup_points(stores, rng)
+        points = _pickup_points(stores, sites, rng)
         orders = _online_orders(profile, stores, points, rng, shift)
         users = _users(profile, stores, seed)
         path = out / f"{profile.chain_id}.sqlite"
-        _write_chain_db(path, profile, stores, calendar, weather, sales, lots, points, orders, users)
+        _write_chain_db(path, profile, stores, sites, calendar, weather, data_sources, sales, lots, points,
+                        orders, users)
         paths[profile.chain_id] = path
+    write_registry(out_dir, snapshot.registry_updates())
     return paths

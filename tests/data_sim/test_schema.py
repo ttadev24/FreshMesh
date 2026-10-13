@@ -3,6 +3,7 @@ import sqlite3
 import pytest
 
 from data_sim import CHAIN_IDS, VIEW_NAMES, chain_db_path, open_chain_db
+from provenance import load_registry, sources_for
 
 EXPECTED_COLUMNS = {
     "chains": ["chain_id", "name", "source"],
@@ -54,13 +55,33 @@ def test_online_orders_view_rounds_coordinates_and_hides_nothing_personal(data_d
         assert round(lat, 3) == lat and round(lng, 3) == lng
 
 
+EXPECTED_SOURCES = {
+    "chains": ["GEN_PROGRAM_V1"],
+    "stores": ["OSM_HCMC_SITES", "OSM_HCMC"],
+    "skus": ["GEN_PROGRAM_V1"],
+    "daily_sales": ["GEN_PROGRAM_V1", "WEATHER_OPENMETEO_ARCHIVE"],
+    "calendar": ["CALENDAR_VN"],
+    "weather": ["WEATHER_OPENMETEO_ARCHIVE", "WEATHER_OPENMETEO_FORECAST"],
+    "inventory_lots": ["GEN_PROGRAM_V1"],
+    "pickup_points": ["OSM_HCMC_SITES", "OSM_HCMC"],
+    "online_orders": ["GEN_PROGRAM_V1", "OSM_HCMC"],
+    "assumptions": ["GEN_PROGRAM_V1"],
+}
+
+
 @pytest.mark.parametrize("chain_id", CHAIN_IDS)
-def test_every_source_column_is_simulated(data_dir, chain_id):
+def test_every_source_is_a_registered_dataset_id(data_dir, chain_id):
+    reg = load_registry(data_dir)
     conn = open_chain_db(data_dir, chain_id, readonly=True)
+    for table, expected in EXPECTED_SOURCES.items():
+        assert sources_for(conn, [table]) == expected, table
     for table, cols in EXPECTED_COLUMNS.items():
         if "source" in cols:
-            bad = conn.execute(f"SELECT COUNT(*) FROM {table} WHERE source != 'SIMULATED'").fetchone()[0]
-            assert bad == 0, table
+            for (src,) in conn.execute(f"SELECT DISTINCT source FROM {table}"):
+                assert src in reg and src != "SIMULATED", (table, src)
+    for (src,) in conn.execute("SELECT DISTINCT dataset_id FROM data_sources"):
+        assert src in reg
+    assert (data_dir / "provenance" / "registry.json").exists()
 
 
 def test_readonly_connection_rejects_writes(data_dir):
@@ -72,7 +93,7 @@ def test_readonly_connection_rejects_writes(data_dir):
 def test_open_returns_rows_by_name(data_dir):
     conn = open_chain_db(data_dir, "CHAIN_C")
     row = conn.execute("SELECT chain_id, source FROM chains").fetchone()
-    assert row["chain_id"] == "CHAIN_C" and row["source"] == "SIMULATED"
+    assert row["chain_id"] == "CHAIN_C" and row["source"] == "GEN_PROGRAM_V1"
 
 
 def test_chain_db_path_rejects_unknown_chain(tmp_path):

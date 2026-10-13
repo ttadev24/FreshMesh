@@ -109,7 +109,7 @@ CREATE TABLE drafts (
     created_at TEXT,
     decided_at TEXT,
     decided_by TEXT,
-    source TEXT NOT NULL DEFAULT 'SIMULATED'
+    source TEXT NOT NULL DEFAULT 'GEN_PROGRAM_V1'
 );
 CREATE TABLE audit_log (
     audit_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -124,6 +124,21 @@ CREATE TABLE assumptions (
     value_json TEXT NOT NULL,
     description_vi TEXT NOT NULL,
     source TEXT NOT NULL
+);
+-- Provenance side tables: dataset ids (provenance registry) of columns without a row-level `source`,
+-- and the OpenStreetMap element behind each located row.
+CREATE TABLE data_sources (
+    table_name TEXT NOT NULL,
+    column_name TEXT NOT NULL,
+    dataset_id TEXT NOT NULL,
+    note_vi TEXT NOT NULL
+);
+CREATE TABLE osm_refs (
+    table_name TEXT NOT NULL,
+    row_id TEXT NOT NULL,
+    osm_id TEXT NOT NULL,
+    dataset_id TEXT NOT NULL,
+    PRIMARY KEY (table_name, row_id)
 );
 CREATE INDEX idx_sales_date ON daily_sales(date);
 CREATE INDEX idx_lots_store_sku ON inventory_lots(store_id, sku_id);

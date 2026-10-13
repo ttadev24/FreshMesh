@@ -1,10 +1,15 @@
-"""FreshMesh simulated data: one SQLite database per chain (tenant isolation = separate file).
+"""FreshMesh chain data: one SQLite database per chain (tenant isolation = separate file).
+
+Locations (OpenStreetMap), rain (Open-Meteo) and holidays are real public data (offline snapshots in
+`data_real/`); sales, prices, stock and orders are program-generated (dataset id `SOURCE` =
+"GEN_PROGRAM_V1"). Every row's `source` column holds a provenance dataset id (see `provenance`).
 
 Public API:
     SIM_AS_OF, CHAIN_IDS, SIM_BATCH_START, SIM_BATCH_WINDOW_MINUTES, ASSUMPTIONS, VIEW_NAMES
     chain_db_path(data_dir, chain_id) -> Path
     open_chain_db(data_dir, chain_id, readonly=False) -> sqlite3.Connection
     generate_all(out_dir, seed) -> dict[chain_id, Path]
+    SOURCE: dataset id of program-generated rows; SITES_SOURCE: id of stores/pickup points on real OSM sites
     batch_created_range() -> (from_iso, to_iso)   # created_at range of the current online batch
     assumptions_markdown() / assumptions_sections()
 """
@@ -23,7 +28,7 @@ from data_sim.assumptions import (
     assumptions_sections,
 )
 from data_sim.catalog import CHAINS
-from data_sim.generate import SOURCE, counter_point_id, generate_all
+from data_sim.generate import SITES_SOURCE, SOURCE, counter_point_id, generate_all
 from data_sim.schema import VIEW_NAMES
 
 CHAIN_IDS: tuple[str, ...] = tuple(c.chain_id for c in CHAINS)
@@ -35,6 +40,7 @@ __all__ = [
     "SIM_AS_OF",
     "SIM_BATCH_START",
     "SIM_BATCH_WINDOW_MINUTES",
+    "SITES_SOURCE",
     "SOURCE",
     "VIEW_NAMES",
     "assumptions_markdown",

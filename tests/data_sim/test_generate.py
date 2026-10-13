@@ -3,9 +3,10 @@ import datetime as dt
 import pytest
 from lunardate import LunarDate
 
+from data_real import snapshot
+from data_real.osm import BBOX
 from data_sim import ASSUMPTIONS, CHAIN_IDS, SIM_AS_OF, generate_all, open_chain_db
 from data_sim.__main__ import main
-from data_sim.locations import LAT_MAX, LAT_MIN, LNG_MAX, LNG_MIN
 from routing.config import RoutingConfig
 
 FIRST_DAY = (SIM_AS_OF - dt.timedelta(days=364)).isoformat()
@@ -40,7 +41,7 @@ def test_store_counts_new_stores_and_locations(data_dir):
         stores = conn.execute("SELECT * FROM stores").fetchall()
         assert 4 <= len(stores) <= 8
         for s in stores:
-            assert LAT_MIN <= s["lat"] <= LAT_MAX and LNG_MIN <= s["lng"] <= LNG_MAX
+            assert BBOX[0] <= s["lat"] <= BBOX[2] and BBOX[1] <= s["lng"] <= BBOX[3]
             assert s["area_type"] in ("residential", "market", "office")
             assert s["chain_id"] == chain_id
             new_stores += s["is_new"]
@@ -209,13 +210,52 @@ def test_assumptions_table_matches_constant(data_dir):
     assert stored == json.loads(json.dumps(ASSUMPTIONS))
 
 
-def test_cli_output_says_simulated(data_dir, monkeypatch, capsys):
-    """LOW-7: the generator's console output labels the data SIMULATED."""
+def test_cli_output_names_provenance_per_table(data_dir, monkeypatch, capsys):
+    """The builder's console output names the dataset id + label of every table, never 'SIMULATED'."""
     import data_sim.__main__ as cli
     from data_sim import CHAIN_IDS, chain_db_path
 
     monkeypatch.setattr(cli, "generate_all", lambda out, seed: {c: chain_db_path(data_dir, c) for c in CHAIN_IDS})
     assert cli.main(["--out", str(data_dir)]) == 0
     out = capsys.readouterr().out
-    assert "SIMULATED" in out
-    assert all("SIMULATED" in line for line in out.splitlines() if line.startswith("CHAIN_"))
+    assert "SIMULATED" not in out
+    assert "daily_sales: GEN_PROGRAM_V1 — Mô phỏng bằng chương trình (tham số giả định); " in out
+    assert "weather: WEATHER_OPENMETEO_ARCHIVE" in out and "calendar: CALENDAR_VN" in out
+    assert "stores: OSM_HCMC_SITES" in out and "© OpenStreetMap contributors (ODbL)" in out
+
+
+def test_weather_is_the_real_open_meteo_series(data_dir):
+    real = {d: v for d, v, _ in snapshot.weather()["daily"]}
+    conn = open_chain_db(data_dir, "CHAIN_A", readonly=True)
+    rows = conn.execute("SELECT date, rain_mm FROM weather").fetchall()
+    assert len(rows) == 365 + 14
+    assert all(r["rain_mm"] == real[r["date"]] for r in rows)
+
+
+def test_calendar_uses_official_holidays(data_dir):
+    days = {h["date"] for h in snapshot.holidays()["holidays"]}
+    conn = open_chain_db(data_dir, "CHAIN_A", readonly=True)
+    flagged = {r[0] for r in conn.execute("SELECT date FROM calendar WHERE is_holiday = 1")}
+    lo, hi = conn.execute("SELECT MIN(date), MAX(date) FROM calendar").fetchone()
+    assert flagged == {d for d in days if lo <= d <= hi}
+    assert {"2026-02-16", "2026-09-01", "2026-11-24"} <= flagged and "2026-08-31" not in flagged
+
+
+def test_stores_sit_on_real_osm_shops_without_brand_names(data_dir):
+    shops = {e["osm"]: e for e in snapshot.osm()["shops"]}
+    brands = {e.get("tags", {}).get(k) for e in shops.values() for k in ("brand", "name")} - {None}
+    seen = set()
+    for chain_id in CHAIN_IDS:
+        conn = open_chain_db(data_dir, chain_id, readonly=True)
+        refs = dict(conn.execute("SELECT row_id, osm_id FROM osm_refs WHERE table_name='stores'").fetchall())
+        for s in conn.execute("SELECT * FROM stores"):
+            shop = shops[refs[s["store_id"]]]
+            assert (s["lat"], s["lng"]) == (shop["lat"], shop["lng"])
+            assert s["name"].startswith("CH") and not any(b in s["name"] for b in brands if len(b) > 3)
+            seen.add(refs[s["store_id"]])
+        buildings = {e["osm"] for e in snapshot.osm()["buildings"]}
+        for (osm_id,) in conn.execute("SELECT osm_id FROM osm_refs WHERE table_name='online_orders'"):
+            assert osm_id in buildings
+        n_orders = conn.execute("SELECT COUNT(*) FROM online_orders").fetchone()[0]
+        assert conn.execute("SELECT COUNT(*) FROM osm_refs WHERE table_name='online_orders'").fetchone()[0] == n_orders
+    assert len(seen) == 18

@@ -1,4 +1,4 @@
-"""Simulation assumptions consumed by decision/ and the API.
+"""Program assumptions (dataset GEN_PROGRAM_V1) consumed by decision/ and the API.
 
 The same values are written to the `assumptions` table of every chain DB and explained
 in docs/data-assumptions.md.
@@ -99,7 +99,12 @@ _ENTRIES: dict[str, tuple[Any, str]] = {
         {"days": PROMO_DAYS, "price_factor": PROMO_PRICE_FACTOR, "uplift": PROMO_UPLIFT},
         "Khuyến mãi giả lập: kéo dài 3 ngày, giá × 0,85, lượng bán × 1,45.",
     ),
-    "source": ("SIMULATED", "Mọi dữ liệu trong hệ thống là dữ liệu giả lập."),
+    "source": (
+        "GEN_PROGRAM_V1",
+        "Mã nguồn của các giả định này và của các lớp dữ liệu do chương trình sinh (doanh số, giá, tồn kho, "
+        "đơn online). Vị trí (OpenStreetMap), lượng mưa (Open-Meteo) và ngày lễ là dữ liệu công khai thật; "
+        "danh mục nguồn: docs/data-provenance.md, `python -m provenance show`.",
+    ),
 }
 
 ASSUMPTIONS: dict[str, Any] = {k: v for k, (v, _) in _ENTRIES.items()}

@@ -7,8 +7,8 @@ def _vn(x: float) -> str:
 
 def test_markdown_mentions_key_assumptions():
     text = assumptions_markdown()
-    for needle in ("SIMULATED", "20 km/h", "1,3", "30–60 phút", "KiotViet", "Sapo", "2–3 mini-mart",
-                   SIM_AS_OF.isoformat(), "R101_co_100"):
+    for needle in ("GEN_PROGRAM_V1", "20 km/h", "1,3", "30–60 phút", "KiotViet", "Sapo", "2–3 mini-mart",
+                   SIM_AS_OF.isoformat(), "OpenStreetMap", "Open-Meteo", "docs/data-provenance.md"):
         assert needle in text, needle
 
 

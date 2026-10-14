@@ -44,48 +44,59 @@ function RoutePanel({ route, storeNames, stores, footer }: Props) {
         {plan.solved_at ? `, giải lúc ${fmtDateTime(plan.solved_at)}` : plan.cached ? ", không ghi thời điểm giải" : ""}.
         {plan.cached ? " Cùng đợt đơn và cấu hình đã được bộ giải tính trước đó." : null}
       </p>
-      <dl className={s.stats} data-testid="route-summary">
-        <div>
-          <dt>Số xe</dt>
-          <dd>
-            <Sourced {...src}>{fmtNum(plan.vehicles, 0)}</Sourced>
-          </dd>
+      {/* One element goes fullscreen (data-map-shell, see RouteMap): the summary bar stays over the map. */}
+      <div className={s.mapShell} data-map-shell>
+        <dl className={s.stats} data-testid="route-summary">
+          <div>
+            <dt>Số xe</dt>
+            <dd>
+              <Sourced {...src}>{fmtNum(plan.vehicles, 0)}</Sourced>
+            </dd>
+          </div>
+          <div>
+            <dt>Quãng đường</dt>
+            <dd>
+              <Sourced {...src} note="Đã nhân hệ số đường vòng.">
+                {fmtKm(plan.km)}
+              </Sourced>
+            </dd>
+          </div>
+          <div>
+            <dt>Mỗi đơn một chuyến</dt>
+            <dd>
+              <Sourced {...src}>{fmtKm(plan.baseline_km)}</Sourced>
+            </dd>
+          </div>
+          <div>
+            <dt>Tiết kiệm</dt>
+            <dd className={saving != null && saving > 0 ? s.pos : undefined}>
+              <Sourced {...src} note={plan.saving_pct == null ? "Tính từ km và km mỗi đơn một chuyến." : undefined}>
+                {fmtPct(saving)}
+              </Sourced>
+            </dd>
+          </div>
+          <div>
+            <dt>Đơn nguy cơ</dt>
+            <dd className={plan.at_risk.length ? s.warnText : undefined}>{fmtNum(plan.at_risk.length, 0)}</dd>
+          </div>
+        </dl>
+        <div className={s.map} data-testid="route-map">
+          {hasGeometry ? (
+            <RouteMap plan={plan} storeName={storeName} stores={stores} />
+          ) : (
+            <p className={s.mapEmpty}>Máy chủ chưa gửi tọa độ lộ trình nên không vẽ được bản đồ.</p>
+          )}
         </div>
-        <div>
-          <dt>Quãng đường</dt>
-          <dd>
-            <Sourced {...src} note="Đã nhân hệ số đường vòng.">
-              {fmtKm(plan.km)}
-            </Sourced>
-          </dd>
-        </div>
-        <div>
-          <dt>Mỗi đơn một chuyến</dt>
-          <dd>
-            <Sourced {...src}>{fmtKm(plan.baseline_km)}</Sourced>
-          </dd>
-        </div>
-        <div>
-          <dt>Tiết kiệm</dt>
-          <dd className={saving != null && saving > 0 ? s.pos : undefined}>
-            <Sourced {...src} note={plan.saving_pct == null ? "Tính từ km và km mỗi đơn một chuyến." : undefined}>
-              {fmtPct(saving)}
-            </Sourced>
-          </dd>
-        </div>
-        <div>
-          <dt>Đơn nguy cơ</dt>
-          <dd className={plan.at_risk.length ? s.warnText : undefined}>{fmtNum(plan.at_risk.length, 0)}</dd>
-        </div>
-      </dl>
-
-      <div className={s.map} data-testid="route-map">
-        {hasGeometry ? (
-          <RouteMap plan={plan} storeName={storeName} stores={stores} />
-        ) : (
-          <p className={s.mapEmpty}>Máy chủ chưa gửi tọa độ lộ trình nên không vẽ được bản đồ.</p>
-        )}
       </div>
+      {hasGeometry ? (
+        <p className={s.muted} data-testid="route-path-note" data-path-source={plan.path_source ?? "straight"}>
+          {plan.path_source === "road"
+            ? "Đường vẽ theo đường bộ thật (VietMap, xe máy). Km ở trên là ước lượng của bộ giải (đường chim bay × hệ số đường vòng), có thể khác quãng đường đã vẽ."
+            : plan.path_source === "partial"
+              ? "Một phần các xe vẽ theo đường bộ thật; xe còn lại chỉ nối thẳng các điểm dừng vì chưa lấy được đường bộ."
+              : "Đường vẽ chỉ nối thẳng các điểm dừng, chưa theo đường bộ (chưa lấy được dữ liệu đường bộ)."}
+        </p>
+      ) : null}
       <ul className={s.legend} aria-label="Chú giải bản đồ">
         <li>
           <span className={s.dot} style={{ background: "var(--green-strong)" }} /> Cửa hàng xuất phát
@@ -113,7 +124,7 @@ function RoutePanel({ route, storeNames, stores, footer }: Props) {
               <span className={s.swatch} style={{ background: VEHICLE_COLORS[i % VEHICLE_COLORS.length] }} aria-hidden="true" />
               Xe {r.index}
               <span className={s.muted}>
-                {r.stops.length} điểm{r.km != null ? `, ${fmtKm(r.km)}` : ""}
+                {r.stops.length} điểm{r.road_path_km != null ? `, ${fmtKm(r.road_path_km)} đường bộ` : r.km != null ? `, ${fmtKm(r.km)}` : ""}
               </span>
             </h3>
             <ol className={s.etaList}>

@@ -279,6 +279,10 @@ export interface VehicleRoute {
   stops: RouteStop[];
   path: LatLng[];
   km: number | null;
+  /** "road": path follows the road network (VietMap); "straight": segments joining the stops. */
+  path_source?: "road" | "straight";
+  /** Length of the drawn road path (km); the solver's own km stays an estimate (straight line x detour factor). */
+  road_path_km?: number | null;
 }
 
 export interface AtRiskOrder {
@@ -308,6 +312,8 @@ export interface RoutePlanView {
   baseline_km: number | null;
   saving_pct: number | null;
   routes: VehicleRoute[];
+  /** Whether the map paths follow roads for all, some ("partial") or none of the vehicles. */
+  path_source?: "road" | "partial" | "straight";
   at_risk: AtRiskOrder[];
   pickup_points: PickupNode[];
   /** Served from the routing cache (same batch + config already solved). */

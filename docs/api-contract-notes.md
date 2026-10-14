@@ -73,6 +73,13 @@ cache files written before this change) next to `cached`; when `cached` is true 
 was reused from cache and when it was solved. `/api/transfer/plan` → `transfer.route_cached`,
 `transfer.route_solved_at` (null when no route was solved).
 
+**Road paths**: `POST /api/routing/plan` routes carry `path` (`[lat, lng]` points), `path_source` (`"road"` | `"straight"`) and
+`road_path_km` (length of the drawn road path, `null` when straight); the plan has `path_source` (`"road"` | `"partial"` |
+`"straight"`). With `FRESHMESH_VIETMAP_ROUTE_KEY` the path comes from the VietMap Route API (motorcycle profile, cached under
+`<cache_dir>/road`, dataset `VIETMAP_ROUTE` added to `sources`); without it, or when VietMap fails, `path` is the straight
+`home → stops → home` polyline and `assumptions_vi` says so. `km`, `road_km` and ETAs remain the solver's estimates
+(straight line × detour factor) and are not recomputed from the drawn path.
+
 ## Auth, tenant, roles
 - `POST /api/auth/login {username, password}` → `{token, token_type: "bearer", expires_in, user{user_id, username, role, chain_id, store_id}}`.
   Token = HS256 JWT signed with `FRESHMESH_SECRET` (dev default + warning log), TTL `FRESHMESH_TOKEN_TTL_S` (default 8 h).

@@ -30,6 +30,7 @@ from typing import Any
 from api import provenance_view
 from api.errors import ApiError
 from api.repo import ChainRepo
+from api.road_path import RoadRouter
 from data_sim import SIM_BATCH_START, batch_created_range, counter_point_id
 from routing.baseline import one_trip_per_order
 from routing.client import SolverClient, SolverError
@@ -56,10 +57,24 @@ REASONS_VI = {
     "unreachable_in_window": "không kịp giao trong khung giờ",
     "unknown_pickup_point": "điểm nhận không tồn tại",
 }
+ROAD_DATASET_ID = "VIETMAP_ROUTE"
+PATH_NOTE_VI = {
+    "road": (
+        "Đường vẽ trên bản đồ đi theo đường bộ thật (VietMap, hồ sơ xe máy). Km và giờ đến của bộ giải "
+        "vẫn là ước lượng theo đường chim bay nhân hệ số đường vòng, nên có thể khác quãng đường đã vẽ."
+    ),
+    "partial": (
+        "Một phần các xe được vẽ theo đường bộ thật (VietMap); xe còn lại chỉ nối thẳng các điểm "
+        "dừng vì chưa lấy được đường bộ. Km và giờ đến của bộ giải là ước lượng theo đường chim bay."
+    ),
+    "straight": (
+        "Đường vẽ trên bản đồ chỉ là đường nối thẳng giữa các điểm dừng, chưa theo đường bộ (chưa cấu "
+        "hình hoặc chưa lấy được dữ liệu đường bộ). Km và giờ đến của bộ giải là ước lượng chim bay."
+    ),
+}
 _MODES = {"home": DeliveryMode.HOME, "pickup": DeliveryMode.PICKUP, "flexible": DeliveryMode.FLEXIBLE}
 ROUTING_ASSUMPTIONS_VI = [
     "Tốc độ xe máy trung bình 20 km/h, quãng đường thực ≈ 1,3 × đường chim bay (ước tính).",
-    "Bản đồ nối các điểm dừng bằng đường thẳng theo thứ tự giao, không phải đường phố thật.",
     "Bạn duyệt trước khi gửi lộ trình cho shipper.",
 ]
 LRU_SIZE = 64
@@ -129,12 +144,14 @@ class RoutingService:
         cfg: RoutingConfig | None = None,
         fleet_vehicles: int = 4,
         fleet_capacity: int = 30,
+        road: RoadRouter | None = None,
     ):
         self.cache_dir = Path(cache_dir) / "routing"
         self.solver = solver
         self.cfg = cfg or RoutingConfig()
         self.fleet_vehicles = fleet_vehicles
         self.fleet_capacity = fleet_capacity
+        self.road = road
         self._lru: OrderedDict[str, tuple[RoutePlan, str | None]] = OrderedDict()  # hash -> (plan, solved_at)
         self._lru_lock = threading.Lock()
         self._locks: dict[str, list[Any]] = {}  # batch hash -> [lock, number of callers using it]
@@ -329,12 +346,16 @@ class RoutingService:
                 if path[-1] != [st["lat"], st["lng"]]:
                     path.append([st["lat"], st["lng"]])
             path.append(home)
+            # Real road geometry when the provider answers; otherwise the straight segments, labelled as such.
+            road = self.road.path(path) if self.road else None
             routes.append(
                 {
                     "index": i,
                     "vehicle_label": f"Xe {i}",
                     "stops": stops,
-                    "path": path,
+                    "path": road.coordinates if road else path,
+                    "path_source": "road" if road else "straight",
+                    "road_path_km": round(road.km, 1) if road else None,
                     "n_stops": len(stops),
                     "units": sum(st["demand"] for st in stops),
                     "late_stops": sum(1 for st in stops if st["late"]),
@@ -351,6 +372,12 @@ class RoutingService:
             for a in plan.at_risk
         ]
         late = sum(r["late_stops"] for r in routes)
+        on_road = sum(1 for r in routes if r["path_source"] == "road")
+        path_source = "road" if on_road == len(routes) else ("partial" if on_road else "straight")
+        prov = repo.provenance(provenance_view.ROUTING_TABLES)
+        if on_road:
+            extra = repo.labelled([ROAD_DATASET_ID])
+            prov = {k: [*prov[k], *extra[k]] for k in prov}
         if plan.exceeds_fleet or late:
             level = "Thấp"
             why = (
@@ -413,6 +440,7 @@ class RoutingService:
             "cached": cached,
             "solved_at": solved_at,
             "late_stops": late,
+            "path_source": path_source,
             "confidence": level,
             "confidence_reason": why
             + " Giờ đến dựa trên tốc độ trung bình và hệ số đường vòng ước tính, chưa dùng bản đồ đường phố.",
@@ -420,9 +448,10 @@ class RoutingService:
                 *ROUTING_ASSUMPTIONS_VI,
                 f"Đội giao mỗi cửa hàng: {batch.num_vehicles} xe máy, mỗi xe chở tối đa "
                 f"{batch.vehicle_capacity} đơn vị hàng (giả định của API).",
+                PATH_NOTE_VI[path_source],
                 *([cache_note_vi(solved_at)] if cached else []),
             ],
-            **repo.provenance(provenance_view.ROUTING_TABLES),
+            **prov,
         }
 
 

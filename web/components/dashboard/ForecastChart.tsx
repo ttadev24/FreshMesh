@@ -94,6 +94,10 @@ function buildOption(rows: ForecastRow[], layout: Props["layout"], skuNames: Pro
       backgroundColor: surface,
       borderColor: line,
       textStyle: { color: ink, fontSize: 12 },
+      // The provenance line is ~600 characters: without a width cap ECharts keeps it on one line (nowrap),
+      // makes the box thousands of px wide and slides it off-screen, leaving a blank box over the bars.
+      confine: true,
+      extraCssText: "max-width: min(320px, 90vw); white-space: normal; overflow-wrap: anywhere;",
       formatter: (params: { dataIndex: number }[]) => {
         const i = params[0]?.dataIndex ?? 0;
         const r = rows[i];

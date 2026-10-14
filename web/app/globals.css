@@ -252,48 +252,71 @@ code,
   }
 }
 
-/* Leaflet follows the theme. Scoped under .leaflet-container: leaflet.css loads after this file (with the
-   lazily imported map chunk), so equal-specificity selectors would lose. */
-.leaflet-container .leaflet-popup-content-wrapper,
-.leaflet-container .leaflet-popup-tip {
-  background: var(--surface);
-  color: var(--ink);
-  font-family: var(--font-sans);
-}
-
-div.leaflet-container {
+/* VietMap GL follows the theme. Scoped under .vietmapgl-map: vietmap-gl.css loads after this file (with the
+   lazily imported map chunk), so equal-specificity selectors would lose. The basemap itself switches between
+   the tm / dm vector styles (RouteMap.tsx), so no tile filter is needed. */
+.vietmapgl-map {
   font-family: var(--font-sans);
   background: var(--surface-3);
 }
 
-.leaflet-container .leaflet-tooltip {
+.vietmapgl-map .vietmapgl-popup-content {
   background: var(--surface);
   color: var(--ink);
-  border-color: var(--line-strong);
-  font-weight: 600;
+  font-family: var(--font-sans);
   box-shadow: var(--shadow);
 }
 
-.leaflet-container .leaflet-tooltip-top::before {
+.vietmapgl-map .vietmapgl-popup-anchor-top .vietmapgl-popup-tip,
+.vietmapgl-map .vietmapgl-popup-anchor-top-left .vietmapgl-popup-tip,
+.vietmapgl-map .vietmapgl-popup-anchor-top-right .vietmapgl-popup-tip {
+  border-bottom-color: var(--surface);
+}
+
+.vietmapgl-map .vietmapgl-popup-anchor-bottom .vietmapgl-popup-tip,
+.vietmapgl-map .vietmapgl-popup-anchor-bottom-left .vietmapgl-popup-tip,
+.vietmapgl-map .vietmapgl-popup-anchor-bottom-right .vietmapgl-popup-tip {
   border-top-color: var(--surface);
 }
 
+.vietmapgl-map .vietmapgl-popup-anchor-left .vietmapgl-popup-tip {
+  border-right-color: var(--surface);
+}
+
+.vietmapgl-map .vietmapgl-popup-anchor-right .vietmapgl-popup-tip {
+  border-left-color: var(--surface);
+}
+
+/* Hover labels and the permanent start-store label: compact, non-interactive. */
+.vietmapgl-map .fm-map-tip {
+  pointer-events: none;
+}
+
+.vietmapgl-map .fm-map-tip .vietmapgl-popup-content {
+  padding: 4px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
 @media (prefers-color-scheme: dark) {
-  /* Dim the OSM basemap only: the overlay pane (vehicle paths, locker / at-risk / late markers) keeps its
-     semantic colours at full strength. */
-  .leaflet-tile-pane {
-    filter: brightness(0.66) contrast(1.12) saturate(0.6);
-  }
-
-  .leaflet-container .leaflet-bar a,
-  .leaflet-container .leaflet-bar a:hover {
+  .vietmapgl-map .vietmapgl-ctrl-group,
+  .vietmapgl-map .vietmapgl-ctrl-group button {
     background: var(--surface-2);
-    color: var(--ink);
-    border-bottom-color: var(--line);
   }
 
-  .leaflet-container .leaflet-control-attribution.leaflet-control {
+  .vietmapgl-map .vietmapgl-ctrl-group button .vietmapgl-ctrl-icon {
+    filter: invert(1);
+  }
+
+  .vietmapgl-map .vietmapgl-ctrl-attrib.vietmapgl-compact {
     background: color-mix(in srgb, var(--surface) 85%, transparent);
+    color: var(--ink-3);
+  }
+
+  .vietmapgl-map .vietmapgl-ctrl-attrib a {
     color: var(--ink-3);
   }
 }

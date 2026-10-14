@@ -27,6 +27,7 @@ và `source_labels_vi`; chi tiết từng bộ (URL, giấy phép, ngày lấy, 
 # 0. Phụ thuộc
 git submodule update --init && uv sync
 (cd web && npm install)
+echo 'NEXT_PUBLIC_VIETMAP_API_KEY=<khóa VietMap>' > web/.env.local   # bản đồ lộ trình; khóa miễn phí ở https://maps.vietmap.vn/console-v2/
 
 # 1. Solver PACO (routing-PL) trong Docker — cổng lấy từ .env (FRESHMESH_SOLVER_PORT, ví dụ 8001)
 docker compose up -d --build solver
@@ -40,6 +41,9 @@ FRESHMESH_SECRET=$(openssl rand -hex 32) scripts/dev_api.sh   # bỏ biến này
 curl -s localhost:8100/api/health      # {"status":"ok","solver":true,"llm":true,"llm_required":true,"llm_model":...}
 
 # 4. Web Next.js ở cổng 3100 (proxy /api/* → 8100)
+#    Bản đồ lộ trình dùng VietMap GL JS; khóa nằm trong URL style gửi từ trình duyệt nên hãy giới hạn theo domain/IP
+#    trong console VietMap. Đổi khóa thì phải build lại web (biến NEXT_PUBLIC_* được nhúng lúc build). Không có khóa:
+#    khung bản đồ báo thiếu cấu hình, các phần còn lại vẫn chạy.
 (cd web && npm run dev)                # mở http://localhost:3100, đăng nhập owner_a / demo123
 # Bản production: (cd web && npm run build && npm run start) — mặc định chỉ nghe 127.0.0.1 (đặt HOST=0.0.0.0 để mở ra LAN,
 # khi đó BẮT BUỘC dùng FRESHMESH_SECRET ngẫu nhiên cho API, không dùng khóa dev).
@@ -69,12 +73,13 @@ Biến môi trường của API:
 | `FRESHMESH_TOKEN_TTL_S` | `28800` | thời hạn token (giây) |
 | `FRESHMESH_SOLVER_URL` | từ `.env` | địa chỉ container solver |
 | `FRESHMESH_CACHE_DIR` | `data/cache` | nơi lưu cache lộ trình (JSON theo hash đợt đơn) |
+| `FRESHMESH_VIETMAP_ROUTE_KEY` | (trống) | khóa VietMap Route API (bí mật, chỉ ở phía API, không bao giờ gửi cho trình duyệt) để vẽ lộ trình theo đường bộ thật (hồ sơ xe máy). Không có khóa hoặc VietMap lỗi: đường nối thẳng các điểm dừng và `path_source` báo rõ. Khác khóa bản đồ `NEXT_PUBLIC_VIETMAP_API_KEY` của web |
 | `ANTHROPIC_API_KEY` | (trống) | **bắt buộc cho chat**: trợ lý chỉ chạy bằng Claude thật |
 | `FRESHMESH_LLM_MODEL` | `claude-sonnet-5-5` | mô hình Claude cho chat (ví dụ `claude-haiku-5-5`) |
 | `FRESHMESH_LLM_EFFORT` | `medium` | mức `effort` gửi cho mô hình |
 
 `scripts/dev_api.sh` tự nạp `.env.local` (không commit, đã có trong `.gitignore`) nếu có, ví dụ chứa
-`ANTHROPIC_API_KEY=...` và `FRESHMESH_LLM_MODEL=...`.
+`ANTHROPIC_API_KEY=...`, `FRESHMESH_LLM_MODEL=...` và `FRESHMESH_VIETMAP_ROUTE_KEY=...`.
 
 - **Không có `ANTHROPIC_API_KEY`**: `/api/health` báo `llm: false, llm_required: true`; `POST /api/agent/chat` trả
   503 `llm_unavailable` kèm hướng dẫn cấu hình bằng tiếng Việt (không có câu trả lời soạn sẵn). Các bảng điều khiển

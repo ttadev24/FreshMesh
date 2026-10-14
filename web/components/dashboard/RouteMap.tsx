@@ -1,30 +1,22 @@
 "use client";
 
-// Client-only (next/dynamic ssr:false): Leaflet needs `window`. CircleMarkers are used instead of the
-// default image Marker, whose PNG assets do not resolve under the bundler.
-import "leaflet/dist/leaflet.css";
-import type { LatLngBoundsExpression } from "leaflet";
-import { memo, useEffect, useMemo } from "react";
-import { CircleMarker, MapContainer, Polyline, Popup, TileLayer, Tooltip, useMap } from "react-leaflet";
-import { fmtKm } from "@/lib/format";
-import { prefersReducedMotion, useThemeTokens } from "@/lib/theme";
+// Client-only (next/dynamic ssr:false): VietMap GL JS (MapLibre based, WebGL) needs `window`. The route plan is
+// drawn as two GeoJSON layers (vehicle paths, circle markers) built in routeGeo.ts. Vector styles are fetched with
+// the browser-side key NEXT_PUBLIC_VIETMAP_API_KEY: restrict it by domain / IP in the VietMap console.
+import vietmapgl from "@vietmap/vietmap-gl-js/dist/vietmap-gl";
+import "@vietmap/vietmap-gl-js/dist/vietmap-gl.css";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
+import { prefersReducedMotion, useColorScheme, useThemeTokens } from "@/lib/theme";
 import type { LatLng, RoutePlanView, Store } from "@/lib/types";
 import { VEHICLE_COLORS } from "./routeColors";
+import { buildRouteGeo, type RouteGeo } from "./routeGeo";
+import s from "./dashboard.module.css";
 
-function FitAndResize({ bounds }: { bounds: LatLngBoundsExpression | null }) {
-  const map = useMap();
-  useEffect(() => {
-    if (bounds) map.fitBounds(bounds, { padding: [28, 28], maxZoom: 15, animate: !prefersReducedMotion() });
-  }, [map, bounds]);
-  useEffect(() => {
-    // The map may be mounted in a hidden pane (mobile switch / tab): re-measure when it appears.
-    const el = map.getContainer();
-    const ro = new ResizeObserver(() => map.invalidateSize());
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [map]);
-  return null;
-}
+const API_KEY = process.env.NEXT_PUBLIC_VIETMAP_API_KEY ?? "";
+
+// tm = default street style, dm = dark style (the OS colour scheme picks one, like the rest of the UI).
+const styleUrl = (scheme: "dark" | "light") =>
+  `https://maps.vietmap.vn/maps/styles/${scheme === "dark" ? "dm" : "tm"}/style.json?apikey=${encodeURIComponent(API_KEY)}`;
 
 const MARKER_TOKENS = {
   store: ["--green-strong", "#134f35"],
@@ -37,151 +29,373 @@ const MARKER_TOKENS = {
 /** Ho Chi Minh City centre (Bến Thành), used until the plan's own points are fitted. */
 const HCMC: LatLng = [10.7725, 106.698];
 
-interface Props {
-  plan: RoutePlanView;
-  storeName: string;
-  stores?: Store[];
+const LOCALE = {
+  "CooperativeGesturesHandler.WindowsHelpText": "Giữ Ctrl và cuộn chuột để thu phóng bản đồ",
+  "CooperativeGesturesHandler.MacHelpText": "Giữ ⌘ và cuộn chuột để thu phóng bản đồ",
+  "CooperativeGesturesHandler.MobileHelpText": "Dùng hai ngón tay để di chuyển bản đồ",
+  "NavigationControl.ZoomIn": "Phóng to",
+  "NavigationControl.ZoomOut": "Thu nhỏ",
+  "FullscreenControl.Enter": "Phóng to toàn màn hình",
+  "FullscreenControl.Exit": "Thoát toàn màn hình",
+  "AttributionControl.ToggleAttribution": "Bật/tắt ghi nguồn bản đồ",
+  "AttributionControl.MapFeedback": "Góp ý bản đồ",
+};
+
+const ROUTES = "fm-routes";
+const POINTS = "fm-points";
+const ARROW = "fm-arrow";
+const FLOW = "fm-routes-flow";
+
+// Flowing-light animation: short dashes (units of the line width) drift along the line direction. A dash
+// array always starts at the line start, so each frame is the same dash pattern phase-shifted by `shift`.
+const FLOW_DASH = 3;
+const FLOW_PERIOD = 12;
+const FLOW_STEPS = 24;
+const FLOW_FRAME_MS = 60;
+const FLOW_FRAMES: number[][] = Array.from({ length: FLOW_STEPS }, (_, k) => {
+  const shift = (k * FLOW_PERIOD) / FLOW_STEPS;
+  return shift + FLOW_DASH <= FLOW_PERIOD
+    ? [0, shift, FLOW_DASH, FLOW_PERIOD - shift - FLOW_DASH]
+    : [shift + FLOW_DASH - FLOW_PERIOD, FLOW_PERIOD - FLOW_DASH, FLOW_PERIOD - shift, 0];
+});
+
+/** Starts the flowing-light animation; returns its stop function. No-op with reduced motion. */
+function startFlow(map: vietmapgl.Map): () => void {
+  if (prefersReducedMotion()) return () => {};
+  let raf = 0;
+  let last = 0;
+  let k = 0;
+  const tick = (t: number) => {
+    raf = requestAnimationFrame(tick);
+    if (t - last < FLOW_FRAME_MS || !map.getLayer(FLOW)) return;
+    last = t;
+    k = (k + 1) % FLOW_FRAMES.length;
+    map.setPaintProperty(FLOW, "line-dasharray", FLOW_FRAMES[k]);
+  };
+  raf = requestAnimationFrame(tick);
+  return () => cancelAnimationFrame(raf);
 }
 
-function RouteMap({ plan, storeName, stores }: Props) {
+/** White chevron with a thin dark outline, pointing east; the line layout rotates it along the path. */
+function addArrowImage(map: vietmapgl.Map) {
+  if (map.hasImage(ARROW)) return;
+  const size = 32;
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = size;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+  ctx.beginPath();
+  ctx.moveTo(4, 3);
+  ctx.lineTo(29, 16);
+  ctx.lineTo(4, 29);
+  ctx.lineTo(11, 16);
+  ctx.closePath();
+  ctx.lineJoin = "round";
+  ctx.lineWidth = 2.5;
+  ctx.strokeStyle = "rgba(20,30,25,0.85)";
+  ctx.stroke();
+  ctx.fillStyle = "#fff";
+  ctx.fill();
+  map.addImage(ARROW, ctx.getImageData(0, 0, size, size), { pixelRatio: 2 });
+}
+
+/** (Re)adds the plan sources and layers: needed after every style load, since a style swap drops them. */
+function addPlanLayers(map: vietmapgl.Map, geo: RouteGeo) {
+  if (map.getSource(ROUTES)) return;
+  map.addSource(ROUTES, { type: "geojson", data: geo.lines as never });
+  map.addSource(POINTS, { type: "geojson", data: geo.points as never });
+  const line = { "line-cap": "round", "line-join": "round" } as const;
+  // Each vehicle is shifted sideways by its own `offset`, so two vehicles on the same road run side by side.
+  // White casing under the coloured line keeps each colour readable on light and dark basemaps.
+  map.addLayer({
+    id: `${ROUTES}-casing`,
+    type: "line",
+    source: ROUTES,
+    layout: line,
+    paint: { "line-color": "#ffffff", "line-width": 8, "line-offset": ["get", "offset"], "line-opacity": ["*", 0.9, ["get", "opacity"]] },
+  });
+  map.addLayer({
+    id: ROUTES,
+    type: "line",
+    source: ROUTES,
+    layout: line,
+    paint: { "line-color": ["get", "color"], "line-width": 5.5, "line-offset": ["get", "offset"], "line-opacity": ["*", 0.9, ["get", "opacity"]] },
+  });
+  // Direction of travel, kept calm: a thin light flows along each path from the start to the end (animated by
+  // startFlow). With reduced motion nothing moves, so a few widely spaced chevrons show the direction instead.
+  if (prefersReducedMotion()) {
+    addArrowImage(map);
+    map.addLayer({
+      id: `${ROUTES}-arrows`,
+      type: "symbol",
+      source: ROUTES,
+      layout: {
+        "symbol-placement": "line",
+        "symbol-spacing": 180,
+        "icon-image": ARROW,
+        "icon-size": 1.1,
+        "icon-allow-overlap": true,
+        "icon-ignore-placement": true,
+        "icon-rotation-alignment": "map",
+      },
+      paint: { "icon-opacity": ["get", "opacity"] },
+    });
+  } else {
+    map.addLayer({
+      id: FLOW,
+      type: "line",
+      source: ROUTES,
+      layout: { "line-cap": "round", "line-join": "round" },
+      paint: {
+        "line-color": "#ffffff",
+        "line-width": 2.2,
+        "line-offset": ["get", "offset"],
+        "line-opacity": ["*", 0.75, ["get", "opacity"]],
+        "line-dasharray": FLOW_FRAMES[0],
+      },
+    });
+  }
+  map.addLayer({
+    id: POINTS,
+    type: "circle",
+    source: POINTS,
+    layout: { "circle-sort-key": ["get", "z"] },
+    paint: {
+      "circle-radius": ["get", "radius"],
+      "circle-color": ["get", "fill"],
+      "circle-stroke-color": ["get", "stroke"],
+      "circle-stroke-width": ["get", "strokeWidth"],
+      "circle-opacity": ["get", "opacity"],
+      "circle-stroke-opacity": ["get", "opacity"],
+    },
+  });
+  // Delivery order number inside the marker (same numbers as the stop list under the map).
+  map.addLayer({
+    id: `${POINTS}-labels`,
+    type: "symbol",
+    source: POINTS,
+    filter: ["!=", ["get", "label"], ""],
+    layout: {
+      "text-field": ["get", "label"],
+      "text-font": ["Noto Sans Bold"],
+      "text-size": 11,
+      "text-allow-overlap": true,
+      "text-ignore-placement": true,
+    },
+    paint: { "text-color": "#ffffff" },
+  });
+}
+
+/** Fits the plotted points; in fullscreen the floating summary bar covers the top, so leave room for it. */
+function fitPlan(map: vietmapgl.Map, points: [number, number][]) {
+  if (!points.length) return;
+  const bounds = points.reduce((b, p) => b.extend(p), new vietmapgl.LngLatBounds(points[0], points[0]));
+  const top = document.fullscreenElement ? 110 : 28;
+  map.fitBounds(bounds, { padding: { top, bottom: 28, left: 28, right: 28 }, maxZoom: 15, animate: !prefersReducedMotion() });
+}
+
+/** Store label: the name, then one line per vehicle that leaves from it, in the vehicle's colour. */
+function storeLabel(name: string, routes: RoutePlanView["routes"], focus: number | null) {
+  const root = document.createElement("div");
+  const b = document.createElement("b");
+  b.textContent = name;
+  root.append(b);
+  routes.forEach((r, i) => {
+    if (focus != null && focus !== r.index) return;
+    const row = document.createElement("div");
+    row.style.cssText = "display:flex;align-items:center;gap:6px;font-weight:500";
+    const dot = document.createElement("span");
+    dot.style.cssText = `width:12px;height:4px;border-radius:2px;background:${VEHICLE_COLORS[i % VEHICLE_COLORS.length]}`;
+    row.append(dot, document.createTextNode(`Xe ${r.index} xuất phát`));
+    root.append(row);
+  });
+  return root;
+}
+
+function popupContent(title: string, body: string) {
+  // DOM nodes + textContent: server strings (store names, reasons) are never parsed as HTML.
+  const root = document.createElement("div");
+  const b = document.createElement("b");
+  b.textContent = title;
+  root.append(b);
+  body.split("\n").forEach((line) => {
+    root.append(document.createElement("br"), document.createTextNode(line));
+  });
+  return root;
+}
+
+function RouteMap({ plan, storeName, stores }: { plan: RoutePlanView; storeName: string; stores?: Store[] }) {
+  const scheme = useColorScheme();
   const colors = useThemeTokens(MARKER_TOKENS);
+  // One vehicle can be picked to look at it alone; the pick belongs to the plan it was made on.
+  const [picked, setPicked] = useState<{ plan: RoutePlanView; index: number } | null>(null);
+  const focus = picked && picked.plan === plan && plan.routes.some((r) => r.index === picked.index) ? picked.index : null;
+  const geo = useMemo(() => buildRouteGeo(plan, storeName, stores, colors, focus), [plan, storeName, stores, colors, focus]);
+  const fitRef = useRef<[number, number][]>([]);
 
-  const points = useMemo(() => {
-    const pts: LatLng[] = [];
-    if (plan.store) pts.push([plan.store.lat, plan.store.lng]);
-    plan.routes.forEach((r) => r.path.forEach((p) => pts.push(p)));
-    plan.routes.forEach((r) => r.stops.forEach((st) => st.lat != null && st.lng != null && pts.push([st.lat, st.lng])));
-    plan.pickup_points.forEach((p) => pts.push([p.lat, p.lng]));
-    plan.at_risk.forEach((a) => a.lat != null && a.lng != null && pts.push([a.lat, a.lng]));
-    return pts;
-  }, [plan]);
+  const box = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<vietmapgl.Map | null>(null);
+  const geoRef = useRef(geo);
+  const schemeRef = useRef(scheme);
+  const labelRef = useRef<vietmapgl.Popup | null>(null);
 
-  // Leaflet computes the bounding box of a point list itself.
-  const bounds: LatLngBoundsExpression | null = points.length ? points : null;
+  const start: LatLng = plan.store ? [plan.store.lat, plan.store.lng] : HCMC;
 
-  const center: LatLng = plan.store ? [plan.store.lat, plan.store.lng] : (points[0] ?? HCMC);
-  // The other stores of the chain give the route its neighbourhood context; they do not move the fit.
-  const otherStores = (stores ?? []).filter(
-    (st) => st.store_id !== plan.store_id && Number.isFinite(st.lat) && Number.isFinite(st.lng),
-  );
+  useEffect(() => {
+    const el = box.current;
+    if (!el || !API_KEY) return;
+    const map = new vietmapgl.Map({
+      container: el,
+      style: styleUrl(schemeRef.current),
+      center: [start[1], start[0]],
+      zoom: 13,
+      cooperativeGestures: true,
+      locale: LOCALE,
+    });
+    mapRef.current = map;
+    // Controls sit on the right so the summary bar of the fullscreen view (top-left) never covers them. The
+    // control takes the whole panel shell (summary + map) fullscreen; it also lifts cooperative gestures there.
+    map.addControl(new vietmapgl.NavigationControl({ showCompass: false }), "top-right");
+    const shell = el.closest<HTMLElement>("[data-map-shell]");
+    map.addControl(new vietmapgl.FullscreenControl({ container: shell ?? undefined }), "top-right");
 
+    const stopFlow = startFlow(map);
+    map.on("style.load", () => {
+      addPlanLayers(map, geoRef.current);
+      el.dataset.layersReady = "true";
+    });
+
+    // Hover label (vehicle path / other store) and click popup (markers). One popup each, reused.
+    const hover = new vietmapgl.Popup({ closeButton: false, closeOnClick: false, className: "fm-map-tip", offset: 10 });
+    const click = new vietmapgl.Popup({ offset: 12 });
+    const hit = (e: vietmapgl.MapMouseEvent) =>
+      map.queryRenderedFeatures(e.point, { layers: [POINTS, ROUTES].filter((id) => map.getLayer(id)) });
+    map.on("mousemove", (e) => {
+      const found = hit(e);
+      map.getCanvas().style.cursor = found.length ? "pointer" : "";
+      const f = found.find((x) => x.properties?.tip);
+      if (!f) return void hover.remove();
+      hover
+        .setLngLat(f.geometry.type === "Point" ? (f.geometry.coordinates as [number, number]) : e.lngLat)
+        .setText(String(f.properties.tip))
+        .addTo(map);
+    });
+    map.on("mouseout", () => hover.remove());
+    map.on("click", (e) => {
+      const f = hit(e).find((x) => x.properties?.title);
+      if (!f || f.geometry.type !== "Point") return;
+      hover.remove();
+      click
+        .setLngLat(f.geometry.coordinates as [number, number])
+        .setDOMContent(popupContent(String(f.properties.title), String(f.properties.body ?? "")))
+        .addTo(map);
+    });
+
+    // Entering / leaving fullscreen changes the map size. Event order against the layout change differs between
+    // browsers, so wait for the new size to settle, then re-measure and refit the route to the new frame.
+    let refit: ReturnType<typeof setTimeout> | undefined;
+    const onFullscreen = () => {
+      clearTimeout(refit);
+      refit = setTimeout(() => {
+        map.resize();
+        fitPlan(map, fitRef.current);
+      }, 250);
+    };
+    document.addEventListener("fullscreenchange", onFullscreen);
+
+    // The map may be mounted in a hidden pane (mobile switch / tab): re-measure when it appears.
+    const ro = new ResizeObserver(() => map.resize());
+    ro.observe(el);
+    return () => {
+      stopFlow();
+      clearTimeout(refit);
+      ro.disconnect();
+      document.removeEventListener("fullscreenchange", onFullscreen);
+      labelRef.current?.remove();
+      labelRef.current = null;
+      map.remove();
+      mapRef.current = null;
+    };
+    // The map is created once; plan, theme and size changes are applied by the effects below.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // New plan / colours: refresh the data the layers read.
+  useEffect(() => {
+    geoRef.current = geo;
+    const map = mapRef.current;
+    if (!map) return;
+    if (box.current) {
+      box.current.dataset.paths = String(geo.lines.features.length);
+      box.current.dataset.markers = String(geo.points.features.length);
+    }
+    (map.getSource(ROUTES) as vietmapgl.GeoJSONSource | undefined)?.setData(geo.lines as never);
+    (map.getSource(POINTS) as vietmapgl.GeoJSONSource | undefined)?.setData(geo.points as never);
+  }, [geo]);
+
+  // Refit when the plan or the picked vehicle changes, not when a theme flip rebuilds the marker colours.
+  useEffect(() => {
+    const map = mapRef.current;
+    const pts = (focus != null ? geo.routeBounds.get(focus) : undefined) ?? geo.bounds;
+    fitRef.current = pts;
+    if (map) fitPlan(map, pts);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [plan, focus]);
+
+  // Permanent label above the starting store: its name and which vehicles start from it.
+  useEffect(() => {
+    const map = mapRef.current;
+    labelRef.current?.remove();
+    labelRef.current = null;
+    if (!map || !plan.store) return;
+    labelRef.current = new vietmapgl.Popup({
+      closeButton: false,
+      closeOnClick: false,
+      closeOnMove: false,
+      className: "fm-map-tip",
+      offset: 16,
+      anchor: "bottom",
+    })
+      .setLngLat([plan.store.lng, plan.store.lat])
+      .setDOMContent(storeLabel(storeName, plan.routes, focus))
+      .addTo(map);
+  }, [plan.store, plan.routes, storeName, focus]);
+
+  useEffect(() => {
+    if (schemeRef.current === scheme) return;
+    schemeRef.current = scheme;
+    mapRef.current?.setStyle(styleUrl(scheme));
+  }, [scheme]);
+
+  if (!API_KEY) {
+    return (
+      <p className={s.mapEmpty} data-testid="map-key-missing">
+        Chưa cấu hình khóa VietMap: đặt NEXT_PUBLIC_VIETMAP_API_KEY trong web/.env.local rồi build lại web.
+      </p>
+    );
+  }
   return (
-    <MapContainer
-      center={center}
-      zoom={13}
-      scrollWheelZoom={false}
-      style={{ height: "100%", width: "100%" }}
-      attributionControl
-    >
-      <TileLayer
-        url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
-        attribution='Bản đồ &copy; <a href="https://www.openstreetmap.org/copyright">Những người đóng góp OpenStreetMap</a>'
-        maxZoom={19}
-      />
-      <FitAndResize bounds={bounds} />
-
-      {otherStores.map((st) => (
-        <CircleMarker
-          key={`store-${st.store_id}`}
-          center={[st.lat, st.lng]}
-          radius={6}
-          pathOptions={{ color: colors.store, weight: 2, fillColor: colors.surface, fillOpacity: 0.9 }}
-        >
-          <Tooltip direction="top" offset={[0, -6]}>
-            {st.name}
-          </Tooltip>
-        </CircleMarker>
-      ))}
-
-      {plan.routes.map((r, i) =>
-        r.path.length > 1 ? (
-          <Polyline
-            key={`path-${r.index}`}
-            positions={r.path}
-            pathOptions={{ color: VEHICLE_COLORS[i % VEHICLE_COLORS.length], weight: 4, opacity: 0.85 }}
-          >
-            <Tooltip sticky>
-              Xe {r.index}: {r.stops.length} điểm dừng{r.km != null ? `, ${fmtKm(r.km)}` : ""}
-            </Tooltip>
-          </Polyline>
-        ) : null,
-      )}
-
-      {plan.pickup_points.map((p) => (
-        <CircleMarker
-          key={`pp-${p.pickup_point_id}`}
-          center={[p.lat, p.lng]}
-          radius={8}
-          pathOptions={{ color: colors.surface, weight: 2, fillColor: colors.blue, fillOpacity: 1 }}
-        >
-          <Popup>
-            <b>Điểm nhận / tủ</b>
-            <br />
-            {p.name} (<code>{p.pickup_point_id}</code>)
-          </Popup>
-        </CircleMarker>
-      ))}
-
-      {plan.routes.flatMap((r, i) =>
-        r.stops
-          .filter((st) => st.lat != null && st.lng != null && st.kind === "home")
-          .map((st) => (
-            <CircleMarker
-              key={`stop-${st.order_id}`}
-              center={[st.lat!, st.lng!]}
-              radius={5}
-              pathOptions={{
-                color: st.late ? colors.red : colors.surface,
-                weight: st.late ? 3 : 1.5,
-                fillColor: VEHICLE_COLORS[i % VEHICLE_COLORS.length],
-                fillOpacity: 1,
-              }}
+    <div style={{ position: "relative", height: "100%", width: "100%" }}>
+      <div ref={box} style={{ height: "100%", width: "100%" }} />
+      {plan.routes.length > 1 ? (
+        <div className={s.mapChips} role="group" aria-label="Chọn xe để xem riêng" data-testid="vehicle-focus">
+          <button type="button" aria-pressed={focus == null} onClick={() => setPicked(null)}>
+            Tất cả xe
+          </button>
+          {plan.routes.map((r, i) => (
+            <button
+              key={r.index}
+              type="button"
+              aria-pressed={focus === r.index}
+              onClick={() => setPicked(focus === r.index ? null : { plan, index: r.index })}
             >
-              <Popup>
-                <b>Đơn {st.order_id}</b>
-                <br />
-                Xe {r.index}, giao tận nhà
-                <br />
-                ETA +{st.eta_min} phút{st.late ? " (trễ)" : ""}
-              </Popup>
-            </CircleMarker>
-          )),
-      )}
-
-      {plan.at_risk
-        .filter((a) => a.lat != null && a.lng != null)
-        .map((a) => (
-          <CircleMarker
-            key={`risk-${a.order_id}`}
-            center={[a.lat!, a.lng!]}
-            radius={7}
-            pathOptions={{ color: colors.surface, weight: 2, fillColor: colors.amber, fillOpacity: 1 }}
-          >
-            <Popup>
-              <b>Đơn có nguy cơ {a.order_id}</b>
-              <br />
-              {a.reason_vi}
-            </Popup>
-          </CircleMarker>
-        ))}
-
-      {plan.store ? (
-        <CircleMarker
-          center={[plan.store.lat, plan.store.lng]}
-          radius={10}
-          pathOptions={{ color: colors.surface, weight: 3, fillColor: colors.store, fillOpacity: 1 }}
-        >
-          <Tooltip permanent direction="top" offset={[0, -10]}>
-            {storeName}
-          </Tooltip>
-          <Popup>
-            <b>Cửa hàng xuất phát</b>
-            <br />
-            {storeName}
-          </Popup>
-        </CircleMarker>
+              <span className={s.swatch} style={{ background: VEHICLE_COLORS[i % VEHICLE_COLORS.length] }} aria-hidden="true" />
+              Xe {r.index}
+            </button>
+          ))}
+        </div>
       ) : null}
-    </MapContainer>
+    </div>
   );
 }
 

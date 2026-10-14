@@ -62,6 +62,10 @@ class Settings:
     secret: str = field(default_factory=_secret)
     token_ttl_s: int = field(default_factory=lambda: int(os.environ.get("FRESHMESH_TOKEN_TTL_S", "28800")))
     solver_url: str = field(default_factory=default_solver_url)
+    # VietMap Route API key (server-side secret): road paths on the map; empty = labelled straight segments.
+    vietmap_route_key: str = field(
+        default_factory=lambda: os.environ.get("FRESHMESH_VIETMAP_ROUTE_KEY", "").strip(), repr=False
+    )
     fleet_vehicles: int = FLEET_VEHICLES
     fleet_capacity: int = FLEET_CAPACITY
 

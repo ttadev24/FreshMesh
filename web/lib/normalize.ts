@@ -346,7 +346,9 @@ export function normalizeRoutePlan(raw: unknown): RoutePlanView | null {
         path = [[store.lat, store.lng], ...pts, [store.lat, store.lng]];
       }
     }
-    return { index: index + 1, stops, path, km: num(pick(ro, "km", "road_km")) };
+    // Only the API can vouch for a road path; paths built here from the stops are straight segments.
+    const path_source = str(ro.path_source) === "road" ? "road" : "straight";
+    return { index: index + 1, stops, path, km: num(pick(ro, "km", "road_km")), path_source, road_path_km: num(ro.road_path_km) };
   });
 
   const atRisk: AtRiskOrder[] = arr(plan.at_risk ?? outer.at_risk).filter(isObj).map((a) => {
@@ -372,6 +374,7 @@ export function normalizeRoutePlan(raw: unknown): RoutePlanView | null {
     baseline_km: num(pick(plan, "baseline_km") ?? pick(outer, "baseline_km")),
     saving_pct: num(pick(plan, "saving_pct") ?? pick(outer, "saving_pct")),
     routes,
+    path_source: ["road", "partial"].includes(str(plan.path_source)) ? (str(plan.path_source) as "road" | "partial") : "straight",
     at_risk: atRisk,
     pickup_points: pickupPoints,
     cached: plan.cached === true || outer.cached === true,

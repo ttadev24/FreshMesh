@@ -28,6 +28,7 @@ from api.config import Settings
 from api.drafts import DRAFT_KINDS, SqlDraftStore
 from api.errors import ApiError, install_error_handlers
 from api.repo import ChainRepo, ensure_store_access, resolve_store_id
+from api.road_path import RoadRouter
 from api.routing_service import RoutingService, make_solver_client
 from api.services import DEFAULT_NOW_HOUR, Services, assumptions_payload, fl_summary_payload
 from api.tools import build_registry, make_edit_applier
@@ -126,11 +127,13 @@ def create_app(
     tests inject a deterministic fake LLM. There is no scripted fallback."""
     settings = settings or Settings()
     solver_obj: Solver | None = make_solver_client(settings.solver_url) if solver is _DEFAULT else solver  # type: ignore[assignment]
+    road = RoadRouter(settings.vietmap_route_key, settings.cache_dir) if settings.vietmap_route_key else None
     routing = RoutingService(
         settings.cache_dir,
         solver_obj,
         fleet_vehicles=settings.fleet_vehicles,
         fleet_capacity=settings.fleet_capacity,
+        road=road,
     )
     services = Services(settings.data_dir, routing)
     drafts = SqlDraftStore(settings.data_dir)

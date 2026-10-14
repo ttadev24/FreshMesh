@@ -1,6 +1,5 @@
 import json
 import sqlite3
-from types import SimpleNamespace as NS
 
 import pytest
 
@@ -8,7 +7,9 @@ from provenance import (
     SYNTHETIC_LABEL_VI,
     Dataset,
     LLMGenerationError,
+    LLMResult,
     describe,
+    get_prompt,
     label_vi,
     llm_generate,
     load_registry,
@@ -118,24 +119,79 @@ def test_llm_generate_without_key_raises_vietnamese_and_writes_nothing(tmp_path,
     assert read_prompt_log(tmp_path) == []
 
 
-def test_llm_generate_logs_with_fake_client(tmp_path):
-    seen = {}
+def test_llm_generate_logs_with_fake_llm(tmp_path):
+    seen = []
 
-    class Fake:
-        model = "claude-fake"
+    def fake(params):
+        seen.append(params)
+        return LLMResult("kết quả", "claude-fake", "end_turn", {"input_tokens": 3, "output_tokens": 2}, "req_1")
 
-        def complete(self, request, on_text=None):
-            seen["req"] = request
-            return NS(text="kết quả", tool_calls=[], stop_reason="end_turn")
-
-    with pytest.raises(LLMGenerationError):
-        llm_generate("prompt A", "purpose B", "AI_PARAMS_TEST", data_dir=tmp_path, client=Fake())
-    assert "req" not in seen
+    with pytest.raises(LLMGenerationError):  # dataset not registered as ai_generated
+        llm_generate("prompt A", "purpose B", "AI_PARAMS_TEST", data_dir=tmp_path, llm=fake)
+    assert not seen
     write_registry(tmp_path, {"AI_PARAMS_TEST": AI_DS})
-    out = llm_generate("prompt A", "purpose B", "AI_PARAMS_TEST", data_dir=tmp_path, client=Fake())
-    assert out == "kết quả" and seen["req"].tools == [] and seen["req"].allow_tools is False
+    gen = llm_generate(
+        "prompt A", "purpose B", "AI_PARAMS_TEST", "claude-fake", data_dir=tmp_path, llm=fake,
+        params={"max_tokens": 100, "output_config": {"effort": "low"}}, task="t", attempt=2,
+    )
+    assert gen.text == "kết quả" and gen.accepted
+    (req,) = seen
+    assert req["model"] == "claude-fake" and req["max_tokens"] == 100 and "tools" not in req
+    assert req["messages"] == [{"role": "user", "content": "prompt A"}]
     (rec,) = read_prompt_log(tmp_path)
-    assert rec["model"] == "claude-fake" and rec["dataset_id"] == "AI_PARAMS_TEST"
+    assert rec["model"] == "claude-fake" and rec["dataset_id"] == "AI_PARAMS_TEST" and rec["task"] == "t"
+    assert rec["attempt"] == 2 and rec["status"] == "accepted" and rec["request_id"] == "req_1"
+    assert rec["usage"] == {"input_tokens": 3, "output_tokens": 2}
+    assert rec["parameters"] == {"model": "claude-fake", "max_tokens": 100, "output_config": {"effort": "low"}}
+    assert rec["system"] and rec["prompt"] == "prompt A"
+    full = get_prompt(rec["id"], tmp_path)
+    assert full["response"] == "kết quả" and full["response_sha256_ok"] is True
+    with pytest.raises(KeyError):
+        get_prompt("P-nope", tmp_path)
+
+
+def test_llm_generate_logs_invalid_truncated_and_api_errors(tmp_path):
+    write_registry(tmp_path, {"AI_PARAMS_TEST": AI_DS})
+    replies = iter([LLMResult("{", "m", "end_turn"), LLMResult('{"a"', "m", "max_tokens")])
+    gen = llm_generate("p", "x", "AI_PARAMS_TEST", data_dir=tmp_path, llm=lambda _: next(replies),
+                       validate=lambda text: None if text == "{}" else "không phải {}")
+    assert not gen.accepted and gen.record["error"] == "không phải {}"
+    gen = llm_generate("p", "x", "AI_PARAMS_TEST", data_dir=tmp_path, llm=lambda _: next(replies))
+    assert gen.record["status"] == "invalid" and "max_tokens" in gen.record["error"]
+
+    def broken(_):
+        raise LLMGenerationError("Dịch vụ AI trả lỗi (mã 500): lỗi")
+
+    with pytest.raises(LLMGenerationError) as ei:
+        llm_generate("p", "x", "AI_PARAMS_TEST", data_dir=tmp_path, llm=broken)
+    assert ei.value.record["status"] == "api_error" and ei.value.record["response_path"] is None
+    assert [r["status"] for r in read_prompt_log(tmp_path)] == ["invalid", "invalid", "api_error"]
+    assert len({r["id"] for r in read_prompt_log(tmp_path)}) == 3
+
+
+def test_secrets_are_redacted_from_the_log(tmp_path):
+    write_registry(tmp_path, {"AI_PARAMS_TEST": AI_DS})
+    fake_key = "sk-ant-" + "api03-" + "x" * 20
+    llm_generate(f"key {fake_key}", "x", "AI_PARAMS_TEST", data_dir=tmp_path,
+                 llm=lambda _: LLMResult(f"echo {fake_key}", "m", "end_turn"), params={"metadata": fake_key})
+    for path in (tmp_path / "provenance").rglob("*"):
+        if path.is_file():
+            assert "sk-ant" not in path.read_text(encoding="utf-8"), path
+
+
+def test_prompt_cli(tmp_path, capsys):
+    write_registry(tmp_path, {"AI_PARAMS_TEST": AI_DS})
+    gen = llm_generate("Câu hỏi đầy đủ", "x", "AI_PARAMS_TEST", data_dir=tmp_path, task="demo",
+                       llm=lambda _: LLMResult('{"ok": 1}', "claude-haiku-5-5", "end_turn"))
+    assert main(["--data-dir", str(tmp_path), "prompts"]) == 0
+    out = capsys.readouterr().out
+    assert gen.record["id"] in out and "task=demo" in out and "claude-haiku-5-5" in out and "accepted" in out
+    assert main(["--data-dir", str(tmp_path), "prompt", gen.record["id"]]) == 0
+    out = capsys.readouterr().out
+    assert "Câu hỏi đầy đủ" in out and '{"ok": 1}' in out and "===== RESPONSE =====" in out
+    (tmp_path / gen.record["response_path"]).write_text("sửa tay", encoding="utf-8")
+    assert main(["--data-dir", str(tmp_path), "prompt", gen.record["id"]]) == 1
+    assert main(["--data-dir", str(tmp_path), "prompt", "P-nope"]) == 1
 
 
 def test_manifest_and_cli(tmp_path, capsys):

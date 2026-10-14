@@ -219,7 +219,9 @@ def test_cli_output_names_provenance_per_table(data_dir, monkeypatch, capsys):
     assert cli.main(["--out", str(data_dir)]) == 0
     out = capsys.readouterr().out
     assert "SIMULATED" not in out
-    assert "daily_sales: GEN_PROGRAM_V1 — Mô phỏng bằng chương trình (tham số giả định); " in out
+    assert ("daily_sales: GEN_FROM_AI_PARAMS_V1 — Sinh bằng chương trình từ tham số do AI (Claude Haiku 5.5) tạo; "
+            "không phải giao dịch thật; WEATHER_OPENMETEO_ARCHIVE") in out
+    assert "skus: AI_PARAMS_CATALOG — " in out and "sinh bởi AI, có nhật ký prompt" in out
     assert "weather: WEATHER_OPENMETEO_ARCHIVE" in out and "calendar: CALENDAR_VN" in out
     assert "stores: OSM_HCMC_SITES" in out and "© OpenStreetMap contributors (ODbL)" in out
 
@@ -259,3 +261,39 @@ def test_stores_sit_on_real_osm_shops_without_brand_names(data_dir):
         n_orders = conn.execute("SELECT COUNT(*) FROM online_orders").fetchone()[0]
         assert conn.execute("SELECT COUNT(*) FROM osm_refs WHERE table_name='online_orders'").fetchone()[0] == n_orders
     assert len(seen) == 18
+
+
+def test_build_consumes_the_committed_ai_parameters(data_dir):
+    """skus = AI catalog (chain price multiplier applied), assumptions = AI values, registry links the prompts."""
+    import json
+
+    from data_real.ai_params import DERIVED_ID, TASKS, load_all
+    from provenance import load_registry
+
+    params = load_all()
+    catalog = {s["sku_id"]: s for s in params["catalog"]["params"]["skus"]}
+    chains = params["chains"]["params"]["chains"]
+    for chain_id in CHAIN_IDS:
+        conn = open_chain_db(data_dir, chain_id, readonly=True)
+        mult = chains[chain_id]["price_multiplier"]["value"]
+        for k in conn.execute("SELECT * FROM skus"):
+            ai = catalog[k["sku_id"]]
+            assert k["source"] == "AI_PARAMS_CATALOG" and k["name"] == ai["name_vi"]
+            assert (k["unit_cost"], k["salvage_price"], k["shelf_life_days"], k["moq"]) == (
+                ai["unit_cost_vnd"], ai["salvage_price_vnd"], ai["shelf_life_days"], ai["moq"])
+            assert k["unit_price"] == round(ai["unit_price_vnd"] * mult / 500) * 500
+        stored = {r["key"]: r["source"] for r in conn.execute("SELECT key, source FROM assumptions")}
+        assert stored["markdown_elasticity"] == "AI_PARAMS_ELASTICITY" and stored["speed_kmh"] == "GEN_PROGRAM_V1"
+    e = params["elasticity"]["params"]["elasticity"]
+    assert ASSUMPTIONS["markdown_elasticity"] == {c: round(v["value"], 1) for c, v in e.items()}
+    for area, shares in ASSUMPTIONS["hourly_sales_share"].items():
+        assert list(shares) == [str(h) for h in range(6, 22)] and abs(sum(shares.values()) - 1) < 0.01, area
+    reg = load_registry(data_dir)
+    union = [p for t in TASKS for p in params[t]["header"]["attempt_prompt_ids"]]
+    assert list(reg[DERIVED_ID].prompt_ids) == union and reg[DERIVED_ID].kind == "derived"
+    assert "không phải giao dịch thật" in reg[DERIVED_ID].name_vi
+    for t, spec in TASKS.items():
+        ds = reg[spec.dataset_id]
+        assert ds.kind == "ai_generated" and params[t]["header"]["prompt_id"] in ds.prompt_ids
+    written = json.loads((data_dir / "provenance" / "registry.json").read_text(encoding="utf-8"))
+    assert {d["id"] for d in written["datasets"]} >= {DERIVED_ID, *(s.dataset_id for s in TASKS.values())}

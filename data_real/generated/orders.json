@@ -1,0 +1,220 @@
+{
+  "header": {
+    "task": "orders",
+    "dataset_id": "AI_PARAMS_ORDERS",
+    "title_vi": "Hành vi đơn online (theo giờ, số đơn, giỏ, hình thức nhận, khung giờ)",
+    "model": "claude-haiku-5-5",
+    "generated_at": "2026-10-14T00:49:58+00:00",
+    "prompt_id": "P20261014T004958-84bbeedddc",
+    "attempt_prompt_ids": [
+      "P20261014T004958-84bbeedddc"
+    ],
+    "attempt_statuses": [
+      "accepted"
+    ],
+    "prompt_sha256": "9ae6d7c8cb63a7f0472838cb760251c024e7b00fe24cbf15f995f19b76d3d6ac",
+    "response_sha256": "ccca5cdd9cc4bd2775e4c1194ee15f90dd273378932dcb626fecb59d34928f59",
+    "response_path": "data/provenance/responses/P20261014T004958-84bbeedddc.txt",
+    "prompt_log": "data/provenance/prompts.jsonl",
+    "request": {
+      "model": "claude-haiku-5-5",
+      "max_tokens": 24000,
+      "thinking": {
+        "type": "adaptive"
+      },
+      "output_config": {
+        "effort": "medium",
+        "format": "json_schema"
+      }
+    },
+    "schema_sha256": "ddb2090f29057a685d779e657eb19f3ebcd220a7253caaf648bb102a14cc7e11",
+    "temperature_note_vi": "temperature không được gửi: Claude Haiku 5.5 chỉ chấp nhận giá trị mặc định 1 (giá trị khác trả lỗi 400). Tính tái lập dựa trên câu trả lời đã lưu (SHA-256), không dựa trên việc gọi lại mô hình.",
+    "usage": {
+      "input_tokens": 5019,
+      "output_tokens": 3635,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0
+    },
+    "note_vi": "Tham số do AI (Claude Haiku 5.5) đề xuất theo hiểu biết chung; là ước lượng hợp lý, KHÔNG phải số đo hay giao dịch thật. Mỗi số có basis_vi/confidence/is_guess. Không chỉnh tay: 'params' phải bằng đúng câu trả lời đã lưu (kiểm tra bằng response_sha256)."
+  },
+  "params": {
+    "hourly_share": {
+      "residential": {
+        "shares_6_to_21": [
+          0.02,
+          0.04,
+          0.05,
+          0.05,
+          0.05,
+          0.06,
+          0.06,
+          0.05,
+          0.05,
+          0.05,
+          0.06,
+          0.08,
+          0.1,
+          0.11,
+          0.1,
+          0.07
+        ],
+        "basis_vi": "Phỏng đoán: khu dân cư đặt đơn tập trung buổi chiều tối để nấu cơm tối, cuối tuần cao hơn.",
+        "confidence": "low",
+        "is_guess": true
+      },
+      "market": {
+        "shares_6_to_21": [
+          0.12,
+          0.15,
+          0.1,
+          0.06,
+          0.04,
+          0.04,
+          0.04,
+          0.03,
+          0.03,
+          0.03,
+          0.04,
+          0.06,
+          0.09,
+          0.1,
+          0.06,
+          0.01
+        ],
+        "basis_vi": "Phỏng đoán: khách gần chợ mua sớm buổi sáng và tối, giờ trưa thấp.",
+        "confidence": "low",
+        "is_guess": true
+      },
+      "office": {
+        "shares_6_to_21": [
+          0.01,
+          0.02,
+          0.08,
+          0.07,
+          0.04,
+          0.1,
+          0.16,
+          0.14,
+          0.08,
+          0.05,
+          0.05,
+          0.06,
+          0.05,
+          0.04,
+          0.03,
+          0.02
+        ],
+        "basis_vi": "Phỏng đoán: nhân viên văn phòng đặt đơn đỉnh giờ trưa, buổi sáng sớm và sau 17h.",
+        "confidence": "medium",
+        "is_guess": true
+      }
+    },
+    "daily_orders": {
+      "residential": {
+        "min": 40,
+        "max": 120,
+        "basis_vi": "Ước lượng theo quy mô mini-mart nội thành, khu dân cư đơn online vừa phải.",
+        "confidence": "low",
+        "is_guess": true
+      },
+      "market": {
+        "min": 30,
+        "max": 90,
+        "basis_vi": "Ước lượng: khách gần chợ có đơn online ít hơn khu dân cư.",
+        "confidence": "low",
+        "is_guess": true
+      },
+      "office": {
+        "min": 25,
+        "max": 70,
+        "basis_vi": "Ước lượng: khu văn phòng đặt đơn giờ trưa, tổng ngày vừa phải.",
+        "confidence": "low",
+        "is_guess": true
+      }
+    },
+    "batch_orders_45min": {
+      "residential": {
+        "min": 12,
+        "max": 22,
+        "basis_vi": "Phỏng đoán: buổi sáng 8:15–9:00 khu dân cư có ít đơn hơn văn phòng.",
+        "confidence": "low",
+        "is_guess": true
+      },
+      "market": {
+        "min": 15,
+        "max": 28,
+        "basis_vi": "Phỏng đoán: khách gần chợ mua sáng sớm nên đợt sáng khá đông.",
+        "confidence": "low",
+        "is_guess": true
+      },
+      "office": {
+        "min": 14,
+        "max": 26,
+        "basis_vi": "Phỏng đoán: nhân viên đặt đơn trước giờ làm việc buổi sáng.",
+        "confidence": "low",
+        "is_guess": true
+      }
+    },
+    "basket_units": {
+      "p_1": 0.6,
+      "p_2": 0.3,
+      "p_3": 0.1,
+      "basis_vi": "Phỏng đoán: đa số đơn nhỏ cần một túi, đơn lớn chiếm tỷ lệ thấp.",
+      "confidence": "low",
+      "is_guess": true
+    },
+    "delivery_mode_mix": {
+      "home": 0.55,
+      "pickup": 0.3,
+      "flexible": 0.15,
+      "basis_vi": "Phỏng đoán: giao tận nhà là hình thức chính, nhận điểm gần chiếm phần còn lại.",
+      "confidence": "low",
+      "is_guess": true
+    },
+    "pickup_at_store_counter_share": {
+      "value": 0.4,
+      "basis_vi": "Phỏng đoán: một phần khách nhận tại quầy, phần còn lại ở sảnh chung cư.",
+      "confidence": "low",
+      "is_guess": true
+    },
+    "earliest_start_max_minutes": {
+      "value": 60,
+      "basis_vi": "Phỏng đoán: khách thường muốn nhận sau khoảng một giờ kể từ đầu đợt.",
+      "confidence": "low",
+      "is_guess": true
+    },
+    "window_length_minutes": {
+      "min": 60,
+      "max": 120,
+      "basis_vi": "Phỏng đoán: khung nhận hàng thường rộng 1–2 giờ.",
+      "confidence": "low",
+      "is_guess": true
+    },
+    "service_minutes_home": {
+      "min": 3,
+      "max": 8,
+      "basis_vi": "Phỏng đoán: giao tận tay ở chung cư hoặc hẻm mất vài phút mỗi điểm.",
+      "confidence": "low",
+      "is_guess": true
+    },
+    "service_minutes_pickup": {
+      "value": 2,
+      "basis_vi": "Phỏng đoán: khách nhận tại điểm chỉ mất vài phút giao tiếp.",
+      "confidence": "low",
+      "is_guess": true
+    },
+    "tight_window_share": {
+      "value": 0.02,
+      "basis_vi": "Phỏng đoán: đơn gấp với khung hẹp là tỷ lệ nhỏ.",
+      "confidence": "low",
+      "is_guess": true
+    },
+    "new_store_order_factor": {
+      "value": 0.6,
+      "basis_vi": "Phỏng đoán: cửa hàng mở 14 ngày còn đang tăng khách nên số đơn thấp hơn cửa hàng ổn định.",
+      "confidence": "low",
+      "is_guess": true
+    },
+    "notes_vi": "Toàn bộ tham số là ước lượng mô phỏng, không dựa trên dữ liệu thật hay nguồn đã kiểm chứng. Các giá trị phỏng đoán nhiều nhất là số đơn theo ngày và đợt 45 phút, tỷ trọng theo giờ và hành vi chọn hình thức nhận hàng. Phân bổ giờ và số đơn nên được coi là giả định để thử nghiệm kịch bản, không phải đặc trưng đã đo đạc của từng khu vực."
+  }
+}

@@ -1,0 +1,133 @@
+{
+  "header": {
+    "task": "elasticity",
+    "dataset_id": "AI_PARAMS_ELASTICITY",
+    "title_vi": "Hệ số co giãn giá khi giảm giá cận hạn theo nhóm hàng",
+    "model": "claude-haiku-5-5",
+    "generated_at": "2026-10-14T00:50:11+00:00",
+    "prompt_id": "P20261014T005011-2dcf2d241e",
+    "attempt_prompt_ids": [
+      "P20261014T005011-2dcf2d241e"
+    ],
+    "attempt_statuses": [
+      "accepted"
+    ],
+    "prompt_sha256": "866ce2d6085052a4d60b0d711c88cd8482b65683159f37dc64aa4028e0873050",
+    "response_sha256": "2089c97aecacae2906097e2273a3ed97f711457d2b6c37d99223471573310a48",
+    "response_path": "data/provenance/responses/P20261014T005011-2dcf2d241e.txt",
+    "prompt_log": "data/provenance/prompts.jsonl",
+    "request": {
+      "model": "claude-haiku-5-5",
+      "max_tokens": 16000,
+      "thinking": {
+        "type": "adaptive"
+      },
+      "output_config": {
+        "effort": "medium",
+        "format": "json_schema"
+      }
+    },
+    "schema_sha256": "5f1881146a7789f870cb66514c8fde8e0111ae0d46a35b5efeba8d7802580c69",
+    "temperature_note_vi": "temperature không được gửi: Claude Haiku 5.5 chỉ chấp nhận giá trị mặc định 1 (giá trị khác trả lỗi 400). Tính tái lập dựa trên câu trả lời đã lưu (SHA-256), không dựa trên việc gọi lại mô hình.",
+    "usage": {
+      "input_tokens": 2863,
+      "output_tokens": 1875,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0
+    },
+    "note_vi": "Tham số do AI (Claude Haiku 5.5) đề xuất theo hiểu biết chung; là ước lượng hợp lý, KHÔNG phải số đo hay giao dịch thật. Mỗi số có basis_vi/confidence/is_guess. Không chỉnh tay: 'params' phải bằng đúng câu trả lời đã lưu (kiểm tra bằng response_sha256)."
+  },
+  "params": {
+    "elasticity": {
+      "vegetable": {
+        "value": -2.2,
+        "low": -3.0,
+        "high": -1.5,
+        "basis_vi": "Rau củ hư nhanh, khách nhạy giá khi sắp hết hạn trong ngày; đây là ước lượng theo hiểu biết chung.",
+        "confidence": "low",
+        "is_guess": true
+      },
+      "meat": {
+        "value": -2.6,
+        "low": -3.5,
+        "high": -1.8,
+        "basis_vi": "Thịt tươi cận hạn thường được mua nhanh khi giảm sâu; mức co giãn ước lượng, chưa có căn cứ chắc chắn.",
+        "confidence": "low",
+        "is_guess": true
+      },
+      "seafood": {
+        "value": -2.8,
+        "low": -3.8,
+        "high": -1.9,
+        "basis_vi": "Cá tôm rất dễ hỏng nên phản ứng giảm giá thường mạnh; ước lượng phỏng đoán theo kinh nghiệm chung.",
+        "confidence": "low",
+        "is_guess": true
+      },
+      "egg": {
+        "value": -1.9,
+        "low": -2.6,
+        "high": -1.3,
+        "basis_vi": "Trứng có hạn dùng dài hơn thịt cá nên co giãn vừa phải; chỉ là phỏng đoán.",
+        "confidence": "low",
+        "is_guess": true
+      },
+      "dairy": {
+        "value": -2.4,
+        "low": -3.2,
+        "high": -1.6,
+        "basis_vi": "Sữa chua sát hạn thường được giảm mạnh và bán nhanh trong ngày; ước lượng theo hiểu biết chung.",
+        "confidence": "low",
+        "is_guess": true
+      },
+      "tofu": {
+        "value": -2.0,
+        "low": -2.8,
+        "high": -1.4,
+        "basis_vi": "Đậu hũ tươi ngắn ngày, khách mua theo thói quen nấu ăn nên co giãn vừa; phỏng đoán.",
+        "confidence": "low",
+        "is_guess": true
+      },
+      "staple": {
+        "value": -0.8,
+        "low": -1.2,
+        "high": -0.4,
+        "basis_vi": "Gạo mì gói ít bị ảnh hưởng bởi hạn trong ngày, khách ít phản ứng với giảm giá; ước lượng chung.",
+        "confidence": "medium",
+        "is_guess": true
+      },
+      "condiment": {
+        "value": -0.6,
+        "low": -1.0,
+        "high": -0.3,
+        "basis_vi": "Gia vị dầu ăn có hạn dài, mua theo nhu cầu cố định nên co giãn thấp; phỏng đoán theo hiểu biết chung.",
+        "confidence": "medium",
+        "is_guess": true
+      },
+      "beverage": {
+        "value": -1.0,
+        "low": -1.5,
+        "high": -0.5,
+        "basis_vi": "Đồ uống đóng chai có thể bị mua theo cảm hứng khi giảm giá, nhưng không hư nhanh; ước lượng phỏng đoán.",
+        "confidence": "low",
+        "is_guess": true
+      },
+      "snack": {
+        "value": -1.1,
+        "low": -1.6,
+        "high": -0.6,
+        "basis_vi": "Bánh kẹo snack dễ mua ngẫu hứng khi giảm giá; mức co giãn ước lượng, chưa có căn cứ chắc.",
+        "confidence": "low",
+        "is_guess": true
+      },
+      "household": {
+        "value": -0.7,
+        "low": -1.1,
+        "high": -0.3,
+        "basis_vi": "Hóa phẩm gia dụng ít gắn với hạn trong ngày và mua theo nhu cầu; ước lượng phỏng đoán.",
+        "confidence": "medium",
+        "is_guess": true
+      }
+    },
+    "notes_vi": "Toàn bộ hệ số là ước lượng tham số cho mô phỏng, không dựa trên dữ liệu thật hay nguồn nghiên cứu nào. Các giá trị của nhóm hàng tươi và hàng khô đều là phỏng đoán, đặc biệt mạnh nhất ở thịt, cá tôm và sữa chua. Nhóm hàng khô được đặt ở mức co giãn thấp hơn theo giả định chung, nhưng độ chính xác từng nhóm còn thấp."
+  }
+}

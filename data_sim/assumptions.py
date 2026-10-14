@@ -1,7 +1,9 @@
-"""Program assumptions (dataset GEN_PROGRAM_V1) consumed by decision/ and the API.
+"""Assumptions consumed by decision/ and the API.
 
-The same values are written to the `assumptions` table of every chain DB and explained
-in docs/data-assumptions.md.
+Most are program constants (GEN_PROGRAM_V1); the markdown elasticities, the hourly sales profile and the promo
+parameters come from the AI-generated parameter files (`ASSUMPTION_SOURCES` names the dataset of every key).
+The same values are written to the `assumptions` table of every chain DB (column `source`) and explained in
+docs/data-assumptions.md.
 """
 
 import datetime as dt
@@ -9,6 +11,7 @@ import re
 from pathlib import Path
 from typing import Any
 
+from data_real.ai_params import CATEGORIES, load_all
 from data_sim.catalog import HEAVY_RAIN_MM, PROMO_DAYS, PROMO_PRICE_FACTOR, PROMO_UPLIFT
 from routing.config import RoutingConfig
 
@@ -24,44 +27,43 @@ _ROUTING = RoutingConfig()
 
 ASSUMPTIONS_MD_PATH = Path(__file__).resolve().parent.parent / "docs" / "data-assumptions.md"
 
+_AI = load_all()
+
+
+def _elasticity() -> dict[str, float]:
+    """AI point estimates rounded to 1 decimal (the precision shown in docs/data-assumptions.md)."""
+    e = _AI["elasticity"]["params"]["elasticity"]
+    return {c: round(float(e[c]["value"]), 1) for c in CATEGORIES}
+
+
+def _hourly_share() -> dict[str, dict[str, float]]:
+    """AI hourly profile 6h–21h per area type, renormalised to sum 1 and rounded to 3 decimals."""
+    out: dict[str, dict[str, float]] = {}
+    for area, v in _AI["orders"]["params"]["hourly_share"].items():
+        shares = [float(x) for x in v["shares_6_to_21"]]
+        total = sum(shares)
+        out[area] = {str(h): round(x / total, 3) for h, x in zip(range(6, 22), shares, strict=True)}
+    return out
+
+
 # key -> (value, Vietnamese description)
 _ENTRIES: dict[str, tuple[Any, str]] = {
     "sim_as_of": (SIM_AS_OF.isoformat(), "Ngày cuối của lịch sử bán hàng giả lập (ngày 'hôm nay' của demo)."),
     "history_days": (HISTORY_DAYS, "Số ngày lịch sử của cửa hàng đã hoạt động."),
     "new_store_history_days": (NEW_STORE_HISTORY_DAYS, "Số ngày lịch sử của cửa hàng mới (cold-start)."),
     "markdown_elasticity": (
-        {
-            "vegetable": -2.2,
-            "tofu": -2.0,
-            "seafood": -1.9,
-            "meat": -1.6,
-            "dairy": -1.5,
-            "egg": -1.2,
-            "staple": -0.8,
-            "condiment": -0.6,
-            "beverage": -1.1,
-            "snack": -1.3,
-            "household": -0.7,
-        },
-        "Hệ số co giãn giá theo nhóm hàng (giả định): lượng bán × (1 − mức giảm)^e, e < 0.",
+        _elasticity(),
+        "Hệ số co giãn giá theo nhóm hàng (do AI đề xuất, AI_PARAMS_ELASTICITY; làm tròn 1 chữ số): "
+        "lượng bán × (1 − mức giảm)^e, e < 0.",
     ),
     "markdown_discount_levels": (
         [0.0, 0.1, 0.2, 0.3, 0.5],
         "Các mức giảm giá được phép khi xả hàng cận hạn.",
     ),
     "hourly_sales_share": (
-        {
-            "residential": {"6": 0.06, "7": 0.07, "8": 0.06, "9": 0.05, "10": 0.05, "11": 0.06, "12": 0.05,
-                            "13": 0.04, "14": 0.04, "15": 0.05, "16": 0.07, "17": 0.11, "18": 0.12,
-                            "19": 0.09, "20": 0.05, "21": 0.03},
-            "market": {"6": 0.12, "7": 0.13, "8": 0.11, "9": 0.08, "10": 0.06, "11": 0.05, "12": 0.04,
-                       "13": 0.03, "14": 0.03, "15": 0.05, "16": 0.08, "17": 0.10, "18": 0.07,
-                       "19": 0.03, "20": 0.01, "21": 0.01},
-            "office": {"6": 0.02, "7": 0.07, "8": 0.08, "9": 0.05, "10": 0.06, "11": 0.13, "12": 0.14,
-                       "13": 0.07, "14": 0.05, "15": 0.06, "16": 0.07, "17": 0.10, "18": 0.06,
-                       "19": 0.02, "20": 0.01, "21": 0.01},
-        },
-        "Tỷ trọng doanh số theo giờ (6h–21h) theo loại khu vực, dùng để chia dự báo ngày thành khung giờ.",
+        _hourly_share(),
+        "Tỷ trọng doanh số/đơn theo giờ (6h–21h) theo loại khu vực (do AI đề xuất, AI_PARAMS_ORDERS), "
+        "dùng để chia dự báo ngày thành khung giờ và phân bố giờ đặt đơn online.",
     ),
     "stockout_penalty_ratio": (
         0.5,
@@ -97,18 +99,26 @@ _ENTRIES: dict[str, tuple[Any, str]] = {
     "heavy_rain_mm": (HEAVY_RAIN_MM, "Ngưỡng mưa lớn trong ngày (mm)."),
     "promo": (
         {"days": PROMO_DAYS, "price_factor": PROMO_PRICE_FACTOR, "uplift": PROMO_UPLIFT},
-        "Khuyến mãi giả lập: kéo dài 3 ngày, giá × 0,85, lượng bán × 1,45.",
+        "Khuyến mãi trong dữ liệu sinh (do AI đề xuất, AI_PARAMS_DEMAND): số ngày mỗi đợt, hệ số giá, "
+        "hệ số lượng bán.",
     ),
     "source": (
         "GEN_PROGRAM_V1",
-        "Mã nguồn của các giả định này và của các lớp dữ liệu do chương trình sinh (doanh số, giá, tồn kho, "
-        "đơn online). Vị trí (OpenStreetMap), lượng mưa (Open-Meteo) và ngày lễ là dữ liệu công khai thật; "
-        "danh mục nguồn: docs/data-provenance.md, `python -m provenance show`.",
+        "Mã nguồn của các giả định do chương trình cố định. Doanh số, tồn kho, đơn online mang mã "
+        "GEN_FROM_AI_PARAMS_V1 (sinh bằng chương trình từ tham số do AI tạo, không phải giao dịch thật); "
+        "danh mục SKU mang mã AI_PARAMS_CATALOG. Vị trí (OpenStreetMap), lượng mưa (Open-Meteo) và ngày "
+        "lễ là dữ liệu công khai thật; danh mục nguồn: docs/data-provenance.md, `python -m provenance show`.",
     ),
 }
 
 ASSUMPTIONS: dict[str, Any] = {k: v for k, (v, _) in _ENTRIES.items()}
 ASSUMPTION_DESCRIPTIONS_VI: dict[str, str] = {k: d for k, (_, d) in _ENTRIES.items()}
+_AI_KEYS = {
+    "markdown_elasticity": "AI_PARAMS_ELASTICITY",
+    "hourly_sales_share": "AI_PARAMS_ORDERS",
+    "promo": "AI_PARAMS_DEMAND",
+}
+ASSUMPTION_SOURCES: dict[str, str] = {k: _AI_KEYS.get(k, "GEN_PROGRAM_V1") for k in _ENTRIES}
 
 
 def assumptions_markdown(path: Path | None = None) -> str:

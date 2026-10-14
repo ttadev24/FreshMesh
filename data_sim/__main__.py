@@ -5,13 +5,15 @@ from pathlib import Path
 from data_sim import SOURCE, generate_all
 from provenance import label_vi, load_registry, sources_for
 
-TABLES = ("stores", "pickup_points", "daily_sales", "inventory_lots", "online_orders", "weather", "calendar")
+TABLES = (
+    "stores", "pickup_points", "skus", "daily_sales", "inventory_lots", "online_orders", "weather", "calendar"
+)
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        description="Build FreshMesh chain databases: real public locations/weather/holidays + "
-        f"program-generated sales, stock and orders ({SOURCE})"
+        description="Build FreshMesh chain databases: real public locations/weather/holidays + sales, stock "
+        f"and orders expanded by a seeded program from AI-generated parameters ({SOURCE})"
     )
     parser.add_argument("--out", type=Path, default=Path("data"), help="data root (default: data)")
     parser.add_argument("--seed", type=int, default=42)

@@ -70,7 +70,70 @@
       "url": null,
       "license": "Mã nguồn FreshMesh (data_sim/)",
       "retrieved_at": null,
-      "description_vi": "Không có dữ liệu công khai cấp cửa hàng–mặt hàng ở Việt Nam, nên các lớp sau do chương trình data_sim sinh ngẫu nhiên có seed cố định: tên chuỗi, danh mục SKU và giá, doanh số ngày, khuyến mãi, tồn kho theo lô, đơn online (thời điểm, số lượng, khung giờ, hình thức nhận), tài khoản demo và bảng giả định. Vị trí giao hàng của đơn online là tọa độ tòa nhà thật lấy từ OSM_HCMC; lượng mưa dùng trong mô hình doanh số là số liệu thật (WEATHER_OPENMETEO_ARCHIVE). Đây KHÔNG phải số liệu kinh doanh thật; tham số và giả định ghi tại docs/data-assumptions.md."
+      "description_vi": "Phần vẫn do chương trình data_sim cố định (không lấy từ AI hay nguồn công khai): cơ chế mô phỏng (NegBin, lô FIFO, đợt đơn), danh sách 11 nhóm hàng và 30 mặt hàng/sku_id, tên và bố cục chuỗi (số cửa hàng, loại khu vực, cửa hàng mới), ngưỡng mưa 2/20 mm, kịch bản demo dư/thiếu rau quanh CH3, số đơn 'gấp' 1–2 mỗi đợt, tài khoản demo, chi phí điều chuyển, phạt hết hàng, mức giảm giá cho phép và các giả định định tuyến. Bảng chains và users mang mã này. Đây KHÔNG phải số liệu kinh doanh thật; xem docs/data-assumptions.md và docs/data-provenance.md."
+    },
+    {
+      "id": "AI_PARAMS_CATALOG",
+      "name_vi": "Danh mục SKU (giá, hạn bán, MOQ) do AI đề xuất",
+      "kind": "ai_generated",
+      "url": null,
+      "license": "Đầu ra mô hình Claude (Anthropic) do nhóm FreshMesh tạo; dùng nội bộ cho mô phỏng",
+      "retrieved_at": null,
+      "description_vi": "Tên hiển thị kèm quy cách, giá vốn, giá bán, giá thu hồi, hạn bán, MOQ, mã nhà cung cấp hư cấu, ô kho lạnh và độ phổ biến trong nhóm của 30 SKU (danh sách mặt hàng và sku_id do chương trình cố định). Do AI (Claude Haiku 5.5) đề xuất theo hiểu biết chung, qua prompt tiếng Việt có schema JSON chặt; mỗi số có basis_vi (lý do), confidence (low/medium/high) và is_guess. Được chương trình kiểm tra (khoảng hợp lệ, ràng buộc) rồi lưu nguyên văn tại data_real/generated/catalog.json; toàn văn prompt, câu trả lời (SHA-256), tham số gọi và số token ở data/provenance/prompts.jsonl (`uv run python -m provenance prompts`). Là ước lượng hợp lý, KHÔNG phải số đo hay dữ liệu bán hàng thật."
+    },
+    {
+      "id": "AI_PARAMS_DEMAND",
+      "name_vi": "Tham số nhu cầu theo nhóm hàng do AI đề xuất",
+      "kind": "ai_generated",
+      "url": null,
+      "license": "Đầu ra mô hình Claude (Anthropic) do nhóm FreshMesh tạo; dùng nội bộ cho mô phỏng",
+      "retrieved_at": null,
+      "description_vi": "Mức nền đơn vị/ngày/cửa hàng theo nhóm hàng × loại khu vực; hệ số thứ trong tuần, mưa, Tết/rằm/mùng 1/ngày lễ, khuyến mãi; độ phân tán giữa cửa hàng và SKU. Do AI (Claude Haiku 5.5) đề xuất theo hiểu biết chung, qua prompt tiếng Việt có schema JSON chặt; mỗi số có basis_vi (lý do), confidence (low/medium/high) và is_guess. Được chương trình kiểm tra (khoảng hợp lệ, ràng buộc) rồi lưu nguyên văn tại data_real/generated/demand.json; toàn văn prompt, câu trả lời (SHA-256), tham số gọi và số token ở data/provenance/prompts.jsonl (`uv run python -m provenance prompts`). Là ước lượng hợp lý, KHÔNG phải số đo hay dữ liệu bán hàng thật."
+    },
+    {
+      "id": "AI_PARAMS_CHAINS",
+      "name_vi": "Hồ sơ hành vi 3 chuỗi do AI đề xuất",
+      "kind": "ai_generated",
+      "url": null,
+      "license": "Đầu ra mô hình Claude (Anthropic) do nhóm FreshMesh tạo; dùng nội bộ cho mô phỏng",
+      "retrieved_at": null,
+      "description_vi": "Quy mô, độ ưa hàng tươi, độ nhạy lịch âm và mưa, tham số hình dạng Negative Binomial, tần suất khuyến mãi, hệ số giá, xu hướng của CHAIN_A/B/C (tên chuỗi, số cửa hàng và loại khu vực do chương trình cố định). Do AI (Claude Haiku 5.5) đề xuất theo hiểu biết chung, qua prompt tiếng Việt có schema JSON chặt; mỗi số có basis_vi (lý do), confidence (low/medium/high) và is_guess. Được chương trình kiểm tra (khoảng hợp lệ, ràng buộc) rồi lưu nguyên văn tại data_real/generated/chains.json; toàn văn prompt, câu trả lời (SHA-256), tham số gọi và số token ở data/provenance/prompts.jsonl (`uv run python -m provenance prompts`). Là ước lượng hợp lý, KHÔNG phải số đo hay dữ liệu bán hàng thật."
+    },
+    {
+      "id": "AI_PARAMS_ORDERS",
+      "name_vi": "Hành vi đơn online do AI đề xuất",
+      "kind": "ai_generated",
+      "url": null,
+      "license": "Đầu ra mô hình Claude (Anthropic) do nhóm FreshMesh tạo; dùng nội bộ cho mô phỏng",
+      "retrieved_at": null,
+      "description_vi": "Tỷ trọng theo giờ 6h–21h, số đơn/ngày và/đợt 45 phút theo loại khu vực, phân bố tải mỗi đơn (1–3), tỷ lệ giao nhà/điểm nhận/linh hoạt, khung giờ, thời gian phục vụ, tỷ lệ đơn khung giờ quá hẹp. Do AI (Claude Haiku 5.5) đề xuất theo hiểu biết chung, qua prompt tiếng Việt có schema JSON chặt; mỗi số có basis_vi (lý do), confidence (low/medium/high) và is_guess. Được chương trình kiểm tra (khoảng hợp lệ, ràng buộc) rồi lưu nguyên văn tại data_real/generated/orders.json; toàn văn prompt, câu trả lời (SHA-256), tham số gọi và số token ở data/provenance/prompts.jsonl (`uv run python -m provenance prompts`). Là ước lượng hợp lý, KHÔNG phải số đo hay dữ liệu bán hàng thật."
+    },
+    {
+      "id": "AI_PARAMS_ELASTICITY",
+      "name_vi": "Hệ số co giãn giá khi giảm giá cận hạn do AI đề xuất",
+      "kind": "ai_generated",
+      "url": null,
+      "license": "Đầu ra mô hình Claude (Anthropic) do nhóm FreshMesh tạo; dùng nội bộ cho mô phỏng",
+      "retrieved_at": null,
+      "description_vi": "Hệ số e (lượng bán × (1 − mức giảm)^e) và khoảng hợp lý theo 11 nhóm hàng. Do AI (Claude Haiku 5.5) đề xuất theo hiểu biết chung, qua prompt tiếng Việt có schema JSON chặt; mỗi số có basis_vi (lý do), confidence (low/medium/high) và is_guess. Được chương trình kiểm tra (khoảng hợp lệ, ràng buộc) rồi lưu nguyên văn tại data_real/generated/elasticity.json; toàn văn prompt, câu trả lời (SHA-256), tham số gọi và số token ở data/provenance/prompts.jsonl (`uv run python -m provenance prompts`). Là ước lượng hợp lý, KHÔNG phải số đo hay dữ liệu bán hàng thật."
+    },
+    {
+      "id": "AI_PARAMS_LOTS",
+      "name_vi": "Cơ cấu tuổi lô tồn kho cuối ngày do AI đề xuất",
+      "kind": "ai_generated",
+      "url": null,
+      "license": "Đầu ra mô hình Claude (Anthropic) do nhóm FreshMesh tạo; dùng nội bộ cho mô phỏng",
+      "retrieved_at": null,
+      "description_vi": "Tỷ lệ tồn của lô mới nhất/giữa/cũ nhất (hàng tươi) theo lượng bán trung bình ngày; số lô, tuổi lô và độ lớn lô hàng khô. Do AI (Claude Haiku 5.5) đề xuất theo hiểu biết chung, qua prompt tiếng Việt có schema JSON chặt; mỗi số có basis_vi (lý do), confidence (low/medium/high) và is_guess. Được chương trình kiểm tra (khoảng hợp lệ, ràng buộc) rồi lưu nguyên văn tại data_real/generated/lots.json; toàn văn prompt, câu trả lời (SHA-256), tham số gọi và số token ở data/provenance/prompts.jsonl (`uv run python -m provenance prompts`). Là ước lượng hợp lý, KHÔNG phải số đo hay dữ liệu bán hàng thật."
+    },
+    {
+      "id": "GEN_FROM_AI_PARAMS_V1",
+      "name_vi": "Sinh bằng chương trình từ tham số do AI (Claude Haiku 5.5) tạo; không phải giao dịch thật",
+      "kind": "derived",
+      "url": null,
+      "license": "Mã nguồn FreshMesh (data_sim/) + tham số AI_PARAMS_*",
+      "retrieved_at": null,
+      "description_vi": "Mở rộng bằng chương trình (quá trình ngẫu nhiên có seed, data_sim) từ tham số do AI sinh; không phải giao dịch thật. Dùng cho daily_sales, online_orders, inventory_lots. Bộ cha: AI_PARAMS_CATALOG, AI_PARAMS_DEMAND, AI_PARAMS_CHAINS, AI_PARAMS_ORDERS, AI_PARAMS_ELASTICITY, AI_PARAMS_LOTS (tham số), GEN_PROGRAM_V1 (cơ chế mô phỏng, bố cục chuỗi, kịch bản demo), OSM_HCMC (vị trí giao), WEATHER_OPENMETEO_ARCHIVE (mưa thật), CALENDAR_VN (lịch). prompt_ids liệt kê mọi lượt gọi AI tạo ra các tham số cha."
     }
   ]
 }

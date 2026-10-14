@@ -2,8 +2,11 @@
 
 Real public inputs (offline, from the committed snapshots in `data_real/`): store / pickup-point / delivery
 locations (OpenStreetMap, ODbL), daily rain (Open-Meteo, CC BY 4.0), official holidays (CALENDAR_VN).
-Program-generated layers (dataset GEN_PROGRAM_V1, seed-determined): chains, SKU catalogue and prices,
-daily sales, promotions, inventory lots, online orders (time, size, window, mode), demo users.
+AI-generated parameters (committed `data_real/generated/*.json`, datasets AI_PARAMS_*): SKU catalogue and
+prices, demand levels and effects, chain profiles, online-order behaviour, elasticities, stock-lot ages.
+Expanded by this seeded program into daily sales, promotions, inventory lots and online orders (dataset
+GEN_FROM_AI_PARAMS_V1 — not real transactions). Program-fixed (GEN_PROGRAM_V1): mechanics, chain layout,
+demo scenario, demo users.
 Every row's `source` column holds the dataset id; `data_sources` lists datasets of columns without a
 row-level source; `osm_refs` keeps the OSM element behind each located row.
 """
@@ -18,8 +21,10 @@ from pathlib import Path
 
 import numpy as np
 
+from data_real.ai_params import DERIVED_ID, load_all
 from data_sim.assumptions import (
     ASSUMPTION_DESCRIPTIONS_VI,
+    ASSUMPTION_SOURCES,
     ASSUMPTIONS,
     HISTORY_DAYS,
     NEW_STORE_HISTORY_DAYS,
@@ -30,16 +35,20 @@ from data_sim.assumptions import (
 from data_sim.auth import hash_password
 from data_sim.calendar_weather import PRE_TET_DAYS, CalendarDay, build_calendar, real_rain
 from data_sim.catalog import (
-    AREA_CATEGORY_MIX,
-    AREA_VOLUME,
+    CALENDAR_EFFECTS,
+    CATALOG_SOURCE,
+    CATEGORY_BASE_UNITS,
     CHAINS,
     DOW_FACTORS,
     HEAVY_RAIN_MM,
+    LIGHT_RAIN_MM,
     PROMO_DAYS,
     PROMO_PRICE_FACTOR,
     PROMO_UPLIFT,
     RAIN_FACTORS,
+    SKU_LEVEL_SIGMA,
     SKUS,
+    STORE_SCALE_RANGE,
     SURPLUS_STORE_INDEX,
     ChainProfile,
     SkuSpec,
@@ -56,17 +65,53 @@ from data_sim.sites import (
     select_sites,
 )
 
-SOURCE = "GEN_PROGRAM_V1"  # dataset id of every program-generated row (see provenance/registry_defaults.json)
+SOURCE = DERIVED_ID  # sales / lots / orders: expanded by this program from AI-generated parameters
+PROGRAM_SOURCE = "GEN_PROGRAM_V1"  # program-fixed rows (chains) and most assumptions
 SITES_SOURCE = "OSM_HCMC_SITES"  # stores and pickup points located on real OSM features
 OSM_SOURCE = "OSM_HCMC"
 DEMO_PASSWORD = "demo123"
 CALENDAR_FUTURE_DAYS = 60  # calendar rows after SIM_AS_OF so forecasts get future features
 WEATHER_FUTURE_DAYS = 14  # simulated "weather forecast" rows after SIM_AS_OF
 
-# Batch size range by area type (orders in one 45-minute window).
-BATCH_SIZE_RANGE = {"residential": (22, 36), "market": (16, 28), "office": (12, 22)}
-DAILY_ORDERS_RANGE = {"residential": (70, 110), "market": (50, 85), "office": (40, 70)}
-MODE_PROBS = (("home", 0.55), ("pickup", 0.20), ("flexible", 0.25))
+_AI = load_all()
+_ORD = _AI["orders"]["params"]
+_LOTS = _AI["lots"]["params"]
+
+
+def _span(v: dict) -> tuple[float, float]:
+    return float(v["min"]), float(v["max"])
+
+
+def _ispan(v: dict) -> tuple[int, int]:
+    return int(v["min"]), int(v["max"])
+
+
+# Online orders (AI_PARAMS_ORDERS).
+BATCH_SIZE_RANGE = {a: _ispan(v) for a, v in _ORD["batch_orders_45min"].items()}  # orders per 45-min batch
+DAILY_ORDERS_RANGE = {a: _ispan(v) for a, v in _ORD["daily_orders"].items()}
+MODE_PROBS = tuple((m, float(_ORD["delivery_mode_mix"][m])) for m in ("home", "pickup", "flexible"))
+BASKET_PROBS = tuple(float(_ORD["basket_units"][f"p_{i}"]) for i in (1, 2, 3))  # demand 1, 2, 3
+COUNTER_PICKUP_SHARE = float(_ORD["pickup_at_store_counter_share"]["value"])
+EARLIEST_MAX_MINUTES = int(_ORD["earliest_start_max_minutes"]["value"])
+WINDOW_MINUTES = _ispan(_ORD["window_length_minutes"])
+SERVICE_HOME_MINUTES = _ispan(_ORD["service_minutes_home"])
+SERVICE_PICKUP_MINUTES = int(_ORD["service_minutes_pickup"]["value"])
+TIGHT_SHARE = float(_ORD["tight_window_share"]["value"])
+NEW_STORE_ORDER_FACTOR = float(_ORD["new_store_order_factor"]["value"])
+# Demo guarantee (GEN_PROGRAM_V1): every current batch has 1–2 at-risk "tight" orders and 12–40 orders.
+BATCH_TIGHT_RANGE = (1, 2)
+BATCH_ORDERS_CLIP = (12, 40)
+
+# Stock lots at close of SIM_AS_OF (AI_PARAMS_LOTS).
+FRESH_NEWEST_FRAC = _span(_LOTS["fresh_newest_lot_frac"])
+FRESH_MIDDLE_FRAC = _span(_LOTS["fresh_middle_lot_frac"])
+FRESH_OLDEST_FRAC = _span(_LOTS["fresh_oldest_lot_frac"])
+DRY_LOTS = _ispan(_LOTS["dry_lots_count"])
+DRY_LOT_AGE = _ispan(_LOTS["dry_lot_age_days"])
+DRY_LOT_DAYS = _span(_LOTS["dry_lot_qty_days_of_sales"])
+# Demo scenario (GEN_PROGRAM_V1): vegetables expiring tomorrow pile up at CH3, its nearest store runs short.
+SURPLUS_FRAC = (2.6, 3.4)
+SHORTAGE_FRAC = (0.05, 0.2)
 
 
 @dataclass(frozen=True)
@@ -107,7 +152,14 @@ def _round_vnd(x: float) -> int:
 
 
 def _sku_price(sku: SkuSpec, profile: ChainProfile) -> int:
-    return _round_vnd(sku.unit_price * profile.price_multiplier)
+    price = _round_vnd(sku.unit_price * profile.price_multiplier)
+    if price <= sku.unit_cost:
+        raise ValueError(
+            f"{profile.chain_id}/{sku.sku_id}: giá bán sau hệ số chuỗi ({price} đ) không cao hơn giá vốn "
+            f"({sku.unit_cost} đ); hãy sinh lại tham số AI "
+            "(`uv run python -m data_real generate-params --force`)."
+        )
+    return price
 
 
 def _category_group(category: str) -> str:
@@ -119,22 +171,25 @@ def _category_group(category: str) -> str:
 
 
 def _calendar_factor(day: CalendarDay, group: str, area: str, s: float) -> float:
+    """Lunar / holiday multiplier; effect sizes from AI_PARAMS_DEMAND, scaled by the chain's sensitivity s."""
+    e = CALENDAR_EFFECTS
     f = 1.0
     if not day.is_leap_month and day.lunar_month == 1 and day.lunar_day <= 3:
-        f *= max(0.15, 1.0 - 0.65 * s)  # Tết: many customers away, short opening hours
+        # Tết: many customers away, short opening hours
+        f *= max(e["tet_days_1_3_floor"], 1.0 - e["tet_days_1_3_drop"] * s)
     elif not day.is_leap_month and day.lunar_month == 1 and day.lunar_day <= 7:
-        f *= 0.8
+        f *= e["tet_days_4_7_factor"]
     elif 1 <= day.days_to_tet <= PRE_TET_DAYS:
         ramp = (PRE_TET_DAYS + 1 - day.days_to_tet) / PRE_TET_DAYS
-        peak = 0.9 if group == "animal" else 0.55
+        peak = e["pre_tet_peak_meat_seafood"] if group == "animal" else e["pre_tet_peak_other"]
         f *= 1.0 + peak * s * ramp
     elif day.is_ram or day.is_mung1:
         if group == "plant":
-            f *= 1.0 + 0.35 * s  # vegetarian day
+            f *= 1.0 + e["ram_mung1_plant_uplift"] * s  # vegetarian day
         elif group == "animal":
-            f *= max(0.5, 1.0 - 0.18 * s)
+            f *= max(0.3, 1.0 - e["ram_mung1_meat_seafood_drop"] * s)
     if day.is_holiday and not (day.lunar_month == 1 and day.lunar_day <= 5):
-        f *= 0.45 if area == "office" else 1.1
+        f *= e["holiday_office_factor"] if area == "office" else e["holiday_other_factor"]
     return f
 
 
@@ -142,7 +197,7 @@ def _rain_factor(rain_mm: float, area: str, sens: float) -> float:
     light, heavy = RAIN_FACTORS[area]
     if rain_mm >= HEAVY_RAIN_MM:
         base = heavy
-    elif rain_mm >= 2.0:
+    elif rain_mm >= LIGHT_RAIN_MM:
         base = light
     else:
         return 1.0
@@ -185,7 +240,7 @@ def _simulate_sales(
     recent_mean: dict[tuple[str, str], float] = {}
     for store in stores:
         area = store.area_type
-        store_mult = AREA_VOLUME[area] * profile.volume_scale * float(rng.uniform(0.8, 1.25))
+        store_mult = profile.volume_scale * float(rng.uniform(*STORE_SCALE_RANGE))
         dow = np.array([DOW_FACTORS[area][d.dow] for d in cal])
         rainf = np.array([_rain_factor(r, area, profile.rain_sensitivity) for r in rain])
         cal_f = {
@@ -194,9 +249,9 @@ def _simulate_sales(
         }
         first = n_days - store.history_days
         for sku in SKUS:
-            mix = AREA_CATEGORY_MIX[area].get(sku.category, 1.0)
             fresh = profile.fresh_affinity if sku.is_fresh else 1.0
-            base = sku.base_daily_units * mix * fresh * store_mult * float(rng.lognormal(0.0, 0.15))
+            level = float(rng.lognormal(0.0, SKU_LEVEL_SIGMA))
+            base = CATEGORY_BASE_UNITS[sku.category][area] * sku.category_share * fresh * store_mult * level
             rate = profile.promo_rate * (0.6 if sku.is_fresh else 1.0)
             starts = rng.random(n_days) < rate
             promo = np.zeros(n_days, dtype=bool)
@@ -237,22 +292,23 @@ def _inventory_lots(
                 life = sku.shelf_life_days
                 for age in range(life):
                     if age == life - 1 and life > 1:
-                        frac = rng.uniform(0.15, 0.45)  # oldest lot, expires tomorrow
+                        frac = rng.uniform(*FRESH_OLDEST_FRAC)  # oldest lot, expires tomorrow
                     elif age == 0:
-                        frac = rng.uniform(0.7, 1.1)
+                        frac = rng.uniform(*FRESH_NEWEST_FRAC)
                     else:
-                        frac = rng.uniform(0.4, 0.8)
+                        frac = rng.uniform(*FRESH_MIDDLE_FRAC)
                     lots.append((age, int(round(m * frac))))
                 if sku.category == "vegetable" and store.store_id == surplus_id:
                     # "Còn nhiều rau ở CH3": a large lot that expires tomorrow
-                    lots = [(life - 1, int(round(m * rng.uniform(2.6, 3.4))))] + [
+                    lots = [(life - 1, int(round(m * rng.uniform(*SURPLUS_FRAC))))] + [
                         lot for lot in lots if lot[0] != life - 1
                     ]
                 elif sku.category == "vegetable" and store.store_id == shortage_id:
-                    lots = [(0, int(round(m * rng.uniform(0.05, 0.2))))]
+                    lots = [(0, int(round(m * rng.uniform(*SHORTAGE_FRAC))))]
             else:
-                for _ in range(int(rng.integers(1, 3))):
-                    lots.append((int(rng.integers(3, 46)), int(round(m * rng.uniform(4.0, 12.0)))))
+                for _ in range(int(rng.integers(DRY_LOTS[0], DRY_LOTS[1] + 1))):
+                    age = int(rng.integers(DRY_LOT_AGE[0], DRY_LOT_AGE[1] + 1))
+                    lots.append((age, int(round(m * rng.uniform(*DRY_LOT_DAYS)))))
             for age, qty in sorted(lots):
                 if qty <= 0:
                     continue
@@ -335,7 +391,7 @@ def _make_order(
     """(lat, lng, demand, earliest, latest, service, mode, pickup_point_id, osm) relative to batch start.
 
     The destination is a real OSM residential building (its OSM id is returned)."""
-    demand = int(rng.integers(1, 4))
+    demand = int(rng.choice([1, 2, 3], p=BASKET_PROBS))
     if tight:
         # Express request far from the store: the window closes before a rider can arrive.
         dest = _choose(rng, geo.tight)
@@ -343,11 +399,12 @@ def _make_order(
         latest = int(travel * rng.uniform(0.35, 0.65))
         return dest.lat, dest.lng, demand, 0, latest, 3, "home", None, dest.osm
 
-    mode = str(rng.choice([m for m, _ in MODE_PROBS], p=[p for _, p in MODE_PROBS]))
+    probs = np.array([p for _, p in MODE_PROBS])
+    mode = str(rng.choice([m for m, _ in MODE_PROBS], p=probs / probs.sum()))
     lobbies = [p for p in points if not p.is_counter]
     pickup_id: str | None = None
     if mode == "pickup":
-        point = points[0] if rng.random() < 0.3 else lobbies[int(rng.integers(len(lobbies)))]
+        point = points[0] if rng.random() < COUNTER_PICKUP_SHARE else lobbies[int(rng.integers(len(lobbies)))]
         pickup_id = point.pickup_point_id
         pool = geo.near_point[point.pickup_point_id]
     elif mode == "flexible":
@@ -358,10 +415,13 @@ def _make_order(
         pool = geo.home
     dest = _choose(rng, pool)
     travel = _travel_minutes(haversine_km(store.lat, store.lng, dest.lat, dest.lng))
-    earliest = int(rng.choice(np.arange(0, 151, 15)))
-    latest = min(shift, earliest + int(rng.integers(45, 91)))
+    earliest = int(rng.choice(np.arange(0, EARLIEST_MAX_MINUTES + 1, 15)))
+    latest = min(shift, earliest + int(rng.integers(WINDOW_MINUTES[0], WINDOW_MINUTES[1] + 1)))
     latest = min(shift, max(latest, travel + 10))
-    service = 2 if mode == "pickup" else int(rng.integers(3, 7))
+    if mode == "pickup":
+        service = SERVICE_PICKUP_MINUTES
+    else:
+        service = int(rng.integers(SERVICE_HOME_MINUTES[0], SERVICE_HOME_MINUTES[1] + 1))
     return dest.lat, dest.lng, demand, earliest, latest, service, mode, pickup_id, dest.osm
 
 
@@ -386,14 +446,15 @@ def _online_orders(
         lo, hi = DAILY_ORDERS_RANGE[store.area_type]
         for back in range(NEW_STORE_HISTORY_DAYS - 1, -1, -1):
             day = SIM_AS_OF - dt.timedelta(days=back)
-            n = int(rng.poisson(rng.uniform(lo, hi) * profile.volume_scale * (0.6 if store.is_new else 1.0)))
+            factor = NEW_STORE_ORDER_FACTOR if store.is_new else 1.0
+            n = int(rng.poisson(rng.uniform(lo, hi) * profile.volume_scale * factor))
             stamps = sorted(
                 dt.datetime.combine(day, dt.time(int(h))) + dt.timedelta(seconds=int(rng.integers(0, 3600)))
                 for h in rng.choice(hours, size=n, p=probs)
             )
             for seq, created in enumerate(stamps):
                 lat, lng, demand, earliest, latest, service, mode, pp, osm = _make_order(
-                    rng, store, pts, geo, shift, tight=rng.random() < 0.04
+                    rng, store, pts, geo, shift, tight=rng.random() < TIGHT_SHARE
                 )
                 rows.append(
                     (f"{store.store_id}-H{day:%Y%m%d}-{seq + 1:04d}", store.store_id, created.isoformat(),
@@ -401,10 +462,10 @@ def _online_orders(
                 )
         # The current batch: created in [SIM_BATCH_START - window, SIM_BATCH_START).
         lo, hi = BATCH_SIZE_RANGE[store.area_type]
-        n_batch = int(np.clip(rng.integers(lo, hi + 1) * profile.volume_scale, 12, 40))
+        n_batch = int(np.clip(rng.integers(lo, hi + 1) * profile.volume_scale, *BATCH_ORDERS_CLIP))
         if store.is_new:
-            n_batch = int(rng.integers(12, 17))
-        n_tight = 1 if n_batch < 18 else 2
+            n_batch = int(np.clip(round(n_batch * NEW_STORE_ORDER_FACTOR), *BATCH_ORDERS_CLIP))
+        n_tight = int(np.clip(round(TIGHT_SHARE * n_batch), *BATCH_TIGHT_RANGE))
         tight_flags = [True] * n_tight + [False] * (n_batch - n_tight)
         rng.shuffle(tight_flags)
         offsets = sorted(int(x) for x in rng.integers(0, int(window.total_seconds()), size=n_batch))
@@ -476,7 +537,9 @@ def _write_chain_db(
     try:
         conn.executescript(TABLES_DDL + views_ddl(SIM_AS_OF))
         with conn:
-            conn.execute("INSERT INTO chains VALUES (?,?,?)", (profile.chain_id, profile.name, SOURCE))
+            conn.execute(
+                "INSERT INTO chains VALUES (?,?,?)", (profile.chain_id, profile.name, PROGRAM_SOURCE)
+            )
             conn.executemany(
                 "INSERT INTO stores VALUES (?,?,?,?,?,?,?,?,?,?)",
                 [(s.store_id, s.chain_id, s.name, s.lat, s.lng, s.area_type, s.opened_date.isoformat(),
@@ -486,7 +549,7 @@ def _write_chain_db(
                 "INSERT INTO skus VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
                 [(k.sku_id, k.name, k.category, int(k.is_fresh), k.shelf_life_days, float(k.unit_cost),
                   float(_sku_price(k, profile)), float(k.salvage_price), k.moq, k.supplier_id,
-                  k.cold_storage_units, SOURCE) for k in SKUS],
+                  k.cold_storage_units, CATALOG_SOURCE) for k in SKUS],
             )
             conn.executemany("INSERT INTO daily_sales VALUES (?,?,?,?,?,?,?,?)", sales)
             conn.executemany(
@@ -507,7 +570,7 @@ def _write_chain_db(
             conn.executemany(
                 "INSERT INTO assumptions VALUES (?,?,?,?)",
                 [(key, json.dumps(value, ensure_ascii=False, sort_keys=True), ASSUMPTION_DESCRIPTIONS_VI[key],
-                  SOURCE) for key, value in ASSUMPTIONS.items()],
+                  ASSUMPTION_SOURCES[key]) for key, value in ASSUMPTIONS.items()],
             )
             conn.executemany("INSERT INTO data_sources VALUES (?,?,?,?)", data_sources)
             refs = [("stores", st.store_id, site.osm, OSM_SOURCE)
@@ -539,7 +602,7 @@ def generate_all(out_dir: Path | str, seed: int = 42) -> dict[str, Path]:
 
     Offline: real inputs come from the committed snapshots in `data_real/`. Re-running overwrites; the
     same seed and snapshots give identical DB content."""
-    from data_real import snapshot
+    from data_real import ai_params, snapshot
     from provenance import write_registry
 
     out = Path(out_dir) / "chains"
@@ -572,5 +635,5 @@ def generate_all(out_dir: Path | str, seed: int = 42) -> dict[str, Path]:
         _write_chain_db(path, profile, stores, sites, calendar, weather, data_sources, sales, lots, points,
                         orders, users)
         paths[profile.chain_id] = path
-    write_registry(out_dir, snapshot.registry_updates())
+    write_registry(out_dir, snapshot.registry_updates() | ai_params.registry_updates())
     return paths

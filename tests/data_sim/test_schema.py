@@ -58,14 +58,14 @@ def test_online_orders_view_rounds_coordinates_and_hides_nothing_personal(data_d
 EXPECTED_SOURCES = {
     "chains": ["GEN_PROGRAM_V1"],
     "stores": ["OSM_HCMC_SITES", "OSM_HCMC"],
-    "skus": ["GEN_PROGRAM_V1"],
-    "daily_sales": ["GEN_PROGRAM_V1", "WEATHER_OPENMETEO_ARCHIVE"],
+    "skus": ["AI_PARAMS_CATALOG"],
+    "daily_sales": ["GEN_FROM_AI_PARAMS_V1", "WEATHER_OPENMETEO_ARCHIVE"],
     "calendar": ["CALENDAR_VN"],
     "weather": ["WEATHER_OPENMETEO_ARCHIVE", "WEATHER_OPENMETEO_FORECAST"],
-    "inventory_lots": ["GEN_PROGRAM_V1"],
+    "inventory_lots": ["GEN_FROM_AI_PARAMS_V1"],
     "pickup_points": ["OSM_HCMC_SITES", "OSM_HCMC"],
-    "online_orders": ["GEN_PROGRAM_V1", "OSM_HCMC"],
-    "assumptions": ["GEN_PROGRAM_V1"],
+    "online_orders": ["GEN_FROM_AI_PARAMS_V1", "OSM_HCMC"],
+    "assumptions": ["AI_PARAMS_DEMAND", "AI_PARAMS_ELASTICITY", "AI_PARAMS_ORDERS", "GEN_PROGRAM_V1"],
 }
 
 

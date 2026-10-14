@@ -412,6 +412,11 @@ def create_app(
     def provenance_list(user: User = Depends(current_user)) -> dict[str, Any]:
         return {"datasets": provenance_view.datasets(settings.data_dir)}
 
+    @app.get("/api/provenance/prompts/{prompt_id}")
+    def provenance_prompt(prompt_id: str, user: User = Depends(current_user)) -> dict[str, Any]:
+        # Documentation of how data was generated (no customer data): any authenticated role may read it.
+        return provenance_view.prompt(prompt_id, settings.data_dir)
+
     @app.get("/api/provenance/{dataset_id}")
     def provenance_item(dataset_id: str, user: User = Depends(current_user)) -> dict[str, Any]:
         return provenance_view.dataset(dataset_id, settings.data_dir)

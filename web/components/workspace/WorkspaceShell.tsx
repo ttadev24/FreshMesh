@@ -5,12 +5,13 @@ import { useCallback, useMemo, useState } from "react";
 import { clearSession } from "@/lib/session";
 import { getProvenance } from "@/lib/api";
 import { dashboardFromTurn, hasDashboardData } from "@/lib/dashboard";
-import { indexProvenance, ProvenanceContext } from "@/lib/provenance";
+import { indexProvenance, ProvenanceContext, SourcesNavContext } from "@/lib/provenance";
 import type { User } from "@/lib/types";
 import { ErrorState, Skeleton } from "@/components/ui/primitives";
 import ChatPane from "@/components/chat/ChatPane";
 import DashboardOverview from "@/components/dashboard/DashboardOverview";
 import RightPane, { type TabId } from "@/components/dashboard/RightPane";
+import type { SourcesTarget } from "@/components/tabs/SourcesTab";
 import { useResource } from "@/components/tabs/useResource";
 import TopBar from "./TopBar";
 import { useConversation } from "./useConversation";
@@ -125,8 +126,17 @@ function WorkspaceReady({ data, onLogout }: { data: WorkspaceData; onLogout: () 
     setPane("dashboard");
   }, []);
 
+  // Kind chips next to numbers open the sources tab at their dataset.
+  const [sourcesTarget, setSourcesTarget] = useState<SourcesTarget | null>(null);
+  const openDataset = useCallback((id: string) => {
+    setTab("sources");
+    setPane("dashboard");
+    setSourcesTarget((prev) => ({ id, n: (prev?.n ?? 0) + 1 }));
+  }, []);
+
   return (
     <ProvenanceContext.Provider value={provenanceIndex}>
+      <SourcesNavContext.Provider value={openDataset}>
       <div className={s.app}>
         <TopBar
           user={me}
@@ -171,6 +181,7 @@ function WorkspaceReady({ data, onLogout }: { data: WorkspaceData; onLogout: () 
               tab={tab}
               onTab={setTab}
               provenance={provenance}
+              sourcesTarget={sourcesTarget}
               dashboard={
                 <DashboardOverview
                   storeId={storeId}
@@ -193,6 +204,7 @@ function WorkspaceReady({ data, onLogout }: { data: WorkspaceData; onLogout: () 
           </section>
         </main>
       </div>
+      </SourcesNavContext.Provider>
     </ProvenanceContext.Provider>
   );
 }

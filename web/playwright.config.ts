@@ -2,8 +2,10 @@ import { defineConfig, devices } from "@playwright/test";
 
 // E2E against the real stack: FastAPI gateway (repo root, port 8100) + Next production server (3100).
 // Flow 3 also needs the routing solver container (FRESHMESH_SOLVER_URL, see docker-compose.yml).
-const WEB_PORT = 3100;
-const API_PORT = 8100;
+// Both ports can be moved (e.g. a private API copy) with FRESHMESH_E2E_WEB_PORT / FRESHMESH_E2E_API_PORT; servers already
+// listening there are reused, so the Next server must then be built with FRESHMESH_API_URL pointing at that API.
+const WEB_PORT = Number(process.env.FRESHMESH_E2E_WEB_PORT ?? 3100);
+const API_PORT = Number(process.env.FRESHMESH_E2E_API_PORT ?? 8100);
 
 export default defineConfig({
   testDir: "./e2e",
@@ -52,7 +54,7 @@ export default defineConfig({
       stderr: "pipe",
     },
     {
-      command: `npm run build && npm run start`,
+      command: `npm run build && npx next start -p ${WEB_PORT} -H 127.0.0.1`,
       url: `http://localhost:${WEB_PORT}/login`,
       reuseExistingServer: !process.env.CI,
       timeout: 240_000,

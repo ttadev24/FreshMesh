@@ -27,8 +27,22 @@ transfer/plan, routing/plan, stores[] items, skus[] items, me, drafts, audit, ag
   Not on `/api/me`, `/api/audit`, `/api/assumptions`, `/` (app records, not datasets).
 - `GET /api/provenance` (auth) → `{datasets: [describe(id) ...]}`, sorted by id; each item is `provenance.describe`:
   `{id, name_vi, kind ("public"|"ai_generated"|"derived"|"synthetic_code"), url, license, retrieved_at, description_vi,
-  prompt_ids[], label_vi, prompts[] (logged generation prompts), details? (optional extra)}`.
-- `GET /api/provenance/{id}` (auth) → `describe(id)`; unknown id → **404 `unknown_dataset`**.
+  prompt_ids[], label_vi, prompts[], details? (optional extra, e.g. `temperature_note_vi`)}`. **Light** (2026-10-14):
+  `prompts[]` items are summaries only `{id, task, ts, model, status ("accepted"|"invalid"|"api_error"), attempt}`;
+  the full prompt/schema/response is served by the prompt endpoint below.
+- `GET /api/provenance/{id}` (auth) → `describe(id)` (full logged prompt records); unknown id → **404 `unknown_dataset`**.
+- `GET /api/provenance/prompts/{prompt_id}` (auth, **any role**: documentation of how data was generated, no customer
+  data) → evidence of one logged AI call:
+  `{prompt_id, task, purpose, model, ts, attempt, status, error, stop_reason, params (request parameters as sent, incl.
+  `output_config.format.schema`), system_text, prompt_text, prompt_sha256, prompt_sha256_ok, response_text (the saved raw
+  response, `null` if missing/unsaved), response_sha256, sha256_ok (recomputed server-side: `true`/`false`, `null` when
+  no response was logged, e.g. `api_error`), dataset_id (dataset the call was logged under), dataset_ids[] (registry
+  datasets listing this prompt, e.g. `AI_PARAMS_CATALOG` + `GEN_FROM_AI_PARAMS_V1`), usage {input_tokens, …},
+  notes_vi[] (every `details.*_note_vi` of those datasets, e.g. why `temperature` is not sent), attempts[] (summaries
+  of every logged attempt of the same task/dataset)}`. The id must match `P<yyyymmdd>T<hhmmss>-<10 hex>`; anything
+  else, or an unknown id → **404 `unknown_prompt`** ("Không có lượt gọi AI (prompt) này trong nhật ký prompt.").
+  No file path is returned; the response file is read only from inside `<data_dir>/provenance` (a log record pointing
+  elsewhere yields `response_text: null`, `sha256_ok: false`).
 
 **Health** `GET /api/health` (no auth) →
 `{status: "ok"|"degraded", solver: bool, llm: bool, llm_required: true, llm_model: string, data: bool}`.

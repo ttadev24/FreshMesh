@@ -50,6 +50,42 @@ export interface ProvenanceDataset {
   retrieved_at: string | null;
   description: string | null;
   prompt_ids: string[];
+  /** Logged AI calls behind this dataset (summaries; ids from `prompt_ids` without a summary have null fields). */
+  prompts: PromptSummary[];
+}
+
+/** Status of one logged AI call (provenance/prompts.py STATUSES). */
+export type PromptStatus = "accepted" | "invalid" | "api_error" | "unknown";
+
+export interface PromptSummary {
+  id: string;
+  task: string | null;
+  ts: string | null;
+  model: string | null;
+  status: PromptStatus;
+  attempt: number | null;
+}
+
+/** GET /api/provenance/prompts/{id}: evidence of one logged AI call. */
+export interface PromptEvidence extends PromptSummary {
+  purpose: string | null;
+  error: string | null;
+  stop_reason: string | null;
+  /** Request parameters as sent, without the JSON schema (shown separately). */
+  params: Record<string, unknown>;
+  /** `output_config.format.schema` of the request, if any. */
+  schema: unknown;
+  system_text: string | null;
+  prompt_text: string;
+  prompt_sha256: string | null;
+  prompt_sha256_ok: boolean | null;
+  response_text: string | null;
+  response_sha256: string | null;
+  sha256_ok: boolean | null;
+  dataset_ids: string[];
+  usage: Record<string, number>;
+  notes: string[];
+  attempts: PromptSummary[];
 }
 
 export interface Provenance {

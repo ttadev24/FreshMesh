@@ -1,7 +1,7 @@
 "use client";
 
 import { useId, useState, type ReactNode } from "react";
-import { KIND_HELP_VI, KIND_VI, resolveSources, useProvenanceIndex } from "@/lib/provenance";
+import { datasetAnchor, KIND_HELP_VI, KIND_VI, resolveSources, useProvenanceIndex, useSourcesNav } from "@/lib/provenance";
 import type { Confidence, SourceKind, SourceRef } from "@/lib/types";
 import s from "./ui.module.css";
 
@@ -21,6 +21,39 @@ export function KindChip({ kind }: { kind: SourceKind }) {
     <span className={`${s.kind} ${s[`kind_${kind}`]}`} data-testid="kind-chip" data-kind={kind} title={KIND_HELP_VI[kind]}>
       {KIND_VI[kind]}
     </span>
+  );
+}
+
+/** Kinds whose chip, next to a number, links to the dataset in the sources tab (AI and program-generated data). */
+const LINKED_KINDS: ReadonlySet<SourceKind> = new Set(["ai_generated", "simulated"]);
+
+/**
+ * Kind chip of one dataset. AI-generated and program-generated datasets link to their card in the
+ * "Nguồn & giả định dữ liệu" tab (in-app navigation; the href is only a same-page fragment).
+ */
+export function DatasetKindChip({ id, label, kind }: { id: string; label: string; kind: SourceKind }) {
+  const nav = useSourcesNav();
+  const index = useProvenanceIndex();
+  if (!nav || !LINKED_KINDS.has(kind) || !index.has(id)) return <KindChip kind={kind} />;
+  const what = kind === "ai_generated" ? "xem nguồn và bằng chứng prompt" : "xem nguồn và giả định";
+  return (
+    <a
+      href={`#${datasetAnchor(id)}`}
+      className={s.kindLink}
+      onClick={(e) => {
+        e.preventDefault();
+        nav(id);
+      }}
+      aria-label={`${KIND_VI[kind]}: ${what} của “${label}” trong tab Nguồn & giả định dữ liệu`}
+      title={`${KIND_HELP_VI[kind]} Bấm để ${what}.`}
+      data-testid="kind-chip-link"
+      data-dataset-id={id}
+    >
+      <KindChip kind={kind} />
+      <span className={s.kindLinkArrow} aria-hidden="true">
+        ↗
+      </span>
+    </a>
   );
 }
 
@@ -90,7 +123,7 @@ export function SourcesLine({ sources, computedBy, testId = "sources-line", bare
     <ul className={s.sourcesList}>
       {refs.map((r) => (
         <li key={r.id} data-testid="source-ref">
-          {r.kind ? <KindChip kind={r.kind} /> : null}
+          {r.kind ? <DatasetKindChip id={r.id} label={r.label_vi} kind={r.kind} /> : null}
           <span>{r.label_vi}</span>
         </li>
       ))}

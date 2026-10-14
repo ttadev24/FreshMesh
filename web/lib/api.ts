@@ -9,7 +9,7 @@ import {
   normalizeFl,
   type TurnEvent,
 } from "./normalize";
-import { normalizeProvenance } from "./provenance";
+import { normalizePromptEvidence, normalizeProvenance } from "./provenance";
 import type {
   Assumptions,
   AuditEntry,
@@ -17,6 +17,7 @@ import type {
   FlNetwork,
   Health,
   LoginResponse,
+  PromptEvidence,
   Provenance,
   Sku,
   Store,
@@ -295,4 +296,9 @@ export async function getAssumptions(signal?: AbortSignal): Promise<Assumptions>
 
 export async function getProvenance(signal?: AbortSignal): Promise<Provenance> {
   return normalizeProvenance(await request<unknown>("/api/provenance", { signal }));
+}
+
+/** Evidence of one logged AI call (full prompt, raw response, server-checked SHA-256). 404 unknown_prompt if absent. */
+export async function getPromptEvidence(promptId: string, signal?: AbortSignal): Promise<PromptEvidence> {
+  return normalizePromptEvidence(await request<unknown>(`/api/provenance/prompts/${encodeURIComponent(promptId)}`, { signal }));
 }

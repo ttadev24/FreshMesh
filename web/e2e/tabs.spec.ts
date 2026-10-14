@@ -67,8 +67,8 @@ test("Huy hiệu nguồn dữ liệu mở tab nguồn: bộ dữ liệu có lo�
 });
 
 test("Tab nguồn: bộ dữ liệu AI sinh hiện prompt, đường dẫn không an toàn chỉ hiện dạng chữ", async ({ page }) => {
-  // The live registry has no AI-generated dataset and only https URLs, so this registry is served by the test
-  // to exercise those two rules; the rendering path is the same as for the real endpoint.
+  // The live registry has only https URLs, so this registry is served by the test to exercise the unsafe-link rule
+  // (and an AI dataset with a non-http URL); the rendering path is the same as for the real endpoint.
   await page.route(/\/api\/provenance$/, (route) =>
     route.fulfill({
       json: {

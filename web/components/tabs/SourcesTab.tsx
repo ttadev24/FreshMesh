@@ -1,22 +1,38 @@
 "use client";
 
+import { useEffect } from "react";
 import { getAssumptions } from "@/lib/api";
 import { fmtDateTime } from "@/lib/format";
-import { KIND_HELP_VI, KIND_VI } from "@/lib/provenance";
+import { cssVar, prefersReducedMotion } from "@/lib/theme";
+import { datasetAnchor, KIND_HELP_VI, KIND_VI } from "@/lib/provenance";
 import type { Provenance, ProvenanceDataset, SourceKind } from "@/lib/types";
 import { EmptyState, ErrorState, KindChip, Panel, Skeleton } from "@/components/ui/primitives";
 import MarkdownBlock from "./MarkdownBlock";
+import { PromptEvidenceList } from "./PromptEvidence";
 import { useResource, type Resource } from "./useResource";
 import s from "./tabs.module.css";
 
 const KIND_ORDER: SourceKind[] = ["public", "ai_generated", "simulated", "computed", "other"];
 
-function DatasetCard({ d }: { d: ProvenanceDataset }) {
+/** A dataset to bring into view (kind chip links elsewhere in the app); `n` changes on every request. */
+export interface SourcesTarget {
+  id: string;
+  n: number;
+}
+
+/** AI-generated datasets and datasets derived from AI output carry the evidence of their prompts. */
+const hasPromptEvidence = (d: ProvenanceDataset) =>
+  d.kind === "ai_generated" || (d.prompts.length > 0 && (d.kind_raw === "derived" || d.kind === "computed"));
+
+function DatasetCard({ d, request }: { d: ProvenanceDataset; request: number | null }) {
+  const anchor = datasetAnchor(d.id);
   return (
-    <li className={s.dataset} data-testid="dataset" data-kind={d.kind}>
+    <li className={s.dataset} data-testid="dataset" data-kind={d.kind} data-dataset-id={d.id} id={anchor}>
       <div className={s.datasetHead}>
         <KindChip kind={d.kind} />
-        <h3>{d.name}</h3>
+        <h3 id={`${anchor}-title`} tabIndex={-1}>
+          {d.name}
+        </h3>
         <code className={s.datasetId}>{d.id}</code>
       </div>
       {d.description ? <p className={s.datasetDesc}>{d.description}</p> : null}
@@ -61,12 +77,36 @@ function DatasetCard({ d }: { d: ProvenanceDataset }) {
           </div>
         ) : null}
       </dl>
+      {hasPromptEvidence(d) ? (
+        // Remounted (open) when a chip elsewhere asks for this dataset, so its prompts are one step away.
+        <PromptEvidenceList key={request ?? "idle"} dataset={d} defaultOpen={request !== null} />
+      ) : null}
     </li>
   );
 }
 
-function Datasets({ provenance }: { provenance: Resource<Provenance> }) {
+function Datasets({ provenance, target }: { provenance: Resource<Provenance>; target: SourcesTarget | null }) {
   const { state, retry } = provenance;
+  const ready = state.status === "ready";
+
+  // Bring the requested dataset into view and move focus to its title (once the list is rendered).
+  useEffect(() => {
+    if (!target || !ready) return;
+    const title = document.getElementById(`${datasetAnchor(target.id)}-title`);
+    if (!title) return;
+    title.scrollIntoView({ block: "start", behavior: "smooth" });
+    title.focus({ preventScroll: true });
+    // A short highlight of the card (Web Animations: replays on every request, no React state involved).
+    const card = title.closest("li");
+    if (card && !prefersReducedMotion()) {
+      const ring = `0 0 0 2px ${cssVar("--amber-fill", "#e9971f")}`;
+      card.animate(
+        [{ boxShadow: ring }, { boxShadow: ring, offset: 0.4 }, { boxShadow: "0 0 0 2px transparent" }],
+        { duration: 2000, easing: "ease-out" },
+      );
+    }
+  }, [target, ready]);
+
   if (state.status === "loading") return <Skeleton lines={4} label="Đang tải danh sách nguồn dữ liệu" />;
   if (state.status === "error") return <ErrorState title="Không tải được danh sách nguồn dữ liệu" message={state.message} onRetry={retry} testId="provenance-error" />;
   const { datasets, notes } = state.data;
@@ -92,7 +132,7 @@ function Datasets({ provenance }: { provenance: Resource<Provenance> }) {
             {datasets
               .filter((d) => d.kind === k)
               .map((d) => (
-                <DatasetCard key={d.id} d={d} />
+                <DatasetCard key={d.id} d={d} request={target?.id === d.id ? target.n : null} />
               ))}
           </ul>
         </section>
@@ -108,7 +148,7 @@ function Datasets({ provenance }: { provenance: Resource<Provenance> }) {
   );
 }
 
-export default function SourcesTab({ provenance }: { provenance: Resource<Provenance> }) {
+export default function SourcesTab({ provenance, target = null }: { provenance: Resource<Provenance>; target?: SourcesTarget | null }) {
   const assumptions = useResource(getAssumptions);
   const a = assumptions.state.status === "ready" ? assumptions.state.data : null;
   // The roadmap section is shown as its own panel at the end.
@@ -116,7 +156,7 @@ export default function SourcesTab({ provenance }: { provenance: Resource<Proven
 
   return (
     <div className={s.stack} data-testid="sources-panel">
-      <Datasets provenance={provenance} />
+      <Datasets provenance={provenance} target={target} />
 
       <h2 className={s.partTitle}>Giả định dữ liệu</h2>
       {assumptions.state.status === "loading" ? <Skeleton lines={5} label="Đang tải giả định dữ liệu" /> : null}

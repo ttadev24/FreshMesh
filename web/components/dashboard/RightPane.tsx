@@ -4,7 +4,7 @@ import { useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import type { Provenance } from "@/lib/types";
 import AuditTab from "@/components/tabs/AuditTab";
 import FlTab from "@/components/tabs/FlTab";
-import SourcesTab from "@/components/tabs/SourcesTab";
+import SourcesTab, { type SourcesTarget } from "@/components/tabs/SourcesTab";
 import type { Resource } from "@/components/tabs/useResource";
 import s from "./dashboard.module.css";
 
@@ -21,9 +21,11 @@ interface Props {
   onTab: (id: TabId) => void;
   dashboard: ReactNode;
   provenance: Resource<Provenance>;
+  /** Dataset to bring into view in the sources tab (kind chip links). */
+  sourcesTarget?: SourcesTarget | null;
 }
 
-export default function RightPane({ tab, onTab, dashboard, provenance }: Props) {
+export default function RightPane({ tab, onTab, dashboard, provenance, sourcesTarget = null }: Props) {
   // Tabs mount on first open and then stay mounted (hidden), so their state survives switching.
   const [opened, setOpened] = useState<ReadonlySet<TabId>>(new Set([tab]));
   const [auditVersion, setAuditVersion] = useState(0);
@@ -97,7 +99,7 @@ export default function RightPane({ tab, onTab, dashboard, provenance }: Props) 
               ) : t.id === "fl" ? (
                 <FlTab />
               ) : (
-                <SourcesTab provenance={provenance} />
+                <SourcesTab provenance={provenance} target={sourcesTarget} />
               )}
             </div>
           ) : null,

@@ -1,0 +1,589 @@
+/* "Bằng chứng prompt": disclosure on AI / derived dataset cards and the evidence viewer.
+   Tokens only (globals.css), so light and dark follow the system scheme. */
+
+.evidence {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  padding-top: 8px;
+  border-top: 1px dashed var(--line);
+}
+
+.evidenceToggle {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.count {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ink-3);
+}
+
+.evidenceRegion {
+  min-width: 0;
+}
+
+.evidenceRegion[hidden] {
+  display: none;
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+
+/* One prompt row: task + status on the first line, model · time · attempt, then the id. */
+.item {
+  width: 100%;
+  display: grid;
+  grid-template-columns: auto auto 1fr auto;
+  grid-template-areas:
+    "task status meta open"
+    "id id id open";
+  align-items: center;
+  gap: 2px 10px;
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  text-align: left;
+  font-size: 12px;
+  min-width: 0;
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease;
+}
+
+.item:hover {
+  border-color: var(--amber-fill);
+  background: var(--amber-tint);
+}
+
+.itemTask {
+  grid-area: task;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.item .status {
+  grid-area: status;
+}
+
+.itemMeta {
+  grid-area: meta;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 10px;
+  color: var(--ink-3);
+  min-width: 0;
+}
+
+.itemId {
+  grid-area: id;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-3);
+  overflow-wrap: anywhere;
+}
+
+.itemOpen {
+  grid-area: open;
+  align-self: center;
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line-strong);
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+.item:hover .itemOpen {
+  border-color: var(--amber);
+  color: var(--amber);
+}
+
+.none {
+  margin: 0;
+  color: var(--ink-3);
+  font-style: italic;
+  font-size: 12px;
+}
+
+/* Status: text first; the dot shape differs per status so it survives greyscale. */
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--ink-2);
+}
+
+.statusDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ink-3);
+}
+
+.status[data-status="accepted"] {
+  color: var(--green-strong);
+}
+
+.status[data-status="accepted"] .statusDot {
+  background: var(--green);
+}
+
+.status[data-status="invalid"] {
+  color: var(--amber);
+}
+
+.status[data-status="invalid"] .statusDot {
+  background: transparent;
+  border: 1.5px solid var(--amber);
+}
+
+.status[data-status="api_error"] {
+  color: var(--red);
+}
+
+.status[data-status="api_error"] .statusDot {
+  border-radius: 1px;
+  background: var(--red);
+}
+
+/* ---------- viewer ---------- */
+
+.dialog {
+  width: min(980px, calc(100vw - 32px));
+  max-width: none;
+  height: min(880px, calc(100dvh - 48px));
+  max-height: none;
+  margin: auto;
+  padding: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow:
+    0 24px 64px rgb(0 0 0 / 0.28),
+    var(--shadow);
+  overflow: hidden;
+}
+
+.dialog::backdrop {
+  background: rgb(8 16 12 / 0.55);
+  backdrop-filter: blur(2px);
+}
+
+.dialog[open] {
+  animation: rise 0.18s ease-out;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dialog[open] {
+    animation: none;
+  }
+}
+
+.sheet {
+  height: 100%;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-width: 0;
+}
+
+.head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 18px 12px;
+  border-bottom: 1px solid var(--line);
+  border-top: 3px solid var(--amber-fill);
+  background: var(--surface-2);
+  min-width: 0;
+}
+
+.headText {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.eyebrow {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--amber);
+}
+
+.title {
+  margin: 0;
+  font-size: 17px;
+  line-height: 1.3;
+  outline: none;
+}
+
+.title:focus-visible {
+  box-shadow: var(--focus);
+  border-radius: var(--radius-sm);
+}
+
+.titleTask {
+  font-family: var(--font-mono);
+  font-size: 0.95em;
+}
+
+.headId {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-3);
+  overflow-wrap: anywhere;
+}
+
+.close {
+  flex: none;
+}
+
+.body {
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: 14px 18px 22px;
+  display: grid;
+  align-content: start;
+  gap: 14px;
+  min-width: 0;
+}
+
+.meta {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 8px 16px;
+  font-size: 12px;
+}
+
+.meta div {
+  min-width: 0;
+}
+
+.meta dt {
+  color: var(--ink-3);
+  margin-bottom: 2px;
+}
+
+.meta dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.meta code {
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.metaSub {
+  color: var(--ink-3);
+}
+
+.usage {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 10px;
+}
+
+.usage b {
+  font-family: var(--font-mono);
+  font-weight: 600;
+}
+
+.errorNote {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: var(--radius);
+  background: var(--red-tint);
+  color: var(--red);
+  font-size: 12px;
+}
+
+.integrity {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+
+.hashRow {
+  display: grid;
+  grid-template-columns: 150px auto minmax(0, 1fr);
+  align-items: center;
+  gap: 4px 10px;
+  font-size: 12px;
+}
+
+.hashLabel {
+  color: var(--ink-2);
+  font-weight: 600;
+}
+
+.hash {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-2);
+  overflow-wrap: anywhere;
+}
+
+.verified,
+.mismatch,
+.unverified {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 20px;
+  padding: 0 7px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.verified {
+  background: var(--green-tint);
+  color: var(--green-strong);
+  border: 1px solid var(--green);
+}
+
+.mismatch {
+  background: var(--red-tint);
+  color: var(--red);
+  border: 1px solid var(--red);
+}
+
+.unverified {
+  background: var(--surface-3);
+  color: var(--ink-2);
+  border: 1px dashed var(--line-strong);
+}
+
+.integrityHint {
+  margin: 0;
+  font-size: 11px;
+  color: var(--ink-3);
+}
+
+.notes {
+  margin: 0;
+  padding: 9px 12px 9px 28px;
+  border-left: 3px solid var(--amber-fill);
+  border-radius: var(--radius-sm);
+  background: var(--amber-tint);
+  color: var(--ink);
+  font-size: 12px;
+  display: grid;
+  gap: 4px;
+}
+
+.usedBy {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  font-size: 12px;
+}
+
+.usedByLabel {
+  color: var(--ink-3);
+}
+
+.usedByList {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.usedByList code {
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: var(--surface-3);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.panel {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.panelHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  min-width: 0;
+}
+
+.panelHead h3 {
+  margin: 0;
+  font-size: 13px;
+}
+
+.panelSize {
+  font-weight: 400;
+  font-size: 11px;
+  color: var(--ink-3);
+}
+
+.panelSub {
+  font-size: 11px;
+  color: var(--ink-3);
+}
+
+.panelTools {
+  margin-left: auto;
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.copy {
+  min-width: 64px;
+}
+
+.copy[data-state="copied"] {
+  border-color: var(--green);
+  color: var(--green-strong);
+}
+
+.copyFail {
+  font-size: 11px;
+  color: var(--red);
+}
+
+/* Long texts scroll inside their own panel: the page and the dialog never scroll sideways. */
+.pre {
+  margin: 0;
+  max-height: 360px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  tab-size: 2;
+  color: var(--ink);
+}
+
+.pre:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+}
+
+.preCompact {
+  max-height: 180px;
+}
+
+.schema summary {
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-2);
+  padding: 2px 0;
+}
+
+.schema[open] summary {
+  margin-bottom: 6px;
+}
+
+.attempts h3 {
+  margin: 0 0 6px;
+  font-size: 13px;
+}
+
+.attempts ol {
+  margin: 0;
+  padding-left: 20px;
+  display: grid;
+  gap: 4px;
+  font-size: 12px;
+}
+
+.attempts li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+}
+
+.attempts li[aria-current="true"] code {
+  font-weight: 700;
+}
+
+.attempts code {
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+@media (max-width: 640px) {
+  /* Full-screen sheet on phones. */
+  .dialog {
+    width: 100vw;
+    height: 100dvh;
+    border-radius: 0;
+    border: 0;
+  }
+
+  .head {
+    padding: 12px 14px 10px;
+  }
+
+  .body {
+    padding: 12px 14px 20px;
+  }
+
+  .hashRow {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .hash {
+    grid-column: 1 / -1;
+  }
+
+  .item {
+    grid-template-columns: auto 1fr auto;
+    grid-template-areas:
+      "task status open"
+      "meta meta open"
+      "id id open";
+  }
+
+  .pre {
+    max-height: 300px;
+  }
+}

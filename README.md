@@ -103,13 +103,16 @@ Biến môi trường của API:
   đang triển khai dùng cấu hình đã chọn (40 × 1, lr 1e-3; seed 0) và không bật DP (xem
   `docs/experiments/fl-results.md`).
 - **Mô phỏng 30 ngày**: cấu hình đăng ký trước (v1) không đạt tiêu chí hàng bỏ ở cả 3 chuỗi (bỏ nhiều hơn baseline
-  4,2–8,9 điểm %); bản điều chỉnh v2 (chi phí giữ qua đêm 20% cho hàng tươi) đạt ở cả 3 chuỗi và đang là mặc định,
-  nhưng là điều chỉnh sau khi biết kết quả. Giao thức đã chạy hai lần (dữ liệu sinh cũ và dữ liệu dựng lại trên vị
-  trí/thời tiết/ngày lễ thật) với cùng tệp giao thức và ngưỡng; nhu cầu vẫn do chương trình sinh
+  5,2–20,3 điểm %, hết hàng ít hơn 15,1–38,4 điểm %); bản điều chỉnh v2 (chi phí giữ qua đêm 20% cho hàng tươi, không
+  chọn lại trên dữ liệu mới) đạt ở chuỗi A và C nhưng không đạt ở B (bỏ nhiều hơn baseline 1,07 [0,43; 1,71] điểm %),
+  vẫn là mặc định sản xuất và là điều chỉnh sau khi biết kết quả. Giao thức đã chạy ba lần (dữ liệu sinh toàn bộ; sau
+  khi vị trí/thời tiết/ngày lễ thành dữ liệu thật; sau khi lớp nhu cầu lấy tham số do AI sinh) với cùng tệp giao thức
+  và ngưỡng; nhu cầu vẫn do chương trình mở rộng từ tham số AI, không phải giao dịch thật
   (xem `docs/experiments/sim30-results.md`).
-- **Benchmark solver**: PACO giảm 71,9% km so với "mỗi đơn một chuyến" ở 18/18 đợt nhưng vẫn có 9 điểm dừng dự kiến
-  trễ; solver SA của routing-PL lỗi trên instance của FreshMesh (lần chạy trước, chưa thử lại) nên không có số SA
-  (xem `docs/experiments/routing-benchmark.md`).
+- **Benchmark solver**: PACO giảm 67,5% km so với "mỗi đơn một chuyến" (320,8 so với 985,7 km; 32 xe so với 284
+  chuyến) và tốt hơn ở 18/18 đợt, nhưng vẫn có 29 điểm dừng dự kiến trễ (ở 11/18 đợt); ALNS gần bằng km (322,3) với
+  ít xe hơn (24). Solver SA của routing-PL lỗi trên instance của FreshMesh (lần chạy đầu, chưa chạy lại) nên không có
+  số SA (xem `docs/experiments/routing-benchmark.md`).
 - **Hệ số đường vòng 1,3** chưa được dữ liệu OSRM (ô tô) ủng hộ (trung vị 1,58); km và giờ đến trong định tuyến tính
   theo 1,3 nên có thể bị ước lượng thấp (xem `docs/data-real-detour.md`).
 - **Phụ thuộc**: `flwr` 1.39 ghim `cryptography<47`, nên môi trường giữ `cryptography` 46.x có cảnh báo bảo mật đã biết.

@@ -14,6 +14,8 @@ from typing import Any
 
 import httpx
 
+from agent.guardrail import redact_for_llm
+
 log = logging.getLogger(__name__)
 
 JEV_URL = "https://openrouter.ai/api/alpha/decisions"
@@ -42,7 +44,7 @@ class JevClient:
             resp = self._http.post(
                 JEV_URL,
                 headers={"Authorization": f"Bearer {self._key}"},
-                json={"model": self._model, "state": state, "questions": questions},
+                json={"model": self._model, "state": redact_for_llm(state), "questions": questions},
             )
             resp.raise_for_status()
             answers = resp.json()["answers"]
@@ -78,5 +80,5 @@ def execution_claim_flagged(client: JevClient | None, answer_text: str) -> bool 
         return None
     try:
         return float(answers[EXECUTION_CLAIM_QUESTION_ID]["noul"]) >= 0.5
-    except (KeyError, TypeError, ValueError):
+    except (KeyError, TypeError, ValueError, OverflowError):
         return None

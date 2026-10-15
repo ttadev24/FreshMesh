@@ -71,6 +71,16 @@ def test_ask_returns_none_on_timeout():
     assert client.ask("x", QUESTIONS) is None
 
 
+def test_ask_redacts_phone_numbers_in_state_before_sending():
+    client, seen = _client(lambda _: httpx.Response(200, json={"answers": {}}))
+    client.ask("Liên hệ 0912345678 để biết thêm.", QUESTIONS)
+    import json as _json
+
+    sent = _json.loads(seen[0].content)
+    assert "0912345678" not in sent["state"]
+    assert "[đã ẩn]" in sent["state"]
+
+
 from agent.jev import EXECUTION_CLAIM_QUESTION_ID, execution_claim_flagged
 
 
@@ -107,6 +117,7 @@ def test_execution_claim_flagged_none_when_jev_unavailable():
         {"other_id": {"noul": 0.9}},
         {EXECUTION_CLAIM_QUESTION_ID: {"noul": "high"}},
         {EXECUTION_CLAIM_QUESTION_ID: {}},
+        {EXECUTION_CLAIM_QUESTION_ID: {"noul": 10**400}},
     ],
 )
 def test_execution_claim_flagged_none_on_malformed_answer(answers):

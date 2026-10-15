@@ -30,6 +30,16 @@ def test_health_reuses_one_solver_client(data_dir, tmp_path, monkeypatch):
     assert len(created) - before <= 1
 
 
+def test_health_reports_jev_false_without_a_key(client):
+    assert client.get("/api/health").json()["jev"] is False
+
+
+def test_health_reports_jev_true_with_a_key(data_dir, fake_solver, tmp_path):
+    app = create_app(make_settings(data_dir, tmp_path, jev_api_key="fake-key"), solver=fake_solver)
+    with TestClient(app) as c:
+        assert c.get("/api/health").json()["jev"] is True
+
+
 def test_routing_per_batch_locks_do_not_accumulate(data_dir, fake_solver, tmp_path):
     """LOW-2: the per-batch-hash lock table is cleaned once a solve (or a failed solve) ends."""
     import pytest

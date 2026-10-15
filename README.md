@@ -77,6 +77,9 @@ Biến môi trường của API:
 | `ANTHROPIC_API_KEY` | (trống) | **bắt buộc cho chat**: trợ lý chỉ chạy bằng Claude thật |
 | `FRESHMESH_LLM_MODEL` | `claude-sonnet-5-5` | mô hình Claude cho chat (ví dụ `claude-haiku-5-5`) |
 | `FRESHMESH_LLM_EFFORT` | `medium` | mức `effort` gửi cho mô hình |
+| `FRESHMESH_JEV_API_KEY` | (trống) | khóa OpenRouter cho Jev (TypeSafe AI); thiếu khóa thì mọi tính năng Jev tắt, `/api/health` báo `jev: false` |
+| `FRESHMESH_JEV_MODEL` | `typesafe/jev-1.13` | model Jev dùng qua OpenRouter |
+| `FRESHMESH_JEV_GUARDRAIL` | (trống) | `1` = bật kiểm tra câu trả lời agent bằng Jev (cần `FRESHMESH_JEV_API_KEY`) |
 
 `scripts/dev_api.sh` tự nạp `.env.local` (không commit, đã có trong `.gitignore`) nếu có, ví dụ chứa
 `ANTHROPIC_API_KEY=...`, `FRESHMESH_LLM_MODEL=...` và `FRESHMESH_VIETMAP_ROUTE_KEY=...`.

@@ -20,6 +20,7 @@ def test_health_is_public_and_reports_llm_requirement(client, monkeypatch):
         "llm_required": True,
         "llm_model": "claude-sonnet-5-5",
         "data": True,
+        "jev": False,
     }
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
     assert client.get("/api/health").json()["llm"] is True

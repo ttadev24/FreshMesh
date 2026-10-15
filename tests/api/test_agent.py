@@ -1,11 +1,15 @@
 import json
 
 import pytest
+from fastapi.testclient import TestClient
 
 from agent.guardrail import verify_numbers
+from agent.jev import JevClient
 from agent.template import SECTIONS, parse_answer
 from agent.tools import ToolContext, ToolError
-from tests.api.conftest import assert_error, login
+from api.main import create_app
+from tests.agent.fake_llm import PlannedFakeClient
+from tests.api.conftest import assert_error, login, make_settings
 from tests.api.helpers import FORECAST_SOURCES, ROUTING_SOURCES, TEST_DATASETS
 
 FLOWS = {
@@ -213,3 +217,23 @@ def test_other_users_draft_listing(client):
     headers = login(client, "owner_c")
     drafts = client.get("/api/drafts", headers=headers).json()["drafts"]
     assert all(d["chain_id"] == "CHAIN_C" for d in drafts)
+
+
+def test_guardrail_flag_off_ignores_a_configured_jev_key(data_dir, fake_solver, tmp_path):
+    """A configured FRESHMESH_JEV_API_KEY with FRESHMESH_JEV_GUARDRAIL unset must not call Jev at all."""
+    called: list[int] = []
+    orig_ask = JevClient.ask
+    JevClient.ask = lambda self, *a, **kw: called.append(1) or orig_ask(self, *a, **kw)
+    try:
+        app = create_app(
+            make_settings(data_dir, tmp_path, jev_api_key="fake-key"),
+            solver=fake_solver,
+            llm_client_factory=lambda: PlannedFakeClient([]),
+        )
+        with TestClient(app) as c:
+            headers = login(c, "owner_a")
+            r = c.post("/api/agent/chat", json={"message": "Xin chào"}, headers=headers)
+            assert r.status_code == 200, r.text
+    finally:
+        JevClient.ask = orig_ask
+    assert called == []

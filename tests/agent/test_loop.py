@@ -464,3 +464,43 @@ def test_no_tool_answer_says_no_data_used():
     assert turn.sources == [] and turn.answer_text.endswith(
         "**Nguồn dữ liệu:** Không dùng dữ liệu (không có kết quả công cụ)"
     )
+
+
+from agent.jev import EXECUTION_CLAIM_QUESTION_ID
+
+
+class _StubJevClient:
+    """Always flags the given question as True, regardless of input — used to prove the OR wiring."""
+
+    def ask(self, state, questions):
+        return {EXECUTION_CLAIM_QUESTION_ID: {"noul": 0.99}}
+
+
+# `vi_sao` is overridden on every call below to drop `_answer()`'s default "Dự báo P50 là 118,4 kg." —
+# that number isn't backed by any tool output in these tool-free turns, so it would fail
+# `verify_numbers` on its own and trigger a rewrite regardless of the Jev/claims logic under test. Using
+# a number-free `vi_sao` isolates the behaviour these two tests actually check.
+
+
+def test_jev_flag_triggers_rewrite_even_without_a_keyword_match():
+    # No EXECUTION_CLAIMS_VI phrase in this text, so claims_execution() alone would miss it.
+    first = _answer(de_xuat="Xong rồi nhé, không cần làm gì thêm.", vi_sao="Theo yêu cầu của bạn.")
+    second = _answer(
+        de_xuat="Đã tạo bản nháp `draft-1`, chờ bạn bấm Duyệt.", vi_sao="Theo yêu cầu của bạn."
+    )
+    client = SequenceClient([text_response(first), text_response(second)])
+    session = AgentSession(client, _registry(), CTX, jev_client=_StubJevClient())
+    turn = session.run("Nhập rau cho mai.")
+    assert turn.rewritten is True
+    assert "đã được thực thi" in " ".join(turn.rewrite_problems).lower()
+    assert "draft-1" in turn.answer_text
+
+
+def test_no_jev_client_means_unchanged_behaviour():
+    # Same first answer as above, but with no jev_client: claims_execution() also won't catch it (no
+    # EXECUTION_CLAIMS_VI phrase), so this must NOT be rewritten.
+    only = _answer(de_xuat="Xong rồi nhé, không cần làm gì thêm.", vi_sao="Theo yêu cầu của bạn.")
+    client = SequenceClient([text_response(only)])
+    session = AgentSession(client, _registry(), CTX)  # jev_client defaults to None
+    turn = session.run("Nhập rau cho mai.")
+    assert turn.rewritten is False

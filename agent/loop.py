@@ -27,6 +27,7 @@ from typing import Any, Literal
 
 from agent.audit import AuditLog
 from agent.guardrail import UNTRUSTED_NOTICE_VI, VerificationReport, redact_for_llm, verify_numbers
+from agent.jev import JevClient, execution_claim_flagged
 from agent.llm import (
     LLMClient,
     LLMRequest,
@@ -210,6 +211,7 @@ class AgentSession:
         system_prompt: str = SYSTEM_PROMPT_VI,
         on_text: Callable[[str], None] | None = None,
         turn_id_factory: Callable[[], str] | None = None,
+        jev_client: JevClient | None = None,
     ):
         self.client = client
         self.registry = registry
@@ -219,6 +221,7 @@ class AgentSession:
         self.system_prompt = system_prompt
         self.on_text = on_text
         self._new_turn_id = turn_id_factory or (lambda: uuid.uuid4().hex)
+        self.jev_client = jev_client
         self.messages: list[dict[str, Any]] = []
         self.requests: list[LLMRequest] = []  # every request sent to the model (privacy checks, debugging)
         self.last_turn: AgentTurn | None = None
@@ -366,7 +369,7 @@ class AgentSession:
         text = resp.text.strip()
         self.messages.append({"role": "assistant", "content": resp.assistant_content or text})
         report, sections = self._check(turn, text)
-        claims = claims_execution(text)
+        claims = claims_execution(text) or execution_claim_flagged(self.jev_client, text) is True
         if not report.ok or sections is None or claims:
             problems = []
             if not report.ok:

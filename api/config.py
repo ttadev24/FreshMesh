@@ -66,6 +66,13 @@ class Settings:
     vietmap_route_key: str = field(
         default_factory=lambda: os.environ.get("FRESHMESH_VIETMAP_ROUTE_KEY", "").strip(), repr=False
     )
+    # Jev (TypeSafe AI decision model, via OpenRouter): optional, never required. See
+    # docs/superpowers/specs/2026-10-15-jev-integration-design.md.
+    jev_api_key: str = field(
+        default_factory=lambda: os.environ.get("FRESHMESH_JEV_API_KEY", "").strip(), repr=False
+    )
+    jev_model: str = field(default_factory=lambda: os.environ.get("FRESHMESH_JEV_MODEL", "").strip())
+    jev_guardrail: bool = field(default_factory=lambda: os.environ.get("FRESHMESH_JEV_GUARDRAIL") == "1")
     fleet_vehicles: int = FLEET_VEHICLES
     fleet_capacity: int = FLEET_CAPACITY
 

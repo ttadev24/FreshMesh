@@ -19,6 +19,8 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
 from agent.audit import AuditLog
+from agent.jev import DEFAULT_MODEL as JEV_DEFAULT_MODEL
+from agent.jev import JevClient
 from agent.llm import AnthropicClient, LLMClient, LLMUnavailableError, configured_model, llm_available
 from agent.loop import AgentSession, AgentTurn
 from agent.tools import ToolContext, ToolError
@@ -136,6 +138,11 @@ def create_app(
         road=road,
     )
     services = Services(settings.data_dir, routing)
+    jev_client: JevClient | None = (
+        JevClient(settings.jev_api_key, model=settings.jev_model or JEV_DEFAULT_MODEL)
+        if settings.jev_api_key
+        else None
+    )
     drafts = SqlDraftStore(settings.data_dir)
     registry = build_registry(services, drafts)
     health_cache: dict[str, Any] = {"t": 0.0, "solver": False, "client": None}
@@ -216,6 +223,7 @@ def create_app(
             "llm_required": True,
             "llm_model": configured_model(),
             "data": data_ready,
+            "jev": jev_client is not None,
         }
 
     @app.post("/api/auth/login")
@@ -365,6 +373,7 @@ def create_app(
             registry,
             tool_ctx(user, default_sid),
             audit=AuditLog(chain_db_path(settings.data_dir, user.chain_id)),
+            jev_client=jev_client if settings.jev_guardrail else None,
         )
         extra = {"model": getattr(client, "model", getattr(client, "name", ""))}
         return StreamingResponse(stream_turn(session, body.message, extra), media_type="text/event-stream")

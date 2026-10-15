@@ -117,6 +117,7 @@ def test_ask_uses_the_given_model():
         httpx.Response(200, text="not json"),
         httpx.Response(200, json={"no_answers_key": True}),
         httpx.Response(200, json={"answers": "not a dict"}),
+        httpx.Response(200, json=["not", "an", "object"]),
     ],
 )
 def test_ask_returns_none_on_any_failure_response(response):
@@ -196,7 +197,9 @@ class JevClient:
             )
             resp.raise_for_status()
             answers = resp.json()["answers"]
-        except (httpx.HTTPError, KeyError, ValueError) as exc:
+        except (httpx.HTTPError, KeyError, ValueError, TypeError) as exc:
+            # TypeError: a top-level JSON array (`resp.json()` returns a list, `list["answers"]` raises
+            # TypeError, not KeyError) — one more shape of "not the object we expected", same handling.
             log.warning("jev: request failed (%s)", type(exc).__name__)
             return None
         if not isinstance(answers, dict):

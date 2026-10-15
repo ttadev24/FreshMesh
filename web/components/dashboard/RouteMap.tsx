@@ -253,6 +253,14 @@ function RouteMap({ plan, storeName, stores }: { plan: RoutePlanView; storeName:
       locale: LOCALE,
     });
     mapRef.current = map;
+    // vietmapgl's Evented.fire() prints any "error" event straight to console.error when nobody is
+    // listening (so internal errors are never silently dropped). remove() cancels the in-flight style
+    // load, which fires exactly such an event; without a handler that is expected abort gets logged as
+    // if it were a real failure. A real error (bad key, network down, broken style) still reaches the
+    // console here, just via our own call instead of the library's fallback.
+    map.on("error", (e) => {
+      if (e.error?.name !== "AbortError") console.error("[RouteMap]", e.error);
+    });
     // Controls sit on the right so the summary bar of the fullscreen view (top-left) never covers them. The
     // control takes the whole panel shell (summary + map) fullscreen; it also lifts cooperative gestures there.
     map.addControl(new vietmapgl.NavigationControl({ showCompass: false }), "top-right");
@@ -313,8 +321,28 @@ function RouteMap({ plan, storeName, stores }: { plan: RoutePlanView; storeName:
       document.removeEventListener("fullscreenchange", onFullscreen);
       labelRef.current?.remove();
       labelRef.current = null;
-      map.remove();
       mapRef.current = null;
+      // remove() cancels the in-flight style/sprite request; Style._remove() (vietmapgl internals) clears
+      // its own link to the map before that request's rejection runs, so the resulting "error" event has
+      // nobody left to catch it and vietmapgl prints it straight to console.error (harmless, but noisy —
+      // hit on every mount in dev, since React Strict Mode mounts, cleans up and mounts again). Waiting for
+      // the style to finish loading first removes that race entirely; the timeout bounds the wait in case
+      // the style never loads (bad key, network down), so the map is still disposed either way.
+      let removed = false;
+      const removeOnce = () => {
+        if (removed) return;
+        removed = true;
+        map.remove();
+      };
+      if (map.isStyleLoaded()) {
+        removeOnce();
+      } else {
+        const timer = setTimeout(removeOnce, 8000);
+        map.once("load", () => {
+          clearTimeout(timer);
+          removeOnce();
+        });
+      }
     };
     // The map is created once; plan, theme and size changes are applied by the effects below.
     // eslint-disable-next-line react-hooks/exhaustive-deps

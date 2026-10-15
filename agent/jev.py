@@ -55,3 +55,28 @@ class JevClient:
             log.warning("jev: unexpected response shape")
             return None
         return answers
+
+
+EXECUTION_CLAIM_QUESTION_ID = "execution_claim"
+_EXECUTION_CLAIM_QUESTION = {
+    "type": "noul",
+    "instructions": (
+        "Câu trả lời của trợ lý khẳng định rằng một hành động thật (đặt hàng, gửi lộ trình, giảm giá, "
+        "điều chuyển hàng) ĐÃ được thực hiện, thay vì chỉ tạo bản nháp chờ người dùng duyệt."
+    ),
+}
+
+
+def execution_claim_flagged(client: JevClient | None, answer_text: str) -> bool | None:
+    """``True``: Jev thinks ``answer_text`` claims a real action already happened. ``False``: Jev thinks
+    it doesn't. ``None``: no client, or Jev's answer couldn't be read — callers must treat ``None`` as "no
+    additional signal" (never as ``False``), so a disabled or unavailable Jev never changes behaviour."""
+    if client is None:
+        return None
+    answers = client.ask(answer_text, {EXECUTION_CLAIM_QUESTION_ID: _EXECUTION_CLAIM_QUESTION})
+    if not answers:
+        return None
+    try:
+        return float(answers[EXECUTION_CLAIM_QUESTION_ID]["noul"]) >= 0.5
+    except (KeyError, TypeError, ValueError):
+        return None

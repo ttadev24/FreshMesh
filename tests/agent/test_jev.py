@@ -69,3 +69,46 @@ def test_ask_returns_none_on_timeout():
 
     client, _ = _client(boom)
     assert client.ask("x", QUESTIONS) is None
+
+
+from agent.jev import EXECUTION_CLAIM_QUESTION_ID, execution_claim_flagged
+
+
+def test_execution_claim_flagged_none_without_a_client():
+    assert execution_claim_flagged(None, "Đã đặt hàng xong.") is None
+
+
+def test_execution_claim_flagged_true_above_threshold():
+    body = {"answers": {EXECUTION_CLAIM_QUESTION_ID: {"type": "noul", "noul": 0.87}}}
+    client, seen = _client(lambda _: httpx.Response(200, json=body))
+    assert execution_claim_flagged(client, "Đã đặt hàng xong.") is True
+    import json as _json
+
+    sent = _json.loads(seen[0].content)
+    assert sent["state"] == "Đã đặt hàng xong."
+    assert set(sent["questions"]) == {EXECUTION_CLAIM_QUESTION_ID}
+
+
+def test_execution_claim_flagged_false_below_threshold():
+    body = {"answers": {EXECUTION_CLAIM_QUESTION_ID: {"type": "noul", "noul": 0.1}}}
+    client, _ = _client(lambda _: httpx.Response(200, json=body))
+    assert execution_claim_flagged(client, "Đã tạo bản nháp.") is False
+
+
+def test_execution_claim_flagged_none_when_jev_unavailable():
+    client, _ = _client(lambda _: httpx.Response(500))
+    assert execution_claim_flagged(client, "x") is None
+
+
+@pytest.mark.parametrize(
+    "answers",
+    [
+        {},
+        {"other_id": {"noul": 0.9}},
+        {EXECUTION_CLAIM_QUESTION_ID: {"noul": "high"}},
+        {EXECUTION_CLAIM_QUESTION_ID: {}},
+    ],
+)
+def test_execution_claim_flagged_none_on_malformed_answer(answers):
+    client, _ = _client(lambda _: httpx.Response(200, json={"answers": answers}))
+    assert execution_claim_flagged(client, "x") is None

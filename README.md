@@ -18,6 +18,7 @@
 
   <p>
     <a href="#quick-start"><strong>Get started</strong></a> &nbsp;·&nbsp;
+    <a href="#live-demo">Live demo</a> &nbsp;·&nbsp;
     <a href="#what-you-can-explore">Features</a> &nbsp;·&nbsp;
     <a href="#how-it-works">Architecture</a> &nbsp;·&nbsp;
     <a href="#research-and-limitations">Research</a> &nbsp;·&nbsp;
@@ -50,6 +51,7 @@ Built around a Ho Chi Minh City demo, it combines a **Vietnamese-language interf
 <details>
 <summary><strong>Explore the README</strong></summary>
 
+- [Live demo and screenshots](#live-demo)
 - [Features](#what-you-can-explore)
 - [Quick start](#quick-start)
 - [Try a workflow](#try-a-workflow)
@@ -61,6 +63,27 @@ Built around a Ho Chi Minh City demo, it combines a **Vietnamese-language interf
 - [License](#license)
 
 </details>
+
+## Live demo
+
+**[Open FreshMesh →](https://freshmesh.ailoviec.tech/login)** · Demo account: `owner_a` / `demo123`
+
+Actual screenshots from the deployed demo, captured at 1440 × 1000. The interface is in Vietnamese and displays illustrative business data. Click any image to view it at full size.
+
+### Operations at a glance
+
+[![FreshMesh operations dashboard with store metrics, delivery map, and decisions requiring attention](docs/assets/screenshots/overview.png)](docs/assets/screenshots/overview.png)
+
+<table>
+  <tr>
+    <td width="50%"><strong>Welcome to FreshMesh</strong><br /><br /><a href="docs/assets/screenshots/login.png"><img src="docs/assets/screenshots/login.png" alt="FreshMesh login page with fresh produce artwork and demo sign-in" width="100%" /></a></td>
+    <td width="50%"><strong>Demand, with uncertainty</strong><br /><br /><a href="docs/assets/screenshots/forecast.png"><img src="docs/assets/screenshots/forecast.png" alt="Demand forecasts with P10–P90 ranges by product and confidence information" width="100%" /></a></td>
+  </tr>
+  <tr>
+    <td width="50%"><strong>Compare replenishment options</strong><br /><br /><a href="docs/assets/screenshots/replenishment.png"><img src="docs/assets/screenshots/replenishment.png" alt="Three replenishment options comparing purchase cost, waste, and stockouts" width="100%" /></a></td>
+    <td width="50%"><strong>Plan the delivery round</strong><br /><br /><a href="docs/assets/screenshots/delivery.png"><img src="docs/assets/screenshots/delivery.png" alt="Delivery route map with vehicle assignments, estimated distance, and at-risk orders" width="100%" /></a></td>
+  </tr>
+</table>
 
 ## What you can explore
 

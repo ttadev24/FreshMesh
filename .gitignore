@@ -12,3 +12,7 @@ test-results/
 playwright-report/
 .ruff_cache/
 .env.local
+
+# Local browser capture artifacts (selected screenshots live in docs/assets/)
+.playwright-cli/
+output/playwright/

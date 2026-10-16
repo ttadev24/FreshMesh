@@ -21,7 +21,9 @@ export default function BriefRow({ card, index, onAction }: Props) {
           {card.title_vi}
           {card.status === "attention" ? <span className={o.attention}>Cần chú ý</span> : null}
         </span>
-        <span className={o.qDetail}>{card.headline_vi}</span>
+        <span className={`${o.qDetail} ${o.clamp}`} title={card.headline_vi}>
+          {card.headline_vi}
+        </span>
         {card.due_vi ? (
           <span className={o.qDue}>
             <span className={o.dotMango} aria-hidden="true" />

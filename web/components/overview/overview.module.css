@@ -329,6 +329,15 @@
   font-size: 13px;
 }
 
+/* Server-written headlines can run long: three lines here, the full text on hover and in the tool. */
+.clamp {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+}
+
 .qDue {
   display: flex;
   align-items: center;

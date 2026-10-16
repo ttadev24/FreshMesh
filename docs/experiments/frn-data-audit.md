@@ -14,6 +14,6 @@ Bộ dữ liệu `FRN_50K`: [Dingdong-Inc/FreshRetailNet-50K](https://huggingfac
 | Doanh số TB mỗi giờ khi status = 1 / 0 | 0,0042 / 0,0547 → 1 = hết hàng |
 | Ngày có hết hàng trong 6–21h (doanh số bị chặn) | 44,0% |
 | Ngày có giảm giá (`discount` < 1) | 51,4% |
-0,40| `sale_amount` P25 / P50 / P75 / P95 (đã chuẩn hóa, không có đơn vị thật) |  / 0,70| `sale_amount` P25 / P50 / P75 / P95 (đã chuẩn hóa, không có đơn vị thật) |  / 1,10| `sale_amount` P25 / P50 / P75 / P95 (đã chuẩn hóa, không có đơn vị thật) |  / 3,00 |
+| `sale_amount` P25 / P50 / P75 / P95 (đã chuẩn hóa, không có đơn vị thật) | 0,40 / 0,70 / 1,10 / 3,00 |
 
 Cửa hàng theo thành phố (chi tiết: `frn_data_audit_cities.csv`): 290, 107, 101, 90, 89, 43, 38, 34, 20, 17, 15, 14, 11, 9, 6, 6, 5, 3.

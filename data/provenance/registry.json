@@ -218,6 +218,15 @@
       "url": "https://thuvienphapluat.vn/van-ban/Lao-dong-Tien-luong/Bo-Luat-lao-dong-2019-333670.aspx"
     },
     {
+      "description_vi": "Doanh số theo giờ có chú thích hết hàng của 50.000 cặp cửa hàng–sản phẩm hàng tươi (898 cửa hàng, 18 thành phố, 865 sản phẩm, 2024-03-28 → 2024-07-02) của Dingdong (Trung Quốc); Wang et al. 2025, arXiv:2505.16319; revision c374e85975c82816c495acfa904cc55ab14a47d3. Doanh số đã được chuẩn hóa bằng một hệ số không công bố, không có giá bán, mã nhóm hàng không có tên. FreshMesh chỉ dùng bộ này để kiểm chứng thuật toán trên nhu cầu hàng tươi thật, không dùng làm dữ liệu demo và không suy ra số liệu thị trường Việt Nam.",
+      "id": "FRN_50K",
+      "kind": "public",
+      "license": "CC BY 4.0",
+      "name_vi": "FreshRetailNet-50K (Dingdong, CC BY 4.0)",
+      "retrieved_at": "2026-10-16",
+      "url": "https://huggingface.co/datasets/Dingdong-Inc/FreshRetailNet-50K"
+    },
+    {
       "description_vi": "Mở rộng bằng chương trình (quá trình ngẫu nhiên có seed, data_sim) từ tham số do AI sinh; không phải giao dịch thật. Dùng cho daily_sales, online_orders, inventory_lots. Bộ cha: AI_PARAMS_CATALOG, AI_PARAMS_DEMAND, AI_PARAMS_CHAINS, AI_PARAMS_ORDERS, AI_PARAMS_ELASTICITY, AI_PARAMS_LOTS (tham số), GEN_PROGRAM_V1 (cơ chế mô phỏng, bố cục chuỗi, kịch bản demo), OSM_HCMC (vị trí giao), WEATHER_OPENMETEO_ARCHIVE (mưa thật), CALENDAR_VN (lịch). prompt_ids liệt kê mọi lượt gọi AI tạo ra các tham số cha.",
       "details": {
         "parents": [

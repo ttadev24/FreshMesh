@@ -42,7 +42,7 @@ def daytime_profiles(
 
 
 def instock_share(profile_rows: np.ndarray, hours_status: np.ndarray) -> np.ndarray:
-    """Share of the usual daytime sales that falls in the day's in-stock hours (1.0 on a fully stocked day)."""
+    """Share of the usual daytime sales that falls in the day's in-stock hours (1.0 when fully stocked)."""
     in_stock = hours_status[:, DAY_HOURS] != OUT_OF_STOCK
     return (profile_rows * in_stock).sum(axis=1)
 

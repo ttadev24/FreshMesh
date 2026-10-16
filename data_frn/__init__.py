@@ -4,8 +4,8 @@ validate FreshMesh's algorithms (forecasting, inventory policies, federated lear
 It is *not* the demo data: the product demo keeps the rebuilt Ho Chi Minh City chains (``data_sim``).
 FRN comes from Chinese front-warehouse stores, has no prices and a globally rescaled ``sale_amount``, and its
 category ids carry no names, so results here speak about the algorithms on real perishable demand, not about
-Vietnamese market figures. Protocol: ``docs/experiments/frn-protocol.md``. Needs the ``bench`` dependency group (pyarrow):
-``uv sync --group bench`` then ``uv run python -m data_frn download|audit``.
+Vietnamese market figures. Protocol: ``docs/experiments/frn-protocol.md``. Needs the ``bench`` dependency
+group (pyarrow): ``uv sync --group bench`` then ``uv run python -m data_frn download|audit``.
 """
 
 from __future__ import annotations
@@ -25,7 +25,7 @@ N_TRAIN_DAYS = 90
 N_EVAL_DAYS = 7
 N_DAYS = N_TRAIN_DAYS + N_EVAL_DAYS
 
-# ``stock_hour6_22_cnt`` equals the out-of-stock hours among indices 6..21 (verified on the data, 100% of rows);
-# outside that window stores are often flagged out of stock even on normal days, so censoring is judged there.
+# ``stock_hour6_22_cnt`` equals the out-of-stock hours among indices 6..21 (verified on 100% of rows); outside
+# that window stores are often flagged out of stock even on normal days, so censoring is judged there.
 DAY_HOURS = slice(6, 22)
 OUT_OF_STOCK = 1  # hours_stock_status: 1 = out of stock (hourly sales ≈ 0 when 1)

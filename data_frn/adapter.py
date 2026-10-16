@@ -1,9 +1,9 @@
-"""One FreshRetailNet city as a ``forecasting.features.ChainData``: a "chain" the FreshMesh forecasting, FL and
-inventory code can run on unchanged.
+"""One FreshRetailNet city as a ``forecasting.features.ChainData``: a "chain" the FreshMesh forecasting, FL
+and inventory code can run on unchanged.
 
-Mapping (FRN → ChainData): store → store, product → SKU, ``1 − discount`` → promo depth, city-mean ``precpt`` →
-rain, ``holiday_flag`` → is_holiday (lunar flags 0), area type "unknown", category "other" (FRN category ids carry
-no names; product identity still reaches the model through the hashed SKU embedding).
+Mapping (FRN → ChainData): store → store, product → SKU, ``1 − discount`` → promo depth, city-mean
+``precpt`` → rain, ``holiday_flag`` → is_holiday (lunar flags 0), area type "unknown", category "other" (FRN
+category ids carry no names; product identity still reaches the model through the hashed SKU embedding).
 """
 
 from __future__ import annotations
@@ -19,8 +19,8 @@ from data_frn.rows import CityRows
 from forecasting.features import MAX_HORIZON, ChainData
 
 Mode = Literal["observed", "recovered"]
-# FRN sale_amount is globally rescaled (median 0.7 per store-product-day). ×10 puts typical series well above the
-# forecaster's scale floor of 1 unit; WAPE and mean-normalised pinball do not depend on this choice.
+# FRN sale_amount is globally rescaled (median 0.7 per store-product-day). ×10 puts typical series well above
+# the forecaster's scale floor of 1 unit; WAPE and mean-normalised pinball do not depend on this choice.
 KAPPA = 10.0
 MAX_PAIRS = 40_000  # store × product cells per city; above it products are sampled (seeded) to bound memory
 CAL_DAYS = 14
@@ -28,7 +28,7 @@ CAL_DAYS = 14
 
 @dataclass(frozen=True)
 class FrnSplit:
-    """Inclusive day indices: TRAIN 0..train_last, CAL ..cal_last (end of train.parquet), TEST = eval.parquet."""
+    """Inclusive day indices: TRAIN 0..train_last, CAL ..cal_last (end of train.parquet), TEST = eval."""
 
     train_last: int = N_TRAIN_DAYS - CAL_DAYS - 1
     cal_last: int = N_TRAIN_DAYS - 1
@@ -53,7 +53,12 @@ def _sample_products(rows: CityRows, n_stores: int, max_pairs: int, seed: int) -
 
 
 def city_chain(
-    rows: CityRows, mode: Mode = "observed", *, kappa: float = KAPPA, max_pairs: int = MAX_PAIRS, seed: int = 0
+    rows: CityRows,
+    mode: Mode = "observed",
+    *,
+    kappa: float = KAPPA,
+    max_pairs: int = MAX_PAIRS,
+    seed: int = 0,
 ) -> tuple[ChainData, dict[str, Any]]:
     if mode not in ("observed", "recovered"):
         raise ValueError(f"unknown mode {mode!r}")
@@ -70,7 +75,8 @@ def city_chain(
     else:
         pair = s_pos * K + k_pos
         prof = daytime_profiles(pair, S * K, rows.hours_sale[keep], rows.stock_hours[keep])
-        y = recovered_demand(rows.hours_sale[keep], rows.hours_status[keep], rows.stock_hours[keep], prof[pair])
+        hours, status = rows.hours_sale[keep], rows.hours_status[keep]
+        y = recovered_demand(hours, status, rows.stock_hours[keep], prof[pair])
 
     units = np.full((S, K, T), np.nan)
     units[s_pos, k_pos, day] = kappa * y

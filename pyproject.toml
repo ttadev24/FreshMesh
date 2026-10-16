@@ -3,6 +3,9 @@ name = "freshmesh"
 version = "0.1.0"
 description = "FreshMesh: decision support for fresh-goods replenishment and delivery"
 requires-python = ">=3.12"
+readme = "README.md"
+license = "GPL-3.0-only"
+license-files = ["LICENSE"]
 dependencies = [
     "anthropic>=1.13.0",
     "fastapi>=0.138.2",

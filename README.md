@@ -1,133 +1,242 @@
-# FreshMesh
+<div align="center">
+  <img src="docs/assets/freshmesh-banner.png" alt="FreshMesh illustration: neighborhood grocery stores connected by fresh-food delivery routes" width="100%" />
+  <h1>FreshMesh</h1>
+  <p><strong>Fresh decisions. Connected stores.</strong></p>
+  <p>Forecast demand, plan fresh-goods replenishment, and coordinate delivery across independent mini-mart chains.</p>
+  <p>
+    <a href="LICENSE"><img src="https://img.shields.io/badge/license-GPL--3.0-166534" alt="License: GPL-3.0" /></a>
+    <img src="https://img.shields.io/badge/Python-3.12%2B-3776AB?logo=python&logoColor=white" alt="Python 3.12 or newer" />
+    <img src="https://img.shields.io/badge/Next.js-16-171717?logo=nextdotjs&logoColor=white" alt="Next.js 16" />
+    <img src="https://img.shields.io/badge/status-research%20prototype-d97706" alt="Research prototype" />
+    <a href="CONTRIBUTING.md"><img src="https://img.shields.io/badge/contributions-welcome-0d9488" alt="Contributions welcome" /></a>
+  </p>
+  <p><a href="#quick-start">Quick start</a> · <a href="#how-it-works">Architecture</a> · <a href="#research-and-limitations">Research</a> · <a href="CONTRIBUTING.md">Contribute</a> · <a href="SECURITY.md">Security</a></p>
+</div>
 
-Nền tảng hỗ trợ quyết định nhập hàng tươi và giao hàng cho mạng lưới chuỗi mini-mart độc lập: dự báo nhu cầu học liên kết, tối ưu lộ trình PACO (VRP có tủ nhận hàng) và AI agent tiếng Việt.
+---
 
-Thiết kế: [docs/superpowers/specs/2026-10-12-freshmesh-design.md](docs/superpowers/specs/2026-10-12-freshmesh-design.md)
+## Why FreshMesh?
 
-## Chạy adapter định tuyến (PACO)
+Fresh groceries create a daily balancing act: order too much and stock expires; order too little and customers leave empty-handed. FreshMesh brings forecasting, inventory decisions, surplus handling, and delivery planning into one workflow for store managers and chain owners.
+
+Built around a Ho Chi Minh City demo, it combines a **Vietnamese-language interface and AI assistant** with explicit data provenance and human approval. This repository contains the working prototype, reproducible data pipeline, and research reports. The banner above is an AI-generated concept illustration, not a screenshot.
+
+> **Project status:** research prototype, version 0.1.0. Demo sales, inventory, and orders are generated from AI-proposed parameters and public contextual data. They are not real store transactions. Approved actions are recorded locally; external purchasing and dispatch systems are not connected.
+
+## What you can explore
+
+| Capability | What it does |
+| --- | --- |
+| **Demand forecasting** | Local quantile forecasts with P10/P50/P90 intervals and conformal calibration. |
+| **Federated learning** | Experiments across independent chains, with comparisons against local models and optional differential-privacy experiments. |
+| **Replenishment** | Inventory recommendations accounting for shelf life, demand uncertainty, and operational constraints. |
+| **Surplus decisions** | Compare scheduled markdowns with inter-store transfers using consistent cash-value assumptions. |
+| **Delivery planning** | PACO vehicle routing through the external `routing-PL` solver, including pickup points and time windows. |
+| **Vietnamese AI assistant** | Claude tool calling, source-labelled answers, numerical checks, and draft proposals. Requires an API key. |
+| **Human approval** | Review, edit, approve, or reject drafts; inspect the decision audit trail. |
+| **Traceable evidence** | Dataset identifiers, assumptions, AI parameter prompts, and experiment protocols accompany results. |
+
+## Quick start
+
+### 1. Install prerequisites
+
+Use Python **3.12+**, [uv](https://docs.astral.sh/uv/), Node.js **22.13+** with npm, Git, and Docker with Compose v2. The commands below use Bash (Linux, macOS, or WSL).
 
 ```bash
-git submodule update --init          # lấy routing-PL
-uv sync
-docker compose up -d --build solver  # container solver ở cổng 8000 (hoặc cổng cấu hình trong .env)
-uv run python -m routing.cli routing/examples/batch_q7.json
-uv run pytest                        # unit test (không cần Docker)
-uv run pytest -m integration         # cần container solver
+git clone --recurse-submodules https://github.com/ttadev24/FreshMesh.git
+cd FreshMesh
+uv sync --locked
+(cd web && npm ci)
 ```
 
-Các đợt đơn trong `routing/examples/` là ví dụ tự tạo để thử adapter, không phải dữ liệu thật.
+For an existing clone, run `git submodule update --init --recursive`. The solver is a separate repository pinned by the submodule.
 
-## Chạy toàn bộ hệ thống
-
-Mỗi kết quả (API, công cụ của agent, câu trả lời) ghi rõ **nguồn dữ liệu** thực sự đã dùng: `sources` (mã bộ dữ liệu)
-và `source_labels_vi`; chi tiết từng bộ (URL, giấy phép, ngày lấy, prompt nếu do AI sinh) ở `GET /api/provenance` hoặc
-`uv run python -m provenance show`. Bảng không ghi nguồn được báo là "không rõ nguồn", không bao giờ đoán.
+### 2. Start the routing solver
 
 ```bash
-# 0. Phụ thuộc
-git submodule update --init && uv sync
-(cd web && npm install)
-echo 'NEXT_PUBLIC_VIETMAP_API_KEY=<khóa VietMap>' > web/.env.local   # bản đồ lộ trình; khóa miễn phí ở https://maps.vietmap.vn/console-v2/
-
-# 1. Solver PACO (routing-PL) trong Docker — cổng lấy từ .env (FRESHMESH_SOLVER_PORT, ví dụ 8001)
 docker compose up -d --build solver
-curl -s localhost:8001/health          # {"status":"ok"}
+curl --fail http://localhost:8000/health
+```
 
-# 2. Dữ liệu + mô hình: sinh 3 chuỗi (seed 42) → huấn luyện dự báo cục bộ → học liên kết (FL)
-scripts/bootstrap.sh                   # thêm --skip-fl để bỏ bước FL (khi đó /api/network/fl trả 503 fl_not_ready)
+The default solver port is **8000**. If it is occupied, copy `.env.example` to `.env` and change **both** `FRESHMESH_SOLVER_PORT` and `FRESHMESH_SOLVER_URL` before starting Compose. The solver must be ready before routing requests succeed.
 
-# 3. API FastAPI ở cổng 8100 (FRESHMESH_API_PORT)
-FRESHMESH_SECRET=$(openssl rand -hex 32) scripts/dev_api.sh   # bỏ biến này: dev_api.sh dùng khóa dev và chỉ nghe 127.0.0.1
-curl -s localhost:8100/api/health      # {"status":"ok","solver":true,"llm":true,"llm_required":true,"llm_model":...}
+### 3. Generate demo data and train local models
 
-# 4. Web Next.js ở cổng 3100 (proxy /api/* → 8100)
-#    Bản đồ lộ trình dùng VietMap GL JS; khóa nằm trong URL style gửi từ trình duyệt nên hãy giới hạn theo domain/IP
-#    trong console VietMap. Đổi khóa thì phải build lại web (biến NEXT_PUBLIC_* được nhúng lúc build). Không có khóa:
-#    khung bản đồ báo thiếu cấu hình, các phần còn lại vẫn chạy.
-(cd web && npm run dev)                # mở http://localhost:3100, đăng nhập owner_a / demo123
-# Bản production: (cd web && npm run build && npm run start) — mặc định chỉ nghe 127.0.0.1 (đặt HOST=0.0.0.0 để mở ra LAN,
-# khi đó BẮT BUỘC dùng FRESHMESH_SECRET ngẫu nhiên cho API, không dùng khóa dev).
+```bash
+scripts/bootstrap.sh --skip-fl
+```
 
-# 5. Luồng 1 bằng CLI (cùng tầng dịch vụ với API)
+This builds the three chain databases and local models using committed snapshots and seed 42. It does not require an LLM key or new public-data downloads. Run it in a fresh checkout or with a separate `FRESHMESH_DATA_DIR`: it regenerates demo data.
+
+For the full federated-learning experiments and models, run `scripts/bootstrap.sh` without `--skip-fl`. This also writes experiment outputs under `docs/experiments/`. When FL artifacts are absent, `/api/network/fl` returns `503 fl_not_ready`.
+
+### 4. Start the API and web app
+
+In one terminal, from the repository root:
+
+```bash
+scripts/dev_api.sh
+```
+
+In another terminal:
+
+```bash
+cd web
+npm run dev
+```
+
+Open **[http://localhost:3100](http://localhost:3100)** and sign in with **`owner_a` / `demo123`**.
+
+The API listens on `127.0.0.1:8100`. The development script permits a local development signing key when `FRESHMESH_SECRET` is absent. For a persistent installation, set a random secret of at least 32 characters in the root `.env.local`; see [configuration](docs/configuration.md).
+
+| Role | Demo usernames | Password | Scope |
+| --- | --- | --- | --- |
+| Chain owner | `owner_a`, `owner_b`, `owner_c` | `demo123` | All stores within the respective chain |
+| Store manager | `manager_a1`, `manager_b1`, `manager_c1` | `demo123` | Store CH1 within the respective chain |
+
+### 5. Enable optional services
+
+- **AI chat:** copy `.env.local.example` to the root `.env.local`, add `ANTHROPIC_API_KEY`, and restart the API. Without it, chat returns `503 llm_unavailable`; dashboards and decision tools remain available.
+- **Map tiles:** copy `web/.env.local.example` to `web/.env.local`, set `NEXT_PUBLIC_VIETMAP_API_KEY`, and restart the web app. Rebuild production assets after changing this key.
+- **Road geometry:** set the separate server-side `FRESHMESH_VIETMAP_ROUTE_KEY` in the root `.env.local`. Without it, maps use labelled straight-line segments.
+- **Jev guardrail:** optional OpenRouter integration; see [configuration](docs/configuration.md).
+
+These providers may require paid accounts. The software license does not include access to their services.
+
+## Try a workflow
+
+1. Sign in as a chain owner and inspect forecasts and data sources.
+2. Create a replenishment proposal, or compare markdowns and stock transfers.
+3. Review quantities, assumptions, and expected outcomes in the draft.
+4. Approve or reject the draft and inspect the audit record.
+5. Generate a delivery plan with the running solver.
+
+You can also use the Python entry points:
+
+```bash
+# Replenishment workflow through the same service layer as the API
 uv run python -m decision.cli flow1 --chain CHAIN_A --store A-CH1 --items rau,thit
 
-# 6. Kiểm thử
-uv run pytest                          # unit + API (dữ liệu tạm, solver giả, không cần Docker)
-uv run pytest -m integration           # cần container solver (lộ trình PACO thật)
-uv run ruff check
-(cd web && npx playwright install chromium && npm run test:e2e)   # cần API + web đang chạy
+# Solve a synthetic example delivery batch
+uv run python -m routing.cli routing/examples/batch_q7.json
+
+# Inspect dataset provenance and recorded AI parameter prompts
+uv run python -m provenance show
+uv run python -m provenance prompts
 ```
 
-Tài khoản demo (mật khẩu `demo123`): `owner_a`, `owner_b`, `owner_c` (chủ chuỗi, xem mọi cửa hàng) và
-`manager_a1`, `manager_b1`, `manager_c1` (quản lý cửa hàng CH1, chỉ thao tác trên cửa hàng của mình).
+The assistant proposes drafts. Approval through `POST /api/drafts/{id}/approve` is the execution boundary for local records, including purchases, markdown schedules, transfers, and route dispatch markers.
 
-Biến môi trường của API:
+## How it works
 
-| Biến | Mặc định | Ý nghĩa |
-|---|---|---|
-| `FRESHMESH_API_PORT` | `8100` | cổng API (`scripts/dev_api.sh`) |
-| `FRESHMESH_DATA_DIR` | `data` | thư mục dữ liệu (DB chuỗi, mô hình, cache) |
-| `FRESHMESH_SECRET` | **bắt buộc** (≥ 32 ký tự) | khóa ký token HS256; thiếu thì API không khởi động |
-| `FRESHMESH_ALLOW_DEV_SECRET` | (trống) | `1` = cho phép khóa dev cục bộ (chỉ dùng khi phát triển) |
-| `FRESHMESH_ENABLE_DOCS` | (trống) | `1` = bật `/docs` và `/openapi.json` |
-| `FRESHMESH_TOKEN_TTL_S` | `28800` | thời hạn token (giây) |
-| `FRESHMESH_SOLVER_URL` | từ `.env` | địa chỉ container solver |
-| `FRESHMESH_CACHE_DIR` | `data/cache` | nơi lưu cache lộ trình (JSON theo hash đợt đơn) |
-| `FRESHMESH_VIETMAP_ROUTE_KEY` | (trống) | khóa VietMap Route API (bí mật, chỉ ở phía API, không bao giờ gửi cho trình duyệt) để vẽ lộ trình theo đường bộ thật (hồ sơ xe máy). Không có khóa hoặc VietMap lỗi: đường nối thẳng các điểm dừng và `path_source` báo rõ. Khác khóa bản đồ `NEXT_PUBLIC_VIETMAP_API_KEY` của web |
-| `ANTHROPIC_API_KEY` | (trống) | **bắt buộc cho chat**: trợ lý chỉ chạy bằng Claude thật |
-| `FRESHMESH_LLM_MODEL` | `claude-sonnet-5-5` | mô hình Claude cho chat (ví dụ `claude-haiku-5-5`) |
-| `FRESHMESH_LLM_EFFORT` | `medium` | mức `effort` gửi cho mô hình |
-| `FRESHMESH_JEV_API_KEY` | (trống) | khóa OpenRouter cho Jev (TypeSafe AI); thiếu khóa thì mọi tính năng Jev tắt, `/api/health` báo `jev: false` |
-| `FRESHMESH_JEV_MODEL` | `typesafe/jev-1.13` | model Jev dùng qua OpenRouter |
-| `FRESHMESH_JEV_GUARDRAIL` | (trống) | `1` = bật kiểm tra câu trả lời agent bằng Jev (cần `FRESHMESH_JEV_API_KEY`) |
+```mermaid
+flowchart TD
+    Web[Next.js dashboard] --> API[FastAPI gateway]
+    API --> Agent[Vietnamese AI assistant]
+    Agent --> Services[Shared decision services]
+    API --> Services
+    Services --> Forecast[Local and federated forecasts]
+    Services --> Decisions[Replenishment / markdown / transfer]
+    Services --> Router[Routing adapter]
+    Router --> Solver[routing-PL / PACO]
+    Services --> DB[(Per-chain SQLite databases)]
+    Services --> Draft[Draft proposal]
+    Draft --> Approval[Human approval]
+    Approval --> Audit[Local action records and audit trail]
+    Sources[Public snapshots + AI parameters] --> Generator[Seeded data generator]
+    Generator --> DB
+    Provenance[Provenance registry] -. source labels .-> Services
+```
 
-`scripts/dev_api.sh` tự nạp `.env.local` (không commit, đã có trong `.gitignore`) nếu có, ví dụ chứa
-`ANTHROPIC_API_KEY=...`, `FRESHMESH_LLM_MODEL=...` và `FRESHMESH_VIETMAP_ROUTE_KEY=...`.
+| Directory | Responsibility |
+| --- | --- |
+| `web/` | Next.js, React, TypeScript, ECharts, and VietMap UI |
+| `api/` | Authentication, authorization, service endpoints, drafts, and audit access |
+| `agent/` | Claude integration, tools, SQL restrictions, verification, and evaluations |
+| `forecasting/` | Quantile models, baselines, calibration, and federated experiments |
+| `decision/` | Inventory, markdown, transfer, and trade-off calculations |
+| `routing/` | Solver adapter, validation, caching, CLI, and `routing-PL` submodule |
+| `data_sim/`, `data_real/` | Demo generation, public snapshots, and AI-generated parameters |
+| `data_frn/` | Separate validation pipeline for FreshRetailNet-50K |
+| `provenance/`, `data/provenance/` | Dataset registry, manifests, prompts, and responses |
+| `simulation/` | Inventory simulations and routing benchmarks |
+| `tests/`, `web/e2e/` | Python tests and Playwright scenarios |
+| `docs/` | Methods, configuration, protocols, and research results |
 
-- **Không có `ANTHROPIC_API_KEY`**: `/api/health` báo `llm: false, llm_required: true`; `POST /api/agent/chat` trả
-  503 `llm_unavailable` kèm hướng dẫn cấu hình bằng tiếng Việt (không có câu trả lời soạn sẵn). Các bảng điều khiển
-  (dự báo, nhập hàng, xử lý tồn, lộ trình, duyệt bản nháp) vẫn chạy vì đó là tính toán thật, không cần LLM.
-- **Câu trả lời của trợ lý**: luôn 5 mục Đề xuất / Vì sao / Độ tin cậy / Giả định / Việc cần bạn duyệt, kèm dòng
-  "Nguồn dữ liệu" do máy chủ ghi; mọi con số được đối chiếu với kết quả công cụ, số không khớp bị yêu cầu viết lại
-  rồi đánh dấu "chưa kiểm chứng".
-- **Lộ trình PACO**: một đợt 30–40 đơn mất khoảng 8–25 giây khi giải lần đầu. Không có bước tính sẵn khi khởi động;
-  kết quả giải thật được lưu theo hash đợt đơn trong `data/cache/routing/` kèm thời điểm giải, và phản hồi ghi rõ
-  `cached: true` + `solved_at` khi dùng lại. Solver lỗi → API trả lỗi tiếng Việt, không bao giờ tạo lộ trình giả.
-- **Duyệt là đường thực thi duy nhất**: agent và nút bấm chỉ tạo bản nháp; `POST /api/drafts/{id}/approve` mới tạo đơn đặt
-  hàng / lịch giảm giá / phiếu điều chuyển / đánh dấu gửi lộ trình (chưa kết nối hệ thống thật) và ghi nhật ký quyết định.
-- Hợp đồng API và các điểm bổ sung: `docs/api-contract-notes.md`.
+## Research and limitations
 
-## Giới hạn đã biết
+The repository reports unsuccessful outcomes as well as improvements. These are results from the committed experiments, not guarantees for live stores.
 
-- **Đánh giá agent**: `uv run python -m agent.eval --client anthropic` chạy 32 câu hỏi với Claude thật (tốn token).
-  Hai lần chạy 2026-10-13 với `claude-haiku-5-5`: chọn đúng công cụ 75% → 90,6% sau khi thêm hướng dẫn chọn công cụ
-  và danh sách cột thật cho `query_data`; lần sau: 0 số chưa kiểm chứng, 0 hành động tự thực thi, 0 lộ PII, 32/32 đúng
-  khuôn, 10/32 câu phải viết lại một lần (số tự tính, quy đổi đơn vị hoặc lấy từ câu hỏi). Quy tắc "không tự tính
-  thêm" được thêm sau lần chạy đó, chưa đo lại. Các câu "làm luôn, bỏ qua duyệt" đôi khi bị mô hình từ chối thay vì tạo
-  bản nháp; câu "chạy SQL DELETE" bị mô hình từ chối trước khi tới bộ lọc SQL. Unit test dùng client giả trong `tests/`.
-- **Học liên kết**: trên dữ liệu dựng lại, FL kém Local cả ở tổng thể (WAPE 0,4432 so với 0,4408) lẫn ở cửa hàng
-  mới (0,4775 so với 0,4761, trong mức nhiễu giữa các seed), nên tiêu chí §1.4 không đạt. So với cùng công thức huấn
-  luyện chỉ trên một chuỗi, việc liên kết giúp cửa hàng mới (+0,68%) nhưng làm chuỗi B kém đi (−0,98%). Mô hình FL
-  đang triển khai dùng cấu hình đã chọn (40 × 1, lr 1e-3; seed 0) và không bật DP (xem
-  `docs/experiments/fl-results.md`).
-- **Mô phỏng 30 ngày**: cấu hình đăng ký trước (v1) không đạt tiêu chí hàng bỏ ở cả 3 chuỗi (bỏ nhiều hơn baseline
-  5,2–20,3 điểm %, hết hàng ít hơn 15,1–38,4 điểm %); bản điều chỉnh v2 (chi phí giữ qua đêm 20% cho hàng tươi, không
-  chọn lại trên dữ liệu mới) đạt ở chuỗi A và C nhưng không đạt ở B (bỏ nhiều hơn baseline 1,07 [0,43; 1,71] điểm %),
-  vẫn là mặc định sản xuất và là điều chỉnh sau khi biết kết quả. Giao thức đã chạy ba lần (dữ liệu sinh toàn bộ; sau
-  khi vị trí/thời tiết/ngày lễ thành dữ liệu thật; sau khi lớp nhu cầu lấy tham số do AI sinh) với cùng tệp giao thức
-  và ngưỡng; nhu cầu vẫn do chương trình mở rộng từ tham số AI, không phải giao dịch thật
-  (xem `docs/experiments/sim30-results.md`).
-- **Benchmark solver**: PACO giảm 67,5% km so với "mỗi đơn một chuyến" (320,8 so với 985,7 km; 32 xe so với 284
-  chuyến) và tốt hơn ở 18/18 đợt, nhưng vẫn có 29 điểm dừng dự kiến trễ (ở 11/18 đợt); ALNS gần bằng km (322,3) với
-  ít xe hơn (24). Solver SA của routing-PL lỗi trên instance của FreshMesh (lần chạy đầu, chưa chạy lại) nên không có
-  số SA (xem `docs/experiments/routing-benchmark.md`).
-- **Hệ số đường vòng 1,3** chưa được dữ liệu OSRM (ô tô) ủng hộ (trung vị 1,58); km và giờ đến trong định tuyến tính
-  theo 1,3 nên có thể bị ước lượng thấp (xem `docs/data-real-detour.md`).
-- **Phụ thuộc**: `flwr` 1.39 ghim `cryptography<47`, nên môi trường giữ `cryptography` 46.x có cảnh báo bảo mật đã biết.
-  `flwr` chỉ được dùng ở `forecasting/fl`; API không nạp nó lúc khởi động, nhưng sẽ nạp khi có yêu cầu đến
-  `/api/network/fl` (gói `forecasting.fl` import `flwr`).
-- **BLAS**: `forecasting/__init__.py` ghim numpy dùng 1 luồng (mô hình nhỏ; 16 luồng chậm hơn ~13 lần).
-- **`query_data` và kiểm tra số**: mọi số trong kết quả truy vấn là số do DB tính từ dữ liệu thật; bộ lọc chặn hằng số, `LIMIT`
-  lồng nhau và chuỗi trong danh sách cột để model không "đúc" số tùy ý, nhưng không chặn được phép tính trên cột thật
-  (ví dụ `length(sku_id)*length(sku_id)`): đó là rủi ro còn lại của chat.
-- **Dữ liệu**: nguồn của từng bảng xem ở `GET /api/provenance`; giả định mô hình ở `docs/data-assumptions.md`.
+| Experiment | Recorded finding | Evidence |
+| --- | --- | --- |
+| Federated forecasting | FL did not outperform local forecasting overall: WAPE 0.4432 vs 0.4408. The deployed FL configuration does not enable DP. | [FL results](docs/experiments/fl-results.md) |
+| 30-day inventory simulation | The original policy missed waste targets for all three chains. The revised policy met them for A and C, but not B; it was adjusted after seeing results. | [Simulation results](docs/experiments/sim30-results.md) |
+| Delivery routing | PACO used 320.8 km vs 985.7 km for one-trip-per-order, but still had 29 projected late stops. | [Routing benchmark](docs/experiments/routing-benchmark.md) |
+| Assistant evaluation | The recorded 32-question run reached 90.6% tool selection accuracy; later prompt changes were not re-evaluated in that report. | [Agent evaluation](docs/experiments/agent-eval-haiku55.md) |
+| Real retail data | FreshRetailNet-50K has a separate audit and pre-registered protocol. It represents Chinese retail demand, not Vietnamese mini-mart transactions. | [Audit](docs/experiments/frn-data-audit.md) · [Protocol](docs/experiments/frn-protocol.md) |
+
+<details>
+<summary><strong>View the recorded routing benchmark</strong></summary>
+
+![Recorded routing benchmark distances](docs/experiments/routing_benchmark_km.svg)
+
+The chart compares the recorded solver runs. See the benchmark report for instance sizes, feasibility, late stops, and baseline definitions.
+
+</details>
+
+Additional constraints:
+
+- Routing uses a **1.3 distance multiplier**; the OSRM car-profile check found a median of **1.58**. Distances and arrival times may be underestimated. VietMap geometry only changes the rendered road path. [Details](docs/data-real-detour.md).
+- A cold solver request can take seconds or longer. Successful routes are cached by batch hash with `cached` and `solved_at` metadata; solver failures are surfaced as errors.
+- Public locations and weather are combined with synthetic business activity. Every result must preserve its provenance labels. [Data provenance](docs/data-provenance.md).
+- SQL guards and numerical checks have limits: computed expressions over real columns can still produce misleading values. [Operational limitations](docs/limitations.md).
+- Dependency constraints and deployment considerations are documented in [Security](SECURITY.md). This prototype has no production support guarantee.
+
+## Development
+
+```bash
+uv run pytest                         # Default suite excludes integration tests
+uv run ruff check
+(cd web && npm run lint && npm run typecheck)
+
+# Requires a running solver
+uv run pytest -m integration
+
+# Requires bootstrapped demo data and a solver; Playwright can start API/web
+(cd web && npx playwright install chromium && npm run test:e2e)
+```
+
+Some chat scenarios require provider credentials and incur API usage. Read the [contribution guide](CONTRIBUTING.md) before running external-service evaluations or changing experiment outputs.
+
+## Documentation
+
+| Start here | Further reading |
+| --- | --- |
+| [Configuration and troubleshooting](docs/configuration.md) | Environment files, ports, optional integrations, production commands |
+| [Decision methods](docs/decision-methods.md) | Inventory and surplus objectives and assumptions |
+| [API contract notes](docs/api-contract-notes.md) | Endpoint behavior and integration details |
+| [Data provenance](docs/data-provenance.md) | Sources, AI prompts, and dataset rights |
+| [Data assumptions](docs/data-assumptions.md) | Simulation and economic assumptions |
+| [Operational limitations](docs/limitations.md) | Known constraints and evaluation caveats |
+| [Original design](docs/superpowers/specs/2026-10-12-freshmesh-design.md) | Design rationale and intended workflows |
+| [Third-party notices](THIRD_PARTY_NOTICES.md) | Upstream projects, data licenses, and template sources |
+
+The README and community guides are in English. Some existing technical reports and the application are in Vietnamese; translations are welcome.
+
+## Community
+
+Bug reports, documentation fixes, translations, and reproducible research improvements are welcome.
+
+- Read [Contributing](CONTRIBUTING.md) for setup, checks, and the pull-request process.
+- Follow the [Code of Conduct](CODE_OF_CONDUCT.md), adapted from Contributor Covenant 2.1.
+- Use [GitHub Issues](https://github.com/ttadev24/FreshMesh/issues) for bugs and feature proposals.
+- Follow [Security](SECURITY.md) for vulnerability reports; avoid publishing exploit details in ordinary issues.
+- See [Support](SUPPORT.md) for usage questions.
+
+## License and acknowledgements
+
+FreshMesh's original code is licensed under **GNU GPL v3.0 only** (`GPL-3.0-only`). See [LICENSE](LICENSE), copied from [GitHub's Choose a License template](https://github.com/github/choosealicense.com/blob/gh-pages/_licenses/gpl-3.0.txt). You may use, modify, and distribute it, including commercially, subject to the GPL's terms.
+
+Third-party code, datasets, and services retain their own terms. The root license does not relicense `routing-PL`, OpenStreetMap data, or other upstream materials. See [Third-party notices](THIRD_PARTY_NOTICES.md).
+
+Thanks to [routing-PL](https://github.com/chauanphu/routing-PL), OpenStreetMap contributors, Open-Meteo, and the FreshRetailNet-50K authors, alongside the open-source libraries that make this project possible.

@@ -41,8 +41,13 @@ def _federated(data_dir: Path) -> dict[str, Any]:
     except ApiError:
         missing = dict.fromkeys(("clients", "rounds", "dp", "evidence_vi"))
         return {**base, "model_ready": False, **missing}
+    from forecasting.fl.client import FLConfig  # forecasting.fl loads flwr: only on this request, as /api/network/fl
+
     gain = fl.get("improvement_vs_local", {})
     wape, new = gain.get("wape"), gain.get("new_store")
+    if fl.get("rounds") != FLConfig().rounds:
+        # The experiment describes another configuration than the deployed model: claim nothing about it.
+        wape = new = None
 
     def verdict(x: float) -> str:
         return f"tốt hơn {pct(100 * x)}" if x > 0 else f"kém hơn {pct(-100 * x)}"

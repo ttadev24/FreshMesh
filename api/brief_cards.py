@@ -107,7 +107,7 @@ def surplus_card(
         "store_id": top_id,
         "store_name": r["store_name"],
         "headline_vi": (
-            f"{r['store_name']} dự kiến ế {units(top['expected_unsold_units'])} hàng tươi. "
+            f"{r['store_name']} dự kiến ế {units(top['expected_unsold_units'])} đơn vị rau. "
             + summ["recommendation_vi"]
         ),
         "metrics": [

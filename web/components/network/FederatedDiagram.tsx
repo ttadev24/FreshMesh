@@ -23,7 +23,7 @@ export default function FederatedDiagram({ ownChain, others }: Props) {
   const still = typeof window === "undefined" || prefersReducedMotion();
   const chains = [ownChain, ...others].slice(0, SPOTS.length);
   return (
-    <svg className={n.diagram} viewBox="0 0 400 300" role="img" aria-label="Các chuỗi chỉ gửi trọng số mô hình về mô hình chung, nhận lại mô hình đã gộp">
+    <svg className={n.diagram} viewBox="0 0 400 316" role="img" aria-label="Các chuỗi chỉ gửi trọng số mô hình về mô hình chung, nhận lại mô hình đã gộp">
       {chains.map((_, i) => (
         <line key={`l${i}`} x1={SPOTS[i].x} y1={SPOTS[i].y} x2={HUB.x} y2={HUB.y} className={n.edge} />
       ))}
@@ -53,7 +53,7 @@ export default function FederatedDiagram({ ownChain, others }: Props) {
       {chains.map((name, i) => (
         <g key={`c${i}`}>
           <circle cx={SPOTS[i].x} cy={SPOTS[i].y} r="22" className={i === 0 ? n.ownNode : n.otherNode} />
-          <text x={SPOTS[i].x} y={SPOTS[i].y + (i === 2 ? -32 : 40)} className={i === 0 ? n.ownName : n.otherName}>
+          <text x={SPOTS[i].x} y={SPOTS[i].y + 42} className={i === 0 ? n.ownName : n.otherName}>
             {name}
           </text>
         </g>

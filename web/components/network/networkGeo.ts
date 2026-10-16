@@ -62,9 +62,14 @@ export function buildNetworkGeo(view: NetworkView): NetworkGeo {
     return { type: "Feature" as const, geometry: { type: "Point" as const, coordinates: at }, properties: { id: s.store_id, isNew: Boolean(s.is_new) } };
   });
 
+  // Several chains can share a merged cell: one label per centre, listing each chain.
+  const cellText = new Map<string, { at: Lnglat; parts: string[] }>();
   const cells = view.network.others.flatMap((o) =>
     o.cells.map((c) => {
-      labels.push({ kind: "cell", at: [c.lng, c.lat], text: `${o.label_vi}: ${c.stores} cửa hàng` });
+      const key = `${c.lat},${c.lng}`;
+      const entry = cellText.get(key) ?? { at: [c.lng, c.lat] as Lnglat, parts: [] };
+      entry.parts.push(`${o.label_vi}: ${c.stores} cửa hàng`);
+      cellText.set(key, entry);
       return {
         type: "Feature" as const,
         geometry: { type: "Polygon" as const, coordinates: [disc(c.lat, c.lng, cellRadiusM(c.lat, c.lng))] },
@@ -72,6 +77,7 @@ export function buildNetworkGeo(view: NetworkView): NetworkGeo {
       };
     }),
   );
+  for (const { at, parts } of cellText.values()) labels.push({ kind: "cell", at, text: parts.join(", ") });
 
   const flows = view.flows_today.flatMap((f) => {
     const a = byId.get(f.from);

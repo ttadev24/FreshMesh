@@ -17,12 +17,12 @@ function addLayers(map: vietmapgl.Map, geo: NetworkGeo) {
   map.addSource("fm-cells", { type: "geojson", data: geo.cells as never });
   map.addSource("fm-flows", { type: "geojson", data: geo.flows as never });
   map.addSource("fm-stores", { type: "geojson", data: geo.stores as never });
-  map.addLayer({ id: "fm-cells-fill", type: "fill", source: "fm-cells", paint: { "fill-color": COLORS.cell, "fill-opacity": 0.08 } });
+  map.addLayer({ id: "fm-cells-fill", type: "fill", source: "fm-cells", paint: { "fill-color": COLORS.cell, "fill-opacity": 0.13 } });
   map.addLayer({
     id: "fm-cells-line",
     type: "line",
     source: "fm-cells",
-    paint: { "line-color": COLORS.cell, "line-opacity": 0.45, "line-width": 1.2, "line-dasharray": [2, 2] },
+    paint: { "line-color": COLORS.cell, "line-opacity": 0.65, "line-width": 1.6, "line-dasharray": [2, 2] },
   });
   map.addLayer({
     id: "fm-flows",

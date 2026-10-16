@@ -1,6 +1,9 @@
 import { expect, login, runTool, test } from "./fixtures";
 
 test("Bố cục: hai khung trên desktop, khung xếp chồng có công tắc trên điện thoại", async ({ page }, testInfo) => {
+  // The phone run solves a real route and renders the VietMap map (vector tiles, software WebGL in headless
+  // Chromium: ~50 s on the CI box), then two more tools; the default 90 s budget is too tight for that.
+  test.setTimeout(180_000);
   await login(page, "owner_a");
   const chat = page.getByTestId("chat-input");
   const dashTab = page.getByTestId("tab-dashboard");

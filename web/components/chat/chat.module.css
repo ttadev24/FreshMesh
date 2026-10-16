@@ -656,9 +656,9 @@
     scrollbar-gutter: auto;
   }
 
-  /* Below the sticky pane switcher (47px) of the stacked layout. */
+  /* Below the sticky nav strip (56px) and the sticky pane switcher under it (48px) of the stacked layout. */
   .turn {
-    scroll-margin-top: 60px;
+    scroll-margin-top: 120px;
   }
 
   .composer {

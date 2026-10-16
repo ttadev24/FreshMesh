@@ -34,3 +34,16 @@ def test_unknown_service_target_is_refused_in_vietnamese(client, owner_a):
     assert r.status_code in (400, 422)
     assert r.json()["error"]["message_vi"]
     assert_error(r, r.status_code)
+
+
+def test_owner_goal_selects_a_plan_or_asks_back(client, owner_a):
+    ok = client.post("/api/inventory/plan", json={**BODY, "max_stockout_pct": 5}, headers=owner_a).json()
+    names = [f["name"] for f in ok["frontier"]]
+    assert ok["goal"] == {"max_stockout_pct": 5.0} and ok["goal_choice"]["met"]
+    chosen = next(f for f in ok["frontier"] if f["name"] == ok["goal_choice"]["name"])
+    assert chosen["expected_stockout_pct"] <= 5 and chosen["name"] in names
+    asked = client.post("/api/inventory/plan", json={**BODY, "max_stockout_pct": 0.5, "max_cost_vnd": 1000},
+                        headers=owner_a).json()  # fmt: skip
+    assert not asked["goal_choice"]["met"] and asked["goal_choice"]["escalation"]["question_vi"]
+    plain = client.post("/api/inventory/plan", json=BODY, headers=owner_a).json()
+    assert plain["goal"] is None and plain["goal_choice"] is None

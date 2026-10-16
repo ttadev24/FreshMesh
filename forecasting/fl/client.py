@@ -48,12 +48,12 @@ FL_MODEL_VERSION = 1
 
 @dataclass(frozen=True)
 class FLConfig:
-    """Hyper-parameters of one federated run (defaults = the configuration selected on the validation window,
-    see ``docs/experiments/fl-results.md``)."""
+    """Hyper-parameters of one federated run (defaults = the configuration selected on the validation window
+    of the current data, ``docs/experiments/fl_tuning.csv``, see ``docs/experiments/fl-results.md``)."""
 
-    rounds: int = 40
+    rounds: int = 20
     local_epochs: int = 1
-    lr: float = 1e-3
+    lr: float = 5e-4
     finetune_epochs: int = 2
     finetune_lr: float = 1e-3
     batch_size: int = 1024
@@ -63,7 +63,7 @@ class FLConfig:
     max_train_rows: int = 200_000
     dp_epsilon: float | None = None
     dp_delta: float = 1e-5
-    clip_norm: float = 0.3554  # median client body-update norm of the selected non-DP config (fl_tuning.csv)
+    clip_norm: float = 0.4070  # median client body-update norm of the selected non-DP config (fl_tuning.csv)
     weighting: str = "samples"  # "samples" (FedAvg) or "uniform"; DP always uses "uniform"
 
     def to_json(self) -> dict:

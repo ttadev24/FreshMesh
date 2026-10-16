@@ -1,5 +1,20 @@
 # Học liên kết (FL) — kết quả thí nghiệm / Federated learning — experiment results
 
+> **Cập nhật 2026-10-17 — kết quả hiện hành / current results.** Các CSV/SVG trong thư mục này được sinh lại
+> trên dữ liệu hiện tại (lớp nhu cầu theo tham số do AI sinh, commit `f21e92d`) và **đã được chạy lại độc lập
+> ngày 2026-10-17, khớp từng số** (tất định theo seed). Cấu hình chọn trên cửa sổ kiểm định: **20 vòng × 1
+> epoch, lr 5e-4** (`fl_tuning.csv`, `FLConfig` đã chỉnh theo; mô hình FL triển khai được huấn luyện lại với
+> cấu hình này). Trung bình 3 seed, mọi chuỗi:
+>
+> | | Local | FL (FedAvg + FedPer) | Centralized |
+> |---|---|---|---|
+> | WAPE tất cả cửa hàng | 0,4694 | **0,4551** (tốt hơn 3,0%) | 0,4642 |
+> | WAPE cửa hàng mới (14 ngày lịch sử) | 0,5377 | **0,5236** (tốt hơn 2,6%) | 0,5411 |
+>
+> Phần còn lại của tài liệu (FL kém Local 0,54%, cấu hình 40 vòng × lr 1e-3) mô tả **lần chạy trước trên dữ
+> liệu đời trước** (nhu cầu do chương trình sinh hoàn toàn); giữ lại để đối chiếu, không còn là kết quả hiện hành.
+> Kiểm chứng trên dữ liệu thật FreshRetailNet-50K (client = thành phố): `frn-fl.md` (giao thức `frn-v1`, mục L).
+
 > **Nguồn dữ liệu.** Ba chuỗi `CHAIN_A`, `CHAIN_B`, `CHAIN_C` dựng bởi `data_sim` (seed 42). Vị trí cửa hàng thật
 > từ OpenStreetMap (ODbL), gán chuỗi bằng chương trình. Lượng mưa TP.HCM lấy từ Open-Meteo (CC BY 4.0). Ngày lễ
 > Việt Nam theo văn bản pháp luật và âm lịch. **Nhu cầu bán hàng vẫn do chương trình sinh** (tham số giả định).

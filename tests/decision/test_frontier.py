@@ -50,3 +50,45 @@ def test_plans_are_unchanged_and_the_frontier_is_monotone():
     assert {ln.sku_id: ln.qty for ln in at_50.lines} == {ln.sku_id: ln.qty for ln in lean.lines} or (
         lean.total_cost_vnd <= at_50.total_cost_vnd  # lean is capped at the balanced plan
     )
+
+
+FR = [  # a monotone frontier: more service costs more and leaves more stock overnight
+    {"name": f"target_{t}", "label_vi": f"Mức phục vụ {t}%", "total_cost_vnd": c, "expected_stockout_pct": so,
+     "service_level_pct": sv, "expected_leftover_units": lo}
+    for t, c, so, sv, lo in ((50, 2_000_000, 7.0, 55.0, 2.0), (80, 3_000_000, 2.5, 82.0, 6.0),
+                             (90, 4_000_000, 1.0, 91.0, 11.0), (98, 6_000_000, 0.2, 98.0, 20.0))
+]  # fmt: skip
+
+
+def test_goal_picks_the_cheapest_point_meeting_every_goal():
+    from decision.frontier import choose_for_goal
+
+    out = choose_for_goal(FR, {"max_stockout_pct": 3.0, "max_cost_vnd": None})
+    assert out["met"] and out["name"] == "target_80" and out["escalation"] is None
+    assert "3.000.000 đ" in out["reason_vi"]
+
+
+def test_unreachable_goal_asks_with_the_best_achievable_value():
+    from decision.frontier import choose_for_goal
+
+    out = choose_for_goal(FR, {"max_stockout_pct": 0.05})
+    assert not out["met"] and out["escalation"]["kind"] == "out_of_scope"
+    assert "0,2%" in out["escalation"]["question_vi"]
+
+
+def test_conflicting_goals_return_one_specific_question_with_two_options():
+    from decision.frontier import choose_for_goal
+
+    out = choose_for_goal(FR, {"max_stockout_pct": 1.0, "max_cost_vnd": 3_500_000, "max_leftover_units": 50})
+    q = out["escalation"]["question_vi"]
+    assert not out["met"] and "tiền nhập" in q and "hết hàng" in q and "tồn mang sang" not in q
+    assert out["escalation"]["choices_vi"] == ["Mức phục vụ 90% (target_90)", "Mức phục vụ 80% (target_80)"]
+
+
+def test_unknown_goal_key_is_rejected():
+    import pytest
+
+    from decision.frontier import choose_for_goal
+
+    with pytest.raises(ValueError):
+        choose_for_goal(FR, {"max_waste_pct": 3})

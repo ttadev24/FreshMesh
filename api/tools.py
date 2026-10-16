@@ -22,6 +22,7 @@ from api.drafts import SqlDraftStore
 from api.errors import ApiError
 from api.repo import CATEGORY_ALIASES, ensure_store_access, resolve_store_id
 from api.services import DEFAULT_NOW_HOUR, FRONTIER_PLAN_NAMES, Services, plan_key
+from decision.frontier import GOAL_LIMITS
 from data_sim import CHAIN_IDS, chain_db_path
 from decision.text import units, vnd
 
@@ -41,6 +42,16 @@ _NOW_HOUR = {
 }
 _NOW_MIN = {"type": "integer", "minimum": 0, "maximum": 240, "description": "Phút từ đầu đợt giao (09:00)."}
 _STORE_ARGS = {"store_id": _STORE, "sku_ids": _SKUS, "categories": _CATS}
+# Goals the owner states in words ("hết hàng không quá 5%", "tối đa 3 triệu"): plan_inventory picks the
+# cheapest frontier point meeting them (goal_choice) or returns the conflict as a question.
+_GOAL_ARGS = {
+    "max_stockout_pct": {"type": "number", "minimum": 0, "maximum": 100, "description": "Hết hàng tối đa (%)."},
+    "min_service_pct": {"type": "number", "minimum": 0, "maximum": 100,
+                        "description": "Xác suất không hết hàng tối thiểu (%)."},
+    "max_cost_vnd": {"type": "number", "minimum": 0, "description": "Tiền nhập tối đa (đ)."},
+    "max_leftover_units": {"type": "number", "minimum": 0,
+                           "description": "Tồn mang sang hôm sau tối đa (đơn vị)."},
+}
 PLAN_NAMES = ["An toàn", "Cân bằng", "Tiết kiệm", "safe", "balanced", "lean", *FRONTIER_PLAN_NAMES]
 
 
@@ -122,6 +133,7 @@ def build_registry(services: Services, drafts: SqlDraftStore) -> ToolRegistry:
             horizon_days=int(args.get("horizon_days", 1)),
             budget_vnd=args.get("budget_vnd"),
             cold_storage_units=args.get("cold_storage_units"),
+            goal={k: args.get(k) for k in GOAL_LIMITS},
         )
         return ToolResult(data, [f"plan_inventory:{ctx.chain_id}/{store_id}", "decision.plan_inventory"])
 
@@ -337,6 +349,7 @@ def build_registry(services: Services, drafts: SqlDraftStore) -> ToolRegistry:
                     "horizon_days": _HORIZON,
                     "budget_vnd": {"type": "number", "minimum": 0},
                     "cold_storage_units": {"type": "number", "minimum": 0},
+                    **_GOAL_ARGS,
                 }
             ),
             "read",

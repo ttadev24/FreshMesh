@@ -38,6 +38,7 @@ from api.routing_service import RoutingService, make_solver_client
 from api.services import DEFAULT_NOW_HOUR, Services, assumptions_payload, fl_summary_payload
 from api.tools import build_registry, make_edit_applier
 from api.verify import run_all as run_verify
+from decision.frontier import GOAL_LIMITS
 from data_sim import CHAIN_IDS, chain_db_path
 from forecasting.service import model_ready, resolve_model_kind
 from routing.client import SolverClient
@@ -63,6 +64,11 @@ class InventoryBody(BaseModel):
     horizon_days: int = Field(default=1, ge=1, le=7)
     budget_vnd: float | None = Field(default=None, ge=0)
     cold_storage_units: float | None = Field(default=None, ge=0)
+    # Owner goals: the cheapest frontier point meeting them is chosen, conflicts come back as a question.
+    max_stockout_pct: float | None = Field(default=None, ge=0, le=100)
+    min_service_pct: float | None = Field(default=None, ge=0, le=100)
+    max_cost_vnd: float | None = Field(default=None, ge=0)
+    max_leftover_units: float | None = Field(default=None, ge=0)
 
 
 class StockBody(BaseModel):
@@ -320,6 +326,7 @@ def create_app(
             horizon_days=body.horizon_days,
             budget_vnd=body.budget_vnd,
             cold_storage_units=body.cold_storage_units,
+            goal={k: getattr(body, k) for k in GOAL_LIMITS},
         )
 
     @app.post("/api/markdown/suggest")

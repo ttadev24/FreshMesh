@@ -46,6 +46,7 @@ from decision import (
     suggest_markdown,
     transfer_stock,
 )
+from decision.frontier import choose_for_goal
 from decision.inventory import FRONTIER_TARGETS, plan_inventory_with_frontier
 from decision.markdown import simulate_markdown
 from decision.surplus import SURPLUS_ASSUMPTIONS_VI, rank_surplus_stores, units_left_now
@@ -200,6 +201,7 @@ class Services:
         horizon_days: int = 1,
         budget_vnd: float | None = None,
         cold_storage_units: float | None = None,
+        goal: dict[str, float | None] | None = None,
     ) -> dict:
         repo = self.repo(chain_id)
         store = repo.store(store_id)
@@ -248,7 +250,7 @@ class Services:
             f"Phạt mất khách khi hết hàng = {str(ASSUMPTIONS['stockout_penalty_ratio']).replace('.', ',')} × "
             "biên lợi nhuận đơn vị của từng mặt hàng."
         )
-        return {
+        out = {
             "store_id": store_id,
             "store_name": store.name,
             "order_date": FIRST_DAY.isoformat(),
@@ -269,6 +271,8 @@ class Services:
                 }
                 for p in frontier
             ],
+            "goal": {k: v for k, v in (goal or {}).items() if v is not None} or None,
+            "goal_choice": None,
             "recommended_plan": recommended,
             "recommended_label_vi": rec_plan["label_vi"],
             "recommended_reason_vi": rec_reason,
@@ -285,6 +289,9 @@ class Services:
             "assumptions_vi": [*plans[0].assumptions_vi, penalty_note],
             **repo.provenance(STOCK_TABLES),
         }
+        if out["goal"]:
+            out["goal_choice"] = choose_for_goal(out["frontier"], out["goal"])
+        return out
 
     def purchase_order_lines(self, chain_id: str, lines: Sequence[dict[str, Any]]) -> list[dict[str, Any]]:
         """Price PO lines from the DB (never trust client-supplied money)."""

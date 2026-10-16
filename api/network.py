@@ -41,7 +41,8 @@ def _federated(data_dir: Path) -> dict[str, Any]:
     except ApiError:
         missing = dict.fromkeys(("clients", "rounds", "dp", "evidence_vi"))
         return {**base, "model_ready": False, **missing}
-    from forecasting.fl.client import FLConfig  # forecasting.fl loads flwr: only on this request, as /api/network/fl
+    # forecasting.fl loads flwr: imported only on this request, like /api/network/fl
+    from forecasting.fl.client import FLConfig
 
     gain = fl.get("improvement_vs_local", {})
     wape, new = gain.get("wape"), gain.get("new_store")

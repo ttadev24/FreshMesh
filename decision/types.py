@@ -103,8 +103,8 @@ class InventoryPlan(_Serializable):
     rationale_vi: str
     assumptions_vi: list[str] = field(default_factory=list)
     # Unexpired units carried overnight, summed over the horizon's nights (for a 1-day plan: what is left on
-    # the shelf at closing, tomorrow's waste risk for fresh goods). Waste % only counts what expires within the
-    # horizon, so ordering more can lower it; this shows the other side of the trade-off.
+    # the shelf at closing, tomorrow's waste risk for fresh goods). Waste % only counts what expires within
+    # the horizon, so ordering more can lower it; this shows the other side of the trade-off.
     expected_leftover_units: float = 0.0
 
 

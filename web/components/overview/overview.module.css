@@ -597,6 +597,11 @@
     max-width: calc(100% - 80px);
   }
 
+  /* Narrow maps: the vehicle chips need the bottom edge; "Giao hàng" is one tap away in the top nav. */
+  .mapAction {
+    display: none;
+  }
+
   .bottom {
     grid-template-columns: 1fr;
   }

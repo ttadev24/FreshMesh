@@ -1,16 +1,39 @@
 <div align="center">
-  <img src="docs/assets/freshmesh-banner.png" alt="FreshMesh illustration: neighborhood grocery stores connected by fresh-food delivery routes" width="100%" />
+  <a href="#freshmesh">
+    <img src="web/public/brand/freshmesh-logo.png" alt="FreshMesh logo" width="96" />
+  </a>
+
   <h1>FreshMesh</h1>
   <p><strong>Fresh decisions. Connected stores.</strong></p>
-  <p>Forecast demand, plan fresh-goods replenishment, and coordinate delivery across independent mini-mart chains.</p>
+  <p>Demand forecasting, fresh-goods replenishment, and delivery planning.<br />An open-source decision workspace for independent mini-mart chains.</p>
+
   <p>
-    <a href="LICENSE"><img src="https://img.shields.io/badge/license-GPL--3.0-166534" alt="License: GPL-3.0" /></a>
-    <img src="https://img.shields.io/badge/Python-3.12%2B-3776AB?logo=python&logoColor=white" alt="Python 3.12 or newer" />
-    <img src="https://img.shields.io/badge/Next.js-16-171717?logo=nextdotjs&logoColor=white" alt="Next.js 16" />
-    <img src="https://img.shields.io/badge/status-research%20prototype-d97706" alt="Research prototype" />
-    <a href="CONTRIBUTING.md"><img src="https://img.shields.io/badge/contributions-welcome-0d9488" alt="Contributions welcome" /></a>
+    <a href="LICENSE"><img src="https://img.shields.io/badge/GPL--3.0-166534?style=flat-square" alt="License: GPL-3.0" /></a>
+    <img src="https://img.shields.io/badge/Python-3.12%2B-3776AB?style=flat-square" alt="Python 3.12 or newer" />
+    <img src="https://img.shields.io/badge/Next.js-16-171717?style=flat-square" alt="Next.js 16" />
+    <img src="https://img.shields.io/badge/Research-prototype-b45309?style=flat-square" alt="Research prototype" />
+    <a href="https://github.com/ttadev24/FreshMesh/stargazers"><img src="https://img.shields.io/github/stars/ttadev24/FreshMesh?style=flat-square&amp;color=166534" alt="GitHub stars" /></a>
+    <a href="CONTRIBUTING.md"><img src="https://img.shields.io/badge/Contributions-welcome-0f766e?style=flat-square" alt="Contributions welcome" /></a>
   </p>
-  <p><a href="#quick-start">Quick start</a> · <a href="#how-it-works">Architecture</a> · <a href="#research-and-limitations">Research</a> · <a href="CONTRIBUTING.md">Contribute</a> · <a href="SECURITY.md">Security</a></p>
+
+  <p>
+    <a href="#quick-start"><strong>Get started</strong></a> &nbsp;·&nbsp;
+    <a href="#what-you-can-explore">Features</a> &nbsp;·&nbsp;
+    <a href="#how-it-works">Architecture</a> &nbsp;·&nbsp;
+    <a href="#research-and-limitations">Research</a> &nbsp;·&nbsp;
+    <a href="CONTRIBUTING.md">Contribute</a>
+  </p>
+
+  <br />
+  <img src="docs/assets/freshmesh-banner.png" alt="Concept illustration of neighborhood grocery stores connected by fresh-food delivery routes" width="100%" />
+  <p><sub>AI-generated concept illustration · Built around a Ho Chi Minh City demo</sub></p>
+
+  <p>
+    <a href="https://github.com/topics/demand-forecasting">demand-forecasting</a> &nbsp;/&nbsp;
+    <a href="https://github.com/topics/federated-learning">federated-learning</a> &nbsp;/&nbsp;
+    <a href="https://github.com/topics/vehicle-routing-problem">vehicle-routing-problem</a> &nbsp;/&nbsp;
+    <a href="https://github.com/topics/decision-support">decision-support</a>
+  </p>
 </div>
 
 ---
@@ -19,9 +42,33 @@
 
 Fresh groceries create a daily balancing act: order too much and stock expires; order too little and customers leave empty-handed. FreshMesh brings forecasting, inventory decisions, surplus handling, and delivery planning into one workflow for store managers and chain owners.
 
-Built around a Ho Chi Minh City demo, it combines a **Vietnamese-language interface and AI assistant** with explicit data provenance and human approval. This repository contains the working prototype, reproducible data pipeline, and research reports. The banner above is an AI-generated concept illustration, not a screenshot.
+Built around a Ho Chi Minh City demo, it combines a **Vietnamese-language interface and AI assistant** with explicit data provenance and human approval. This repository contains the working prototype, reproducible data pipeline, and research reports.
 
-> **Project status:** research prototype, version 0.1.0. Demo sales, inventory, and orders are generated from AI-proposed parameters and public contextual data. They are not real store transactions. Approved actions are recorded locally; external purchasing and dispatch systems are not connected.
+> [!NOTE]
+> **Research prototype · v0.1.0.** Demo sales, inventory, and orders are generated from AI-proposed parameters and public contextual data. They are not real store transactions. Approved actions are recorded locally; external purchasing and dispatch systems are not connected.
+
+<table>
+  <tr>
+    <td width="33%" valign="top"><strong>01 / Anticipate demand</strong><br /><br />Explore forecast ranges and replenishment needs across stores.</td>
+    <td width="33%" valign="top"><strong>02 / Compare decisions</strong><br /><br />Weigh markdowns, stock transfers, and delivery plans with explicit assumptions.</td>
+    <td width="33%" valign="top"><strong>03 / Stay in control</strong><br /><br />Review proposals before approval and follow every decision through its audit trail.</td>
+  </tr>
+</table>
+
+<details>
+<summary><strong>Explore the README</strong></summary>
+
+- [Features](#what-you-can-explore)
+- [Quick start](#quick-start)
+- [Try a workflow](#try-a-workflow)
+- [Architecture and project structure](#how-it-works)
+- [Research and limitations](#research-and-limitations)
+- [Development](#development)
+- [Documentation](#documentation)
+- [Community](#community)
+- [License](#license)
+
+</details>
 
 ## What you can explore
 
@@ -233,10 +280,14 @@ Bug reports, documentation fixes, translations, and reproducible research improv
 - Follow [Security](SECURITY.md) for vulnerability reports; avoid publishing exploit details in ordinary issues.
 - See [Support](SUPPORT.md) for usage questions.
 
-## License and acknowledgements
+## License
 
-FreshMesh's original code is licensed under **GNU GPL v3.0 only** (`GPL-3.0-only`). See [LICENSE](LICENSE), copied from [GitHub's Choose a License template](https://github.com/github/choosealicense.com/blob/gh-pages/_licenses/gpl-3.0.txt). You may use, modify, and distribute it, including commercially, subject to the GPL's terms.
+[GPL-3.0-only](LICENSE) · [Third-party notices](THIRD_PARTY_NOTICES.md)
 
-Third-party code, datasets, and services retain their own terms. The root license does not relicense `routing-PL`, OpenStreetMap data, or other upstream materials. See [Third-party notices](THIRD_PARTY_NOTICES.md).
+---
 
-Thanks to [routing-PL](https://github.com/chauanphu/routing-PL), OpenStreetMap contributors, Open-Meteo, and the FreshRetailNet-50K authors, alongside the open-source libraries that make this project possible.
+<div align="center">
+  <img src="web/public/brand/freshmesh-logo.png" alt="" width="32" />
+  <p><strong>Fresh decisions. Connected stores.</strong></p>
+  <p><a href="https://github.com/ttadev24/FreshMesh/issues/new/choose">Report an issue</a> · <a href="CONTRIBUTING.md">Make a contribution</a> · <a href="#freshmesh">Back to top</a></p>
+</div>

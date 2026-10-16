@@ -339,7 +339,8 @@ class Services:
         share_before = self._share_before(store.area_type, now_hour)
         out, skipped = [], []
         for sku in fresh:
-            inputs = self._markdown_inputs(store_id, sku, rows[sku.sku_id], stock, shares, share_before, now_hour)
+            row = rows[sku.sku_id]
+            inputs = self._markdown_inputs(store_id, sku, row, stock, shares, share_before, now_hour)
             if inputs["remaining"] <= 0:
                 skipped.append(
                     {"sku_id": sku.sku_id, "sku_name": sku.name, "start_of_day_units": inputs["expiring"]}

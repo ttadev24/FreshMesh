@@ -7,11 +7,15 @@ import { setSession, useSession } from "@/lib/session";
 import { Spinner } from "@/components/ui/primitives";
 import s from "./login.module.css";
 
+// Public demo account, prefilled so visitors can sign in with one click (same account the hint below lists).
+const DEMO_USERNAME = "owner_a";
+const DEMO_PASSWORD = "demo123";
+
 export default function LoginForm() {
   const router = useRouter();
   const session = useSession();
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
+  const [username, setUsername] = useState(DEMO_USERNAME);
+  const [password, setPassword] = useState(DEMO_PASSWORD);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<{ message: string; network: boolean } | null>(null);
 
@@ -88,10 +92,12 @@ export default function LoginForm() {
       </button>
 
       <div className={s.hint}>
-        <p>Tài khoản demo (mật khẩu <code>demo123</code>):</p>
+        <p>
+          Tài khoản demo (mật khẩu <code>{DEMO_PASSWORD}</code>), đã điền sẵn <code>{DEMO_USERNAME}</code>:
+        </p>
         <ul>
           <li>
-            <code>owner_a</code> chủ chuỗi A, xem toàn chuỗi
+            <code>{DEMO_USERNAME}</code> chủ chuỗi A, xem toàn chuỗi
           </li>
           <li>
             <code>manager_a1</code> quản lý một cửa hàng, quyền duyệt giới hạn

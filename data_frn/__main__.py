@@ -8,7 +8,10 @@ from pathlib import Path
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="python -m data_frn", description=__doc__)
-    parser.add_argument("command", choices=["download", "audit", "forecast", "forecast-report"])
+    parser.add_argument(
+        "command", choices=["download", "audit", "forecast", "forecast-report", "inventory", "inventory-report"]
+    )
+    parser.add_argument("--shelf-life", type=int, default=2)
     parser.add_argument("--data", type=Path, default=Path("data"))
     parser.add_argument("--docs", type=Path, default=Path("docs/experiments"))
     parser.add_argument("--history", choices=["recovered", "observed"], default="recovered")
@@ -27,11 +30,20 @@ def main(argv: list[str] | None = None) -> int:
         from data_frn.forecast_bench import run
 
         print(run(args.data, args.docs, history=args.history, cities=args.cities))
-    else:
+    elif args.command == "forecast-report":
         from data_frn.forecast_report import write_report as forecast_report
 
         paths = {h: args.docs / f"frn_forecast_sums_{h}.csv" for h in ("recovered", "observed")}
         print(forecast_report({h: p for h, p in paths.items() if p.exists()}, args.docs))
+    elif args.command == "inventory":
+        from data_frn.inventory_bench import run as inventory_run
+
+        print(inventory_run(args.data, args.docs, shelf_life=args.shelf_life, cities=args.cities))
+    else:
+        from data_frn.inventory_report import write_report as inventory_report
+
+        paths = {life: args.docs / f"frn_inventory_sums_L{life}.csv" for life in (1, 2, 3)}
+        print(inventory_report({life: p for life, p in paths.items() if p.exists()}, args.docs))
     return 0
 
 

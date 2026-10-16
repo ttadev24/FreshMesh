@@ -176,6 +176,26 @@ def _service_index(curve: SkuCurve, target: float) -> tuple[int, bool]:
     return int(np.argmax(curve.service_level)), False
 
 
+def quantity_for_service(
+    store_id: str,
+    sku: SkuEconomics,
+    rows: Sequence[ForecastQuantiles],
+    lots: Sequence[StockLot],
+    target: float,
+    *,
+    n_sims: int = 2000,
+    seed: int = 0,
+) -> tuple[int, float]:
+    """(order quantity, achieved service) of the smallest order reaching P(no stockout) ≥ ``target`` over the
+    rows' horizon, picked from the same Monte Carlo curve as the "An toàn" / "Tiết kiệm" plans. Prices and
+    cost rates do not affect this choice, so it also serves data without prices (FreshRetailNet)."""
+    rng = np.random.default_rng(np.random.SeedSequence(seed))
+    day0 = min(r.date for r in rows)
+    curve = _sku_curve(store_id, sku, rows, lots, day0, Constraints(), n_sims, rng)
+    i, _ = _service_index(curve, target)
+    return int(curve.qty[i]), float(curve.service_level[i])
+
+
 def _apply_constraints(
     idx: dict[str, int], curves: Mapping[str, SkuCurve], constraints: Constraints
 ) -> tuple[dict[str, int], list[str], list[str]]:

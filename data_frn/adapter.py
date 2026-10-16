@@ -18,7 +18,7 @@ from data_frn.censor import daytime_profiles, observed_demand, recovered_demand
 from data_frn.rows import CityRows
 from forecasting.features import MAX_HORIZON, ChainData
 
-Mode = Literal["observed", "recovered"]
+Mode = Literal["observed", "recovered", "sales"]  # "sales": recorded sales as is (a lower bound of demand)
 # FRN sale_amount is globally rescaled (median 0.7 per store-product-day). ×10 puts typical series well above
 # the forecaster's scale floor of 1 unit; WAPE and mean-normalised pinball do not depend on this choice.
 KAPPA = 10.0
@@ -60,7 +60,7 @@ def city_chain(
     max_pairs: int = MAX_PAIRS,
     seed: int = 0,
 ) -> tuple[ChainData, dict[str, Any]]:
-    if mode not in ("observed", "recovered"):
+    if mode not in ("observed", "recovered", "sales"):
         raise ValueError(f"unknown mode {mode!r}")
     stores = np.unique(rows.store_id)
     products, n_products_city = _sample_products(rows, len(stores), max_pairs, seed)
@@ -72,6 +72,8 @@ def city_chain(
 
     if mode == "observed":
         y = observed_demand(rows.sale[keep], rows.stock_hours[keep])
+    elif mode == "sales":
+        y = rows.sale[keep].astype(np.float64)
     else:
         pair = s_pos * K + k_pos
         prof = daytime_profiles(pair, S * K, rows.hours_sale[keep], rows.stock_hours[keep])

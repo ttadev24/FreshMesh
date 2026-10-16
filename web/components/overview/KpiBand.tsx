@@ -33,7 +33,12 @@ function useCountUp(target: number | null): number | null {
       if (p < 1) raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
+    // Background tabs pause rAF: a timer (which still runs, throttled) lands the final value regardless.
+    const land = setTimeout(() => setShown(target), COUNT_MS + 150);
+    return () => {
+      cancelAnimationFrame(raf);
+      clearTimeout(land);
+    };
   }, [target, still]);
   if (target == null) return null;
   return still ? target : (shown ?? 0);

@@ -73,7 +73,9 @@ def _draft_not_executed() -> tuple[str, bool]:
     ctx = ToolContext("CHAIN_A", "verify", None, {"role": "owner"})
     out = reg.call("create_purchase_order", {}, ctx).data
     executed = store.executed()
-    actual = f"Trạng thái: {out['status']}, cần duyệt: {out['requires_approval']}, đã thực thi: {len(executed)}"
+    actual = (
+        f"Trạng thái: {out['status']}, cần duyệt: {out['requires_approval']}, đã thực thi: {len(executed)}"
+    )
     return actual, out["status"] == "draft" and out["requires_approval"] and not executed
 
 

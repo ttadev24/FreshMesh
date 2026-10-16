@@ -1,10 +1,10 @@
 """FreshRetailNet-50K (Dingdong, CC BY 4.0): real hourly fresh-retail sales with stockout annotations, used to
 validate FreshMesh's algorithms (forecasting, inventory policies, federated learning) on real demand.
 
-It is *not* the demo data: the product demo keeps the rebuilt Ho Chi Minh City chains (``data_sim``). FRN comes
-from Chinese front-warehouse stores, has no prices and a globally rescaled ``sale_amount``, and its category ids
-carry no names, so results here speak about the algorithms on real perishable demand, not about Vietnamese
-market figures. Protocol: ``docs/experiments/frn-protocol.md``. Needs the ``bench`` dependency group (pyarrow):
+It is *not* the demo data: the product demo keeps the rebuilt Ho Chi Minh City chains (``data_sim``).
+FRN comes from Chinese front-warehouse stores, has no prices and a globally rescaled ``sale_amount``, and its
+category ids carry no names, so results here speak about the algorithms on real perishable demand, not about
+Vietnamese market figures. Protocol: ``docs/experiments/frn-protocol.md``. Needs the ``bench`` dependency group (pyarrow):
 ``uv sync --group bench`` then ``uv run python -m data_frn download|audit``.
 """
 

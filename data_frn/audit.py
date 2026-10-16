@@ -84,8 +84,13 @@ def audit(data_dir: Path | str) -> dict[str, Any]:
     return out
 
 
+def _num(x: float, nd: int = 0) -> str:
+    """Vietnamese number format: 4.500.000 and 0,40."""
+    return f"{x:,.{nd}f}".replace(",", "\0").replace(".", ",").replace("\0", ".")
+
+
 def _pct(x: float) -> str:
-    return f"{100 * x:.1f}".replace(".", ",") + "%"
+    return _num(100 * x, 1) + "%"
 
 
 def write_report(a: dict[str, Any], docs_dir: Path | str) -> Path:
@@ -106,17 +111,20 @@ def write_report(a: dict[str, Any], docs_dir: Path | str) -> Path:
         "",
         "| Mục | Giá trị |",
         "|---|---|",
-        *(f"| File `{s}` | {f['rows']:,} dòng, sha256 `{f['sha256'][:16]}…` |" for s, f in a["files"].items()),
+        *(
+            f"| File `{split}` | {_num(f['rows'])} dòng, sha256 `{f['sha256'][:16]}…` |"
+            for split, f in a["files"].items()
+        ),
         f"| Ngày | {a['first_day']} → {a['last_day']} ({a['days']} ngày: 90 train + 7 eval) |",
         f"| Thành phố / cửa hàng / sản phẩm | {a['cities']} / {a['stores']} / {a['products']} |",
         f"| `stock_hour6_22_cnt` = số giờ hết hàng trong giờ 6–21 | {_pct(a['window_6_21_matches'])} số dòng khớp |",
         f"| Tổng doanh số theo giờ = `sale_amount` | sai khác lớn nhất {a['hourly_sum_max_abs_diff']:.1e} |",
-        f"| Doanh số TB mỗi giờ khi status = 1 / 0 | {a['mean_hourly_sale_out_of_stock']:.4f} / "
-        f"{a['mean_hourly_sale_in_stock']:.4f} → 1 = hết hàng |",
+        f"| Doanh số TB mỗi giờ khi status = 1 / 0 | {_num(a['mean_hourly_sale_out_of_stock'], 4)} / "
+        f"{_num(a['mean_hourly_sale_in_stock'], 4)} → 1 = hết hàng |",
         f"| Ngày có hết hàng trong 6–21h (doanh số bị chặn) | {_pct(a['censored_day_share'])} |",
         f"| Ngày có giảm giá (`discount` < 1) | {_pct(a['discounted_day_share'])} |",
         f"| `sale_amount` P25 / P50 / P75 / P95 (đã chuẩn hóa, không có đơn vị thật) | "
-        f"{sq['p25']:.2f} / {sq['p50']:.2f} / {sq['p75']:.2f} / {sq['p95']:.2f} |",
+        " / ".join(_num(sq[k], 2) for k in ("p25", "p50", "p75", "p95")) + " |",
         "",
         "Cửa hàng theo thành phố (chi tiết: `frn_data_audit_cities.csv`): "
         + ", ".join(str(c["stores"]) for c in a["per_city"])

@@ -32,6 +32,7 @@ from api.config import Settings
 from api.drafts import DRAFT_KINDS, SqlDraftStore
 from api.errors import ApiError, install_error_handlers
 from api.network import build_network
+from api.verify import run_all as run_verify
 from api.repo import ChainRepo, ensure_store_access, resolve_store_id
 from api.road_path import RoadRouter
 from api.routing_service import RoutingService, make_solver_client
@@ -269,6 +270,11 @@ def create_app(
         """Morning decision brief (api/brief.py); owners get chain scope, managers their own store."""
         store = services.repo(user.chain_id).store(store_for(user, store_id))
         return briefs.get(user.chain_id, store, user.is_owner)
+
+    @app.get("/api/verify/run")
+    def verify_run(user: User = Depends(current_user)) -> dict[str, Any]:
+        """'Kiểm chứng 90 giây': the safety rules checked live on the real guard code (api/verify.py)."""
+        return run_verify(settings.data_dir)
 
     @app.get("/api/network")
     def network(user: User = Depends(current_user)) -> dict[str, Any]:

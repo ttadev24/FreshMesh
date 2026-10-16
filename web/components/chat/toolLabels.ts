@@ -1,6 +1,7 @@
 const TOOL_LABEL_VI: Record<string, string> = {
   forecast_demand: "Dự báo nhu cầu P10, P50, P90",
   plan_inventory: "Lập 3 phương án nhập hàng",
+  find_surplus_stores: "Tìm cửa hàng dư hàng tươi",
   suggest_markdown: "Tính lịch giảm giá theo khung giờ",
   transfer_stock: "Tính phương án điều chuyển",
   compare_markdown_vs_transfer: "So sánh giảm giá với điều chuyển",

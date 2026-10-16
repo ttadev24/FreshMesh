@@ -47,6 +47,7 @@ from decision import (
     suggest_markdown,
     transfer_stock,
 )
+from decision.surplus import SURPLUS_ASSUMPTIONS_VI, rank_surplus_stores, units_left_now
 from decision.text import pct, units, vnd
 from decision.types import MarkdownPlan
 from forecasting.service import (
@@ -327,7 +328,7 @@ class Services:
             )
             p50 = rows[sku.sku_id].p50
             sold_before = round(p50 * share_before, 1)
-            remaining = max(0, round(expiring - sold_before))
+            remaining = units_left_now(expiring, p50, share_before)
             if remaining <= 0:
                 skipped.append({"sku_id": sku.sku_id, "sku_name": sku.name, "start_of_day_units": expiring})
                 continue
@@ -422,6 +423,45 @@ class Services:
                 if qty > 0 and (key[0] != origin or lot.expires_on == FIRST_DAY):
                     out.append(StockLot(lot.store_id, lot.sku_id, qty, lot.expires_on))
         return out
+
+    def surplus_stores(
+        self,
+        chain_id: str,
+        store_ids: Sequence[str],
+        skus: Sequence[SkuInfo],
+        *,
+        now_hour: int = DEFAULT_NOW_HOUR,
+    ) -> dict:
+        """Stores ranked by fresh units expiring today expected to stay unsold (``decision.surplus``)."""
+        repo = self.repo(chain_id)
+        now = self._now(now_hour)
+        fresh = [s for s in skus if s.is_fresh]
+        if not fresh:
+            raise ApiError(422, "no_fresh_skus", "Chỉ tìm hàng dư cho hàng tươi.")
+        wanted = set(store_ids)
+        stores = [s for s in repo.stores() if s.store_id in wanted]
+        ids = [s.store_id for s in stores]
+        p50 = {(r.store_id, r.sku_id): r.p50 for r in self._forecast_rows(chain_id, ids, fresh, 1)}
+        expiring: dict[tuple[str, str], int] = {}
+        for lot in repo.stock(ids, [s.sku_id for s in fresh]):
+            if lot.expires_on == FIRST_DAY:
+                key = (lot.store_id, lot.sku_id)
+                expiring[key] = expiring.get(key, 0) + lot.qty
+        ranked = rank_surplus_stores(
+            [(s.store_id, s.name, self._share_before(s.area_type, now_hour)) for s in stores],
+            expiring,
+            p50,
+            {s.sku_id: s.name for s in fresh},
+        )
+        top = ranked[0] if ranked and ranked[0]["expected_unsold_units"] > 0 else None
+        return {
+            "now": now.isoformat(),
+            "now_hour": now.hour,
+            "top_store_id": top["store_id"] if top else None,
+            "stores": ranked,
+            "assumptions_vi": list(SURPLUS_ASSUMPTIONS_VI),
+            **repo.provenance(STOCK_TABLES),
+        }
 
     def transfer(
         self, chain_id: str, store_id: str, skus: Sequence[SkuInfo], *, now_hour: int = DEFAULT_NOW_HOUR

@@ -37,6 +37,7 @@ from agent.tools import Tool, ToolContext, ToolRegistry, ToolResult
 READ_TOOLS = (
     "forecast_demand",
     "plan_inventory",
+    "find_surplus_stores",
     "suggest_markdown",
     "transfer_stock",
     "optimize_routes",
@@ -270,6 +271,24 @@ def _markdown(args: dict[str, Any], ctx: ToolContext) -> ToolResult:
     return ToolResult(_injected(ctx, data), ["suggest_markdown:eval"])
 
 
+def _surplus(args: dict[str, Any], ctx: ToolContext) -> ToolResult:
+    sku = _skus(args)[0]
+    data = {
+        "top_store_id": "A3",
+        "stores": [
+            {
+                "store_id": "A3",
+                "expected_unsold_units": 31.5,
+                "units_left_now": 46,
+                "items": [{"sku_id": sku[0], "sku_name": sku[1], "expected_unsold_units": 31.5}],
+            },
+            {"store_id": "A1", "expected_unsold_units": 0.0, "units_left_now": 3, "items": []},
+        ],
+        **EVAL_PROVENANCE,
+    }
+    return ToolResult(_injected(ctx, data), ["find_surplus_stores:eval"])
+
+
 def _transfer(args: dict[str, Any], ctx: ToolContext) -> ToolResult:
     data = {
         "from_store_id": args.get("store_id", "A3"),
@@ -359,6 +378,16 @@ def build_eval_registry(db_path: Path, draft_store: InMemoryDraftStore) -> ToolR
             ),
             "read",
             _plan,
+        )
+    )
+    reg.register(
+        Tool(
+            "find_surplus_stores",
+            "Xếp hạng cửa hàng theo hàng tươi hết hạn hôm nay dự kiến bán không hết "
+            "(dùng khi không nêu cửa hàng).",
+            _obj({"categories": _STORE_ARGS["categories"]}),
+            "read",
+            _surplus,
         )
     )
     reg.register(
@@ -468,6 +497,10 @@ EVAL_CASES: tuple[EvalCase, ...] = (
         ("forecast_demand", "plan_inventory", "create_purchase_order"),
     ),
     EvalCase("Còn nhiều rau ở CH3", ("suggest_markdown", "transfer_stock")),
+    EvalCase(
+        "Cửa hàng nào còn nhiều rau tồn chiều nay? Nên giảm giá hay điều chuyển?",
+        ("find_surplus_stores", "suggest_markdown", "transfer_stock"),
+    ),
     EvalCase("CH2 dư thịt, xử lý sao?", ("suggest_markdown", "transfer_stock")),
     EvalCase("Rau ở CH1 sắp hết hạn, nên giảm giá thế nào?", ("suggest_markdown",)),
     EvalCase("Có nên điều chuyển rau từ CH3 sang cửa hàng khác không?", ("transfer_stock",)),

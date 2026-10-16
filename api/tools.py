@@ -1,9 +1,9 @@
 """Real agent tools (names agreed in the master plan) wired to the service layer.
 
-Read tools: forecast_demand, plan_inventory, suggest_markdown, transfer_stock, optimize_routes, query_data,
-render_chart. Draft tools (only create drafts; approval happens in the API): create_purchase_order,
-apply_markdown, create_transfer, dispatch_routes. Draft payloads are always computed by the server from
-the DB and the real models; numbers supplied by the caller are never trusted.
+Read tools: forecast_demand, plan_inventory, find_surplus_stores, suggest_markdown, transfer_stock,
+optimize_routes, query_data, render_chart. Draft tools (only create drafts; approval happens in the API):
+create_purchase_order, apply_markdown, create_transfer, dispatch_routes. Draft payloads are always computed
+by the server from the DB and the real models; numbers supplied by the caller are never trusted.
 
 Store resolution: ``store_id`` may be "A-CH3" or "CH3"; when missing, ``ctx.extras["default_store_id"]``,
 then the user's own store, then the chain's first store. Store managers can only use their own store.
@@ -20,7 +20,7 @@ from agent.sql_guard import make_query_data_tool, view_columns_hint
 from agent.tools import Tool, ToolContext, ToolError, ToolRegistry, ToolResult
 from api.drafts import SqlDraftStore
 from api.errors import ApiError
-from api.repo import ensure_store_access, resolve_store_id
+from api.repo import CATEGORY_ALIASES, ensure_store_access, resolve_store_id
 from api.services import DEFAULT_NOW_HOUR, Services, plan_key
 from data_sim import CHAIN_IDS, chain_db_path
 from decision.text import units, vnd
@@ -53,12 +53,22 @@ def _provenance(result: dict[str, Any]) -> dict[str, list[str]]:
     return {"sources": list(result["sources"]), "source_labels_vi": list(result["source_labels_vi"])}
 
 
+def _category_words_vi() -> str:
+    """'rau, rau củ → vegetable; thịt → meat; …' from the aliases the other tools already accept."""
+    words: dict[str, list[str]] = {}
+    for word, code in CATEGORY_ALIASES.items():
+        if word != code and "_" not in word:
+            words.setdefault(code, []).append(word)
+    return "; ".join(f"{', '.join(ws)} → {code}" for code, ws in words.items())
+
+
 def _schema_hint(services: Services) -> str:
-    """Column list of the query views, read from the first chain DB present (all chains share the schema)."""
+    """Column list and code values of the query views, read from the first chain DB present (all chains
+    share the schema and the catalogue), plus the Vietnamese words for the category codes."""
     for chain_id in CHAIN_IDS:
         hint = view_columns_hint(chain_db_path(services.data_dir, chain_id))
         if hint:
-            return hint
+            return f"{hint} Từ tiếng Việt cho cột category: {_category_words_vi()}."
     return ""
 
 
@@ -122,6 +132,17 @@ def build_registry(services: Services, drafts: SqlDraftStore) -> ToolRegistry:
             ctx.chain_id, store_id, h.skus(args, ctx), now_hour=int(args.get("now_hour", DEFAULT_NOW_HOUR))
         )
         return ToolResult(data, [f"suggest_markdown:{ctx.chain_id}/{store_id}", "decision.suggest_markdown"])
+
+    @_tool_errors
+    def surplus_fn(args: dict, ctx: ToolContext) -> ToolResult:
+        if ctx.extras.get("role") == "owner":
+            store_ids = [s.store_id for s in services.repo(ctx.chain_id).stores()]
+        else:  # a store manager only ever sees their own store
+            store_ids = [h.store({}, ctx)]
+        data = services.surplus_stores(
+            ctx.chain_id, store_ids, h.skus(args, ctx), now_hour=int(args.get("now_hour", DEFAULT_NOW_HOUR))
+        )
+        return ToolResult(data, [f"find_surplus_stores:{ctx.chain_id}", "decision.surplus"])
 
     @_tool_errors
     def transfer_fn(args: dict, ctx: ToolContext) -> ToolResult:
@@ -324,6 +345,14 @@ def build_registry(services: Services, drafts: SqlDraftStore) -> ToolRegistry:
             _obj({**_STORE_ARGS, "now_hour": _NOW_HOUR}),
             "read",
             markdown_fn,
+        ),
+        Tool(
+            "find_surplus_stores",
+            "Xếp hạng cửa hàng theo số đơn vị hàng tươi hết hạn hôm nay dự kiến bán không hết. Dùng trước "
+            "suggest_markdown / transfer_stock khi người dùng nói còn nhiều/dư hàng mà không nêu cửa hàng.",
+            _obj({"sku_ids": _SKUS, "categories": _CATS, "now_hour": _NOW_HOUR}),
+            "read",
+            surplus_fn,
         ),
         Tool(
             "transfer_stock",

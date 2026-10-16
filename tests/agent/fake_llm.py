@@ -61,6 +61,8 @@ def detect_intent(message: str) -> Intent:
             reads += ("suggest_markdown",)
         if surplus or _has(m, "điều chuyển", "chuyển hàng"):
             reads += ("transfer_stock",)
+        if surplus and not _STORE_RE.search(m):  # owner names no store: find where the surplus is first
+            reads = ("find_surplus_stores",) + reads
         apply = _has(m, "áp dụng", "giảm giá luôn")
         return Intent(reads, ("apply_markdown",) if apply else ())
     if _has(m, "nhập", "đặt hàng", "đơn đặt hàng", "mua hàng", "phương án nhập"):
@@ -119,7 +121,10 @@ def build_fake_args(tool: str, message: str, outputs: list[TurnOutput]) -> dict[
         horizon = 7 if _has(message.lower(), "7 ngày", "tuần") else 1
         return {"store_id": store, "categories": _categories(message), "horizon_days": horizon}
     if tool in ("suggest_markdown", "transfer_stock"):
-        return {"store_id": store, "categories": _categories(message)}
+        found = _last(outputs, "find_surplus_stores")
+        return {"store_id": (found or {}).get("top_store_id") or store, "categories": _categories(message)}
+    if tool == "find_surplus_stores":
+        return {"categories": _categories(message)}
     if tool == "optimize_routes":
         return {"store_id": store}
     if tool == "query_data":

@@ -404,23 +404,57 @@ def run_query_data(
     }
 
 
-def view_columns_hint(db_path: Path | str, views: Sequence[str] = DEFAULT_VIEWS) -> str:
-    """ "Cột: v_x(a, b); ..." read from the DB itself, so the model never has to guess column names
-    (``chain_id`` and ``source`` are omitted: the tenant filter and provenance are handled by the system)."""
+# Code columns whose values are shared by every chain (catalogue / schema vocabulary, never names or ids),
+# listed in the hint so the model filters on stored codes (e.g. 'vegetable', not 'rau'); each is read from
+# the smallest view that has it.
+HINT_VALUE_SOURCES: dict[str, str] = {
+    "category": "v_skus",
+    "area_type": "v_stores",
+    "delivery_mode": "v_online_orders",
+}
+MAX_HINT_VALUES = 20
+# The hint goes into every tenant's tool description: only plain codes, never free text from a DB.
+_HINT_CODE = re.compile(r"^[a-z_]{1,32}$")
+
+
+def view_columns_hint(
+    db_path: Path | str,
+    views: Sequence[str] = DEFAULT_VIEWS,
+    value_sources: dict[str, str] = HINT_VALUE_SOURCES,
+) -> str:
+    """ "Cột: v_x(a, b); ... Giá trị: category ∈ {…}" read from the DB itself, so the model never has to guess
+    column names or code values (``chain_id`` and ``source`` are omitted: the tenant filter and provenance are
+    handled by the system). Only columns with at most ``MAX_HINT_VALUES`` values are enumerated."""
     path = Path(db_path).resolve()
     if not path.is_file():
         return ""
     con = sqlite3.connect(f"{path.as_uri()}?mode=ro", uri=True)
     try:
-        parts = []
+        parts, values = [], []
+        cols_of: dict[str, list[str]] = {}
         for v in views:
             cols = [r[0] for r in con.execute("SELECT name FROM pragma_table_info(?)", (v,))]
-            cols = [c for c in cols if c not in ("chain_id", "source")]
+            cols_of[v] = cols = [c for c in cols if c not in ("chain_id", "source")]
             if cols:
                 parts.append(f"{v}({', '.join(cols)})")
+        for col, view in value_sources.items():
+            if col not in cols_of.get(view, ()):
+                continue
+            rows = con.execute(
+                f'SELECT DISTINCT "{col}" FROM "{view}" WHERE "{col}" IS NOT NULL ORDER BY 1 LIMIT ?',
+                (MAX_HINT_VALUES + 1,),
+            ).fetchall()
+            codes = [str(r[0]) for r in rows]
+            if 0 < len(codes) <= MAX_HINT_VALUES and all(_HINT_CODE.match(c) for c in codes):
+                values.append(f"{col} ∈ {{{', '.join(codes)}}}")
     finally:
         con.close()
-    return ("Cột có sẵn (chỉ dùng các cột này): " + "; ".join(parts) + ".") if parts else ""
+    if not parts:
+        return ""
+    hint = "Cột có sẵn (chỉ dùng các cột này): " + "; ".join(parts) + "."
+    if values:
+        hint += " Giá trị mã đang lưu (lọc bằng đúng các mã này): " + "; ".join(values) + "."
+    return hint
 
 
 QUERY_DATA_SCHEMA = {

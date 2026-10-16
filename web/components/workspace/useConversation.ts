@@ -8,7 +8,7 @@ import type { AgentTurn } from "@/lib/types";
 /** Example questions: they only fill and send a normal chat message to the LLM agent. */
 export const SUGGESTED_PROMPTS = [
   "Nhập rau và thịt cho mai thế nào?",
-  "Còn nhiều rau tồn chiều nay, nên giảm giá hay điều chuyển?",
+  "Cửa hàng nào còn nhiều rau tồn chiều nay? Nên giảm giá hay điều chuyển?",
   "Gom đơn online đợt này và lập lộ trình giao.",
   "Mặt hàng nào có độ tin cậy dự báo thấp nhất tuần này?",
 ] as const;

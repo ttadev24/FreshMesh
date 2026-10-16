@@ -204,6 +204,28 @@ def test_query_data_rejects_injection(client, sql):
     assert exc.value.message_vi
 
 
+def test_query_data_hint_lists_category_codes_and_vietnamese_words(client):
+    desc = client.app.state.registry.get("query_data").description_vi
+    assert "category ∈ {" in desc and "vegetable" in desc
+    assert "rau, rau củ → vegetable" in desc
+    assert "A-CH1" not in desc  # only shared code vocabularies, never a chain's names or ids
+
+
+def test_find_surplus_stores_points_owner_to_the_surplus_store(client):
+    reg = client.app.state.registry
+    out = reg.call("find_surplus_stores", {"categories": ["rau"]}, _ctx()).data
+    assert out["top_store_id"] == "A-CH3"  # data_sim's demo surplus scenario
+    assert {s["store_id"] for s in out["stores"]} == {f"A-CH{i}" for i in range(1, 7)}
+    assert out["stores"][0]["expected_unsold_units"] > 0 and out["sources"]
+
+
+def test_find_surplus_stores_is_limited_to_a_managers_store(client):
+    reg = client.app.state.registry
+    ctx = ToolContext("CHAIN_A", "manager_a1", "A-CH1", {"role": "store_manager"})
+    out = reg.call("find_surplus_stores", {"categories": ["rau"]}, ctx).data
+    assert [s["store_id"] for s in out["stores"]] == ["A-CH1"]
+
+
 def test_tools_enforce_store_role(client):
     reg = client.app.state.registry
     ctx = ToolContext("CHAIN_A", "manager_a1", "A-CH1", {"role": "store_manager"})

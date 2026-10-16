@@ -37,4 +37,4 @@ The Contributor Covenant 2.1 text is attributed within [CODE_OF_CONDUCT.md](CODE
 
 ## Documentation artwork
 
-The original [grocery-network banner](docs/assets/freshmesh-banner.png) and current [solutions banner](docs/assets/freshmesh-solutions-banner.png) were generated for this repository using the built-in image-generation tool. They are conceptual illustrations, not screenshots or measured architectural diagrams. The prompt and provenance are recorded in [docs/assets/README.md](docs/assets/README.md).
+The original [grocery-network banner](docs/assets/freshmesh-banner.png) and [solutions infographic](docs/assets/freshmesh-solutions-banner.png) and current [solutions hero](docs/assets/freshmesh-solutions-hero.png) were generated for this repository using the built-in image-generation tool. They are conceptual illustrations, not screenshots or measured architectural diagrams. The prompt and provenance are recorded in [docs/assets/README.md](docs/assets/README.md).

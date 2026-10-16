@@ -25,7 +25,7 @@
   </p>
 
   <br />
-  <img src="docs/assets/freshmesh-solutions-banner.png" alt="FreshMesh solutions: demand forecasting, replenishment planning, surplus markdowns or transfers, and delivery optimization; proposals require human approval and leave an audit trail" width="100%" />
+  <img src="docs/assets/freshmesh-solutions-hero.png" alt="FreshMesh solutions: demand forecasting, replenishment planning, surplus markdowns or transfers, and delivery optimization; proposals require human approval and leave an audit trail" width="100%" />
 </div>
 
 ---

@@ -1,5 +1,17 @@
 # Documentation assets
 
+## `freshmesh-solutions-hero.png`
+
+- Purpose: current README hero, using a continuous cinematic scene to present the four solution areas.
+- Created: 2026-10-17 with the built-in image-generation tool; no reference images supplied.
+- Visual direction: layered grocery stores and fresh produce, luminous forecast curves, surplus choices, delivery routes, and a human approval checkpoint.
+- Conceptual artwork, not a screenshot or evidence of measured performance. Previous banners are retained.
+- Released with the project's original materials under GPL-3.0-only to the extent applicable rights exist.
+
+Final generation prompt:
+
+> Use case: stylized-concept. Create a spectacular editorial 3D hero banner for FreshMesh, an open-source fresh grocery decision-support project. This must look like an art-directed premium technology magazine cover, visually arresting and richly detailed, not a generic infographic or four equal boxes. Wide landscape 3:1 composition, high resolution. A continuous miniature fresh-food retail city floats on a sculpted dark emerald platform, viewed at a dramatic elevated three-quarter angle. Strong depth, diagonal visual flow, overlapping foreground and background layers, sophisticated cinematic lighting with luminous mint route lines and warm amber shop interiors, deep forest shadows and ivory typography. Centerpiece: a beautifully detailed modern neighborhood produce store with translucent canopy, lush fresh vegetables and fruit crates spilling into the foreground, with a large translucent emerald demand forecast ribbon rising elegantly behind it. To the left, a smaller warehouse with stacks of fresh produce crates and a restrained holographic inventory display, a calendar/weather visualization and curved forecast uncertainty band communicate demand planning and replenishment. To the right, a vivid amber discount tag near surplus crates and a small crate transfer connection between two shops communicate surplus choices. Sweeping glowing mint paths run from the central store across miniature streets toward pickup lockers and destination buildings on the far right, with a crisp tiny motorbike courier in motion; route geography should feel deliberate, not tangled. A tasteful slim approval card in the lower scene shows a document and a checkmark, clearly signifying a human decision checkpoint. Use the whole canvas with compelling focal hierarchy, beautiful material contrasts of frosted glass, matte emerald, warm wood, produce textures and subtle brushed metal. Maintain ample dark negative space upper left for a big exceptionally legible modern sans-serif wordmark, exact text 'FreshMesh', below it exact subtitle 'From fresh demand to smarter decisions'. Four understated small ivory labels integrated near relevant scene regions, exact text: 'Forecast demand', 'Plan replenishment', 'Handle surplus', 'Optimize delivery'. No numbering, no rigid panel dividers, no dense captions, no extra labels, no fake performance numbers, no illegible decorative text, no provider logos, no watermark. This is conceptual cover art explaining actual software capabilities, not a UI screenshot. The scene must be visually rich and striking at first glance, with restrained precision rather than cartoon clip art. Distinctive asymmetric composition, bold scale changes and one clear central focal point. Render a finished professional banner.
+
 ## `freshmesh-banner.png`
 
 - Purpose: README cover illustration.
@@ -17,7 +29,7 @@ Existing experiment SVGs remain in `docs/experiments/` and are referenced direct
 
 ## `freshmesh-solutions-banner.png`
 
-- Purpose: current README banner, showing four FreshMesh solution areas in a single infographic.
+- Purpose: previous README banner, showing four FreshMesh solution areas in a single infographic.
 - Created: 2026-10-17 using the built-in image-generation tool, without reference images.
 - Panels: demand forecasting, replenishment, surplus markdown/transfer alternatives, and delivery routing.
 - Footer: data → proposed actions → human approval → audit trail.

@@ -17,10 +17,11 @@ from decision.text import pct
 
 K_MIN = 2  # a cell must hold at least this many stores
 FINE, COARSE = 2, 1  # decimal places of lat/lng: ~1,1 km then ~11 km cells
+STORE_FIELDS = ("store_id", "name", "lat", "lng", "area_type", "is_new")
 
 
 def anonymous_cells(points: Sequence[tuple[float, float]], k_min: int = K_MIN) -> list[dict[str, Any]]:
-    """Store counts on ~1.1 km cells; stores alone in their cell move to ~11 km cells; still alone → dropped."""
+    """Store counts on ~1.1 km cells; a store alone there moves to ~11 km cells; still alone → dropped."""
     fine = Counter((round(lat, FINE), round(lng, FINE)) for lat, lng in points)
     cells = [{"lat": a, "lng": b, "stores": n} for (a, b), n in fine.items() if n >= k_min]
     rest = [(lat, lng) for lat, lng in points if fine[(round(lat, FINE), round(lng, FINE))] < k_min]
@@ -38,7 +39,8 @@ def _federated(data_dir: Path) -> dict[str, Any]:
     try:
         fl = fl_summary_payload(data_dir)
     except ApiError:
-        return {**base, "model_ready": False, "clients": None, "rounds": None, "dp": None, "evidence_vi": None}
+        missing = dict.fromkeys(("clients", "rounds", "dp", "evidence_vi"))
+        return {**base, "model_ready": False, **missing}
     gain = fl.get("improvement_vs_local", {})
     wape, new = gain.get("wape"), gain.get("new_store")
 
@@ -73,13 +75,12 @@ def build_network(
             points = [(s.lat, s.lng) for s in services.repo(other).stores()]
         except (ApiError, FileNotFoundError):
             continue
-        others.append({"label_vi": f"Chuỗi khác {i}", "stores": len(points), "cells": anonymous_cells(points)})
+        cells = anonymous_cells(points)
+        others.append({"label_vi": f"Chuỗi khác {i}", "stores": len(points), "cells": cells})
     return {
         "chain_id": chain_id,
         "chain_name": repo.chain_name(),
-        "stores": [
-            {k: s.to_dict()[k] for k in ("store_id", "name", "lat", "lng", "area_type", "is_new")} for s in stores
-        ],
+        "stores": [{k: s.to_dict()[k] for k in STORE_FIELDS} for s in stores],
         "network": {
             "chains": 1 + len(others),
             "stores_total": len(repo.stores()) + sum(o["stores"] for o in others),

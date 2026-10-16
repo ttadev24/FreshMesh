@@ -25,10 +25,15 @@ def _km(value: float) -> str:
 
 
 def _prov(result: dict[str, Any]) -> dict[str, list[str]]:
-    return {"sources": list(result.get("sources", [])), "source_labels_vi": list(result.get("source_labels_vi", []))}
+    return {
+        "sources": list(result.get("sources", [])),
+        "source_labels_vi": list(result.get("source_labels_vi", [])),
+    }
 
 
-def replenish_card(services: Services, chain_id: str, store: StoreInfo, skus: list[SkuInfo]) -> dict[str, Any]:
+def replenish_card(
+    services: Services, chain_id: str, store: StoreInfo, skus: list[SkuInfo]
+) -> dict[str, Any]:
     r = services.inventory_plan(chain_id, store.store_id, skus, horizon_days=1)
     plan = next(p for p in r["plans"] if p["name"] == r["recommended_plan"])
     n_skus = sum(1 for ln in plan["lines"] if ln.get("qty", 0) > 0)
@@ -62,14 +67,16 @@ def replenish_card(services: Services, chain_id: str, store: StoreInfo, skus: li
 
 
 def _markdown_start(markdown_plans: list[dict[str, Any]]) -> str | None:
-    starts = [s["start"] for p in markdown_plans for s in p.get("schedule", []) if s.get("discount_pct", 0) > 0]
+    starts = [
+        s["start"] for p in markdown_plans for s in p.get("schedule", []) if s.get("discount_pct", 0) > 0
+    ]
     return f"Bắt đầu giảm giá lúc {min(starts)[11:16]}" if starts else None
 
 
 def surplus_card(
     services: Services, chain_id: str, store_ids: list[str], skus: list[SkuInfo]
 ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
-    """(card, transfer flows of today). ``store_ids``: every store for an owner, the own store for a manager."""
+    """(card, today's transfer flows). ``store_ids``: all stores for an owner, the own store for a manager."""
     found = services.surplus_stores(chain_id, store_ids, skus, now_hour=DEFAULT_NOW_HOUR)
     top_id = found["top_store_id"]
     base = {"kind": "surplus", "title_vi": "Xử lý hàng tươi tồn chiều nay", "confidence": None}

@@ -1,8 +1,9 @@
 """Morning decision brief (``GET /api/brief``): the day's three decisions, a revenue KPI and a 7-day demand
 strip, so the owner sees what to decide before asking anything (cards in ``api/brief_cards.py``).
 
-A card whose tool fails is left out and reported in ``errors``; the rest of the brief still answers. Results are
-cached per (chain, store, scope) for ``CACHE_TTL_S`` because the first build solves two PACO batches (~30 s).
+A card whose tool fails is left out and reported in ``errors``; the rest of the brief still answers.
+Results are cached per (chain, store, scope) for ``CACHE_TTL_S`` because the first build solves two PACO
+batches (~30 s).
 """
 
 from __future__ import annotations
@@ -13,7 +14,13 @@ import time
 from collections.abc import Callable
 from typing import Any
 
-from api.brief_cards import REPLENISH_CATEGORIES, SURPLUS_CATEGORIES, delivery_card, replenish_card, surplus_card
+from api.brief_cards import (
+    REPLENISH_CATEGORIES,
+    SURPLUS_CATEGORIES,
+    delivery_card,
+    replenish_card,
+    surplus_card,
+)
 from api.errors import ApiError
 from api.repo import ChainRepo, StoreInfo
 from api.services import FIRST_DAY, Services
@@ -60,22 +67,26 @@ def demand_7d(services: Services, chain_id: str, store: StoreInfo) -> dict[str, 
     since = (SIM_AS_OF - dt.timedelta(days=7)).isoformat()
     with repo.read() as con:
         top = con.execute(
-            "SELECT d.sku_id FROM daily_sales d JOIN skus k ON k.sku_id = d.sku_id WHERE d.store_id = ? "
-            "AND k.is_fresh = 1 AND d.date > ? GROUP BY d.sku_id ORDER BY SUM(d.units) DESC, d.sku_id LIMIT 1",
+            "SELECT d.sku_id FROM daily_sales d JOIN skus k ON k.sku_id = d.sku_id "
+            "WHERE d.store_id = ? AND k.is_fresh = 1 AND d.date > ? "
+            "GROUP BY d.sku_id ORDER BY SUM(d.units) DESC, d.sku_id LIMIT 1",
             (store.store_id, since),
         ).fetchone()
         if top is None:
             return None
         start = (SIM_AS_OF - dt.timedelta(days=PAST_DAYS)).isoformat()
         actual = con.execute(
-            "SELECT date, units FROM daily_sales WHERE store_id = ? AND sku_id = ? AND date > ? ORDER BY date",
+            "SELECT date, units FROM daily_sales WHERE store_id = ? AND sku_id = ? AND date > ? "
+            "ORDER BY date",
             (store.store_id, top[0], start),
         ).fetchall()
     sku = repo.select_skus([top[0]], [])[0]
     fc = services.forecast(chain_id, store.store_id, [sku], horizon_days=FORECAST_DAYS)
     empty = {"p10": None, "p50": None, "p90": None}
     points = [{"date": d, "actual": u, **empty} for d, u in actual]
-    points += [{"date": r["date"], "actual": None, "p10": r["p10"], "p50": r["p50"], "p90": r["p90"]} for r in fc["rows"]]
+    points += [
+        {"date": r["date"], "actual": None, "p10": r["p10"], "p50": r["p50"], "p90": r["p90"]} for r in fc["rows"]
+    ]
     return {
         "store_id": store.store_id,
         "sku_id": sku.sku_id,
@@ -87,7 +98,9 @@ def demand_7d(services: Services, chain_id: str, store: StoreInfo) -> dict[str, 
 
 
 class BriefService:
-    def __init__(self, services: Services, ttl_s: float = CACHE_TTL_S, clock: Callable[[], float] = time.time):
+    def __init__(
+        self, services: Services, ttl_s: float = CACHE_TTL_S, clock: Callable[[], float] = time.time
+    ):
         self.services = services
         self.ttl_s = ttl_s
         self.clock = clock
@@ -133,7 +146,9 @@ class BriefService:
             svc, chain_id, store_ids, repo.select_skus([], list(SURPLUS_CATEGORIES))))  # fmt: skip
         delivery = run("delivery", lambda: delivery_card(svc, chain_id, store))
         cards = [c for c in (replenish, surplus[0] if surplus else None, delivery) if c is not None]
-        orders = next((m["value"] for m in delivery["metrics"] if m["key"] == "orders"), None) if delivery else None
+        orders = None
+        if delivery:
+            orders = next((m["value"] for m in delivery["metrics"] if m["key"] == "orders"), None)
         kpis = run("kpis", lambda: revenue_kpis(repo, None if is_owner else store.store_id, orders))
         demand = run("demand_7d", lambda: demand_7d(svc, chain_id, store))
         return {

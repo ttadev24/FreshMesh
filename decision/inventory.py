@@ -284,7 +284,7 @@ def _build_plan(
         "safe": f"nhắm mức phục vụ khoảng {pct(target_pct or 0)} để hạn chế hết hàng",
         "balanced": "chọn số lượng có chi phí kỳ vọng (hàng bỏ + hết hàng) thấp nhất, tức tỷ lệ tới hạn",
         "lean": f"nhắm mức trung vị (mức phục vụ {pct(target_pct or 0)}) để giảm vốn và hàng bỏ",
-    }[name]
+    }.get(name, f"nhắm mức phục vụ {pct(target_pct or 0)} do bạn chọn trên đường đánh đổi")
     n_items = sum(1 for line in lines if line.qty > 0)
     text = (
         f"Phương án {label}: {why}; nhập {n_items} mặt hàng, tổng {vnd(total)}, "
@@ -368,10 +368,9 @@ def _target_plan(
         if not reached:
             unreachable.append(sku_id)
     idx, bound, reduced = _apply_constraints(raw, curves, constraints)
-    pct = round(100 * target)
-    return _build_plan(
-        f"target_{pct}", f"Mức phục vụ {pct}%", target, idx, curves, bound, reduced, unreachable, assumptions_vi
-    )
+    level = round(100 * target)
+    name, label = f"target_{level}", f"Mức phục vụ {level}%"
+    return _build_plan(name, label, target, idx, curves, bound, reduced, unreachable, assumptions_vi)
 
 
 def _store_curves(

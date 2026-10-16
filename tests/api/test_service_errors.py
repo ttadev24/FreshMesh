@@ -27,7 +27,7 @@ def svc(data_dir, fake_solver, tmp_path) -> Services:
     "target,call",
     [
         ("forecast_demand", lambda s, veg: s.forecast("CHAIN_A", "A-CH1", veg)),
-        ("plan_inventory", lambda s, veg: s.inventory_plan("CHAIN_A", "A-CH1", veg)),
+        ("plan_inventory_with_frontier", lambda s, veg: s.inventory_plan("CHAIN_A", "A-CH1", veg)),
         ("transfer_stock", lambda s, veg: s.transfer("CHAIN_A", "A-CH3", veg)),
     ],
 )

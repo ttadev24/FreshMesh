@@ -2,7 +2,12 @@ import datetime as dt
 import math
 
 from decision.frontier import pareto, waste_at
-from decision.inventory import FRONTIER_TARGETS, plan_inventory, plan_inventory_with_frontier, quantity_for_service
+from decision.inventory import (
+    FRONTIER_TARGETS,
+    plan_inventory,
+    plan_inventory_with_frontier,
+    quantity_for_service,
+)
 from decision.types import Constraints, ForecastQuantiles, SkuEconomics, StockLot
 
 

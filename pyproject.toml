@@ -20,6 +20,10 @@ dev = [
     "pytest>=8",
     "ruff>=0.17.0",
 ]
+# Real-data validation on FreshRetailNet-50K (data_frn/): `uv sync --group bench`. The API never needs it.
+bench = [
+    "pyarrow>=25.0.1,<26",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

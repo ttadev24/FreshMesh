@@ -143,6 +143,15 @@
       "license": "Theo điều khoản dịch vụ VietMap (chưa kiểm tra quyền lưu và phát hành lại)",
       "retrieved_at": null,
       "description_vi": "Hình học đường đi theo mạng lưới đường bộ cho từng xe trong lộ trình, lấy từ VietMap Route API (hồ sơ motorcycle) và lưu đệm theo danh sách điểm. Chỉ dùng để vẽ bản đồ: quãng đường và giờ đến trong kết quả vẫn do bộ giải PACO ước lượng theo đường chim bay nhân hệ số đường vòng. Dữ liệu bản đồ nền của VietMap có thể thiếu hoặc lỗi thời."
+    },
+    {
+      "id": "FRN_50K",
+      "name_vi": "FreshRetailNet-50K (Dingdong, CC BY 4.0)",
+      "kind": "public",
+      "url": "https://huggingface.co/datasets/Dingdong-Inc/FreshRetailNet-50K",
+      "license": "CC BY 4.0",
+      "retrieved_at": "2026-10-16",
+      "description_vi": "Doanh số theo giờ có chú thích hết hàng của 50.000 cặp cửa hàng–sản phẩm hàng tươi (898 cửa hàng, 18 thành phố, 865 sản phẩm, 2024-03-28 → 2024-07-02) của Dingdong (Trung Quốc); Wang et al. 2025, arXiv:2505.16319; revision c374e85975c82816c495acfa904cc55ab14a47d3. Doanh số đã được chuẩn hóa bằng một hệ số không công bố, không có giá bán, mã nhóm hàng không có tên. FreshMesh chỉ dùng bộ này để kiểm chứng thuật toán trên nhu cầu hàng tươi thật, không dùng làm dữ liệu demo và không suy ra số liệu thị trường Việt Nam."
     }
   ]
 }

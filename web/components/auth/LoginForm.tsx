@@ -5,9 +5,10 @@ import { useEffect, useState, type FormEvent } from "react";
 import { ApiError, errorMessage, login } from "@/lib/api";
 import { setSession, useSession } from "@/lib/session";
 import { Spinner } from "@/components/ui/primitives";
+import { ArrowRightIcon, EyeIcon, EyeOffIcon } from "./login-icons";
 import s from "./login.module.css";
 
-// Public demo account, prefilled so visitors can sign in with one click (same account the hint below lists).
+// Public demo account, prefilled so visitors can sign in with one click ("Quên mật khẩu?" lists the others).
 const DEMO_USERNAME = "owner_a";
 const DEMO_PASSWORD = "demo123";
 
@@ -16,6 +17,9 @@ export default function LoginForm() {
   const session = useSession();
   const [username, setUsername] = useState(DEMO_USERNAME);
   const [password, setPassword] = useState(DEMO_PASSWORD);
+  const [showPassword, setShowPassword] = useState(false);
+  const [remember, setRemember] = useState(false);
+  const [showDemo, setShowDemo] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<{ message: string; network: boolean } | null>(null);
 
@@ -33,7 +37,7 @@ export default function LoginForm() {
     setError(null);
     try {
       const res = await login(username.trim(), password);
-      setSession({ token: res.token, user: res.user });
+      setSession({ token: res.token, user: res.user }, { remember });
       router.replace("/");
     } catch (err) {
       const network = err instanceof ApiError && err.isNetwork;
@@ -46,39 +50,80 @@ export default function LoginForm() {
     }
   }
 
+  const invalid = error && !error.network ? true : undefined;
+
   return (
     <form className={s.form} onSubmit={onSubmit} noValidate>
       <div>
-        <h2 id="login-title">Đăng nhập</h2>
-        <p className={s.lead}>Mỗi chuỗi có không gian làm việc và dữ liệu riêng.</p>
+        <h1 id="login-title" className={s.title}>
+          Đăng nhập
+        </h1>
+        <p className={s.lead}>Chào mừng bạn trở lại.</p>
       </div>
 
       <div className={s.field}>
         <label htmlFor="username">Tên đăng nhập</label>
         <input
           id="username"
-          className="input"
+          className={s.input}
+          placeholder="Nhập tên đăng nhập"
           autoComplete="username"
           value={username}
           onChange={(e) => setUsername(e.target.value)}
           data-testid="login-username"
-          aria-invalid={error && !error.network ? true : undefined}
+          aria-invalid={invalid}
         />
       </div>
       <div className={s.field}>
         <label htmlFor="password">Mật khẩu</label>
-        <input
-          id="password"
-          type="password"
-          className="input"
-          autoComplete="current-password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          data-testid="login-password"
-          aria-invalid={error && !error.network ? true : undefined}
-          aria-describedby={error ? "login-error" : undefined}
-        />
+        <div className={s.pw}>
+          <input
+            id="password"
+            type={showPassword ? "text" : "password"}
+            className={s.input}
+            placeholder="Nhập mật khẩu"
+            autoComplete="current-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            data-testid="login-password"
+            aria-invalid={invalid}
+            aria-describedby={error ? "login-error" : undefined}
+          />
+          <button
+            type="button"
+            className={s.eye}
+            onClick={() => setShowPassword((v) => !v)}
+            aria-label={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
+            aria-pressed={showPassword}
+          >
+            {showPassword ? <EyeOffIcon size={22} /> : <EyeIcon size={22} />}
+          </button>
+        </div>
       </div>
+
+      <div className={s.row}>
+        <label className={s.check}>
+          <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
+          Ghi nhớ đăng nhập
+        </label>
+        <button
+          type="button"
+          className={s.linkBtn}
+          onClick={() => setShowDemo((v) => !v)}
+          aria-expanded={showDemo}
+          aria-controls="demo-accounts"
+        >
+          Quên mật khẩu?
+        </button>
+      </div>
+
+      {showDemo ? (
+        <p id="demo-accounts" className={s.note}>
+          Đây là bản demo: mọi tài khoản dùng mật khẩu <code>{DEMO_PASSWORD}</code>. Chủ chuỗi: <code>owner_a</code>,{" "}
+          <code>owner_b</code>, <code>owner_c</code>. Quản lý cửa hàng: <code>manager_a1</code>, <code>manager_b1</code>
+          , <code>manager_c1</code>.
+        </p>
+      ) : null}
 
       {error ? (
         <p id="login-error" className={error.network ? s.errorNetwork : s.error} role="alert" data-testid="login-error">
@@ -86,25 +131,13 @@ export default function LoginForm() {
         </p>
       ) : null}
 
-      <button type="submit" className={`btn btn-primary ${s.submit}`} disabled={pending} data-testid="login-submit">
+      <button type="submit" className={s.submit} disabled={pending} data-testid="login-submit">
         {pending ? <Spinner /> : null}
         {pending ? "Đang đăng nhập" : "Đăng nhập"}
+        <span className={s.arrow}>
+          <ArrowRightIcon size={24} />
+        </span>
       </button>
-
-      <div className={s.hint}>
-        <p>
-          Tài khoản demo (mật khẩu <code>{DEMO_PASSWORD}</code>), đã điền sẵn <code>{DEMO_USERNAME}</code>:
-        </p>
-        <ul>
-          <li>
-            <code>{DEMO_USERNAME}</code> chủ chuỗi A, xem toàn chuỗi
-          </li>
-          <li>
-            <code>manager_a1</code> quản lý một cửa hàng, quyền duyệt giới hạn
-          </li>
-        </ul>
-        <p>Tương tự cho chuỗi B, C: owner_b, manager_b1, owner_c, manager_c1.</p>
-      </div>
     </form>
   );
 }

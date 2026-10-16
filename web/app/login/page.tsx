@@ -1,43 +1,39 @@
 import type { Metadata } from "next";
-import LoginForm from "@/components/auth/LoginForm";
+import Image from "next/image";
+import LoginScreen from "@/components/auth/LoginScreen";
+import { HelpIcon } from "@/components/auth/login-icons";
 import s from "@/components/auth/login.module.css";
 
 export const metadata: Metadata = { title: "Đăng nhập · FreshMesh" };
 
+const REPO_URL = "https://github.com/ttadev24/FreshMesh";
+
 export default function LoginPage() {
   return (
-    <main className={s.page}>
-      <section className={s.brand} aria-labelledby="brand-title">
-        <div className={s.brandTop}>
-          <span className={s.logo} aria-hidden="true">
-            FM
-          </span>
-        </div>
-        <div className={s.brandBody}>
-          <h1 id="brand-title">FreshMesh</h1>
+    <div className={s.page}>
+      <header className={s.header}>
+        <span className={s.brand}>
+          <Image src="/brand/freshmesh-logo.png" alt="" width={46} height={45} priority />
+          FreshMesh
+        </span>
+        <a className={s.help} href={`${REPO_URL}#readme`} target="_blank" rel="noreferrer">
+          <HelpIcon size={26} />
+          Hỗ trợ
+        </a>
+      </header>
+
+      <LoginScreen repoUrl={REPO_URL} />
+
+      <footer className={s.footer}>
+        <span>© FreshMesh</span>
+        <details className={s.privacy}>
+          <summary>Quyền riêng tư</summary>
           <p>
-            Trợ lý quyết định cho chuỗi mini-mart: dự báo nhu cầu hàng tươi, đề xuất nhập hàng, xử lý tồn và gom đơn giao
-            hàng. Hệ thống chỉ đề xuất, bạn là người duyệt.
+            Bản demo không chứa dữ liệu khách hàng thật: đơn hàng và doanh số do chương trình sinh, vị trí cửa hàng lấy
+            từ OpenStreetMap. Phiên đăng nhập chỉ lưu trên trình duyệt của bạn.
           </p>
-          <ul className={s.flows}>
-            <li>
-              <b>Sáng</b> Nhập hàng theo dự báo P10 đến P90
-            </li>
-            <li>
-              <b>Chiều</b> Giảm giá theo giờ hay điều chuyển tồn
-            </li>
-            <li>
-              <b>Online</b> Gom đơn, lộ trình nhiều xe, tủ nhận hàng
-            </li>
-          </ul>
-        </div>
-        <p className={s.brandFoot}>
-          Mọi con số đều ghi rõ nguồn dữ liệu (công khai, AI sinh, chương trình mô phỏng hoặc tính toán) và giả định.
-        </p>
-      </section>
-      <section className={s.formWrap} aria-labelledby="login-title">
-        <LoginForm />
-      </section>
-    </main>
+        </details>
+      </footer>
+    </div>
   );
 }

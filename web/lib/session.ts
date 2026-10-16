@@ -5,8 +5,9 @@ import type { User } from "./types";
 
 // The API issues a bearer token. The Next app only proxies /api, so an httpOnly cookie is not
 // available; the token lives in memory and is mirrored to sessionStorage (per tab, cleared when the
-// tab closes) so a reload keeps the session. Storage can throw (private mode, blocked site data):
-// every access is guarded and the in-memory copy stays authoritative.
+// tab closes) so a reload keeps the session, or to localStorage when the user ticks "Ghi nhớ đăng
+// nhập" (survives closing the browser until the token expires). Storage can throw (private mode,
+// blocked site data): every access is guarded and the in-memory copy stays authoritative.
 
 export interface Session {
   token: string;
@@ -20,26 +21,36 @@ let current: Session | null = null;
 let hydrated = false;
 const listeners = new Set<Listener>();
 
+const STORES = ["sessionStorage", "localStorage"] as const;
+
 function readStorage(): Session | null {
-  try {
-    const raw = window.sessionStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as Partial<Session>;
-    if (typeof parsed.token === "string" && parsed.user && typeof parsed.user.user_id === "string") {
-      return parsed as Session;
+  for (const store of STORES) {
+    try {
+      const raw = window[store].getItem(STORAGE_KEY);
+      if (!raw) continue;
+      const parsed = JSON.parse(raw) as Partial<Session>;
+      if (typeof parsed.token === "string" && parsed.user && typeof parsed.user.user_id === "string") {
+        return parsed as Session;
+      }
+    } catch {
+      // Unreadable storage behaves like an empty one.
     }
-  } catch {
-    // Unreadable storage behaves like an empty one.
   }
   return null;
 }
 
-function writeStorage(value: Session | null) {
-  try {
-    if (value) window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(value));
-    else window.sessionStorage.removeItem(STORAGE_KEY);
-  } catch {
-    // In-memory session still works for this page lifetime.
+function writeStorage(value: Session | null, remember: boolean) {
+  for (const store of STORES) {
+    try {
+      // Keep the session in exactly one store; clearing removes it from both.
+      if (value && (store === "localStorage") === remember) {
+        window[store].setItem(STORAGE_KEY, JSON.stringify(value));
+      } else {
+        window[store].removeItem(STORAGE_KEY);
+      }
+    } catch {
+      // In-memory session still works for this page lifetime.
+    }
   }
 }
 
@@ -55,10 +66,10 @@ export function getSession(): Session | null {
   return current;
 }
 
-export function setSession(value: Session | null) {
+export function setSession(value: Session | null, options: { remember?: boolean } = {}) {
   ensureHydrated();
   current = value;
-  writeStorage(value);
+  writeStorage(value, options.remember ?? false);
   listeners.forEach((l) => l());
 }
 

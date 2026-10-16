@@ -6,7 +6,7 @@ import "./globals.css";
 const sans = Be_Vietnam_Pro({
   variable: "--font-be-vietnam",
   subsets: ["latin", "vietnamese"],
-  weight: ["400", "500", "600", "700"],
+  weight: ["300", "400", "500", "600", "700"], // 300: login hero headline
   display: "swap",
 });
 

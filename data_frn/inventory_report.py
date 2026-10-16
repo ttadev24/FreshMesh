@@ -93,8 +93,8 @@ def _svg(fr: dict[str, list], path: Path) -> None:
     for i, (fam, f) in enumerate(fr.items()):
         pts = " ".join(f"{x:.1f},{y:.1f}" for x, y in map(xy, f))
         body.append(f'<polyline points="{pts}" fill="none" stroke="{colors[fam]}" stroke-width="2.5"/>')
-        label_y = pad + 18 * i
-        body.append(f'<text x="{w - pad - 150}" y="{label_y}" fill="{colors[fam]}" font-size="13">{fam}</text>')
+        label = f'x="{w - pad - 150}" y="{pad + 18 * i}" fill="{colors[fam]}" font-size="13"'
+        body.append(f"<text {label}>{fam}</text>")
     head = f'<svg xmlns="http://www.w3.org/2000/svg" width="{w}" height="{h}" font-family="sans-serif">'
     path.write_text(head + "".join(body) + "</svg>\n", encoding="utf-8", newline="\n")
 

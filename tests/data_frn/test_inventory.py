@@ -32,10 +32,20 @@ def test_net_ordering_counts_stock_on_hand():
 
 
 def test_freshmesh_service_target_trades_waste_for_stockout():
-    res = _run(2, quant=(6.0, 10.0, 14.0))
+    # Random demand matching the forecast spread, one-day shelf life: any buffer is either sold or wasted.
+    rng = np.random.default_rng(1)
+    n = 60
+    dem = np.clip(np.rint(rng.normal(10, 3, n)), 0, None).astype(int)
+    point = {"mean7": np.full(n, 10.0), "seasonal_naive": np.full(n, 10.0)}
+    res = simulate_series(dem, np.tile([6.2, 10.0, 13.8], (n, 1)), point, 1, START)
     lo, hi = res["freshmesh:0.5:gross"], res["freshmesh:0.98:gross"]
-    assert hi["lost"] < lo["lost"] and hi["wasted"] >= lo["wasted"]  # more service costs more waste
+    assert hi["lost"] < lo["lost"] and hi["wasted"] > lo["wasted"]  # more service costs more waste
     assert len(res) == len(VARIANTS)
+
+
+def test_freshmesh_nets_stock_so_exact_demand_needs_no_buffer():
+    for target in ("0.5", "0.98"):
+        assert _run(2, quant=(6.0, 10.0, 14.0))[f"freshmesh:{target}:gross"]["wasted"] == 0
 
 
 def _sums(fm_waste_scale):

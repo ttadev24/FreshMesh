@@ -25,15 +25,7 @@
   </p>
 
   <br />
-  <img src="docs/assets/freshmesh-banner.png" alt="Concept illustration of neighborhood grocery stores connected by fresh-food delivery routes" width="100%" />
-  <p><sub>AI-generated concept illustration · Built around a Ho Chi Minh City demo</sub></p>
-
-  <p>
-    <a href="https://github.com/topics/demand-forecasting">demand-forecasting</a> &nbsp;/&nbsp;
-    <a href="https://github.com/topics/federated-learning">federated-learning</a> &nbsp;/&nbsp;
-    <a href="https://github.com/topics/vehicle-routing-problem">vehicle-routing-problem</a> &nbsp;/&nbsp;
-    <a href="https://github.com/topics/decision-support">decision-support</a>
-  </p>
+  <img src="docs/assets/freshmesh-solutions-banner.png" alt="FreshMesh solutions: demand forecasting, replenishment planning, surplus markdowns or transfers, and delivery optimization; proposals require human approval and leave an audit trail" width="100%" />
 </div>
 
 ---

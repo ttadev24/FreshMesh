@@ -370,6 +370,15 @@
       "url": "https://github.com/Project-OSRM/osrm-backend/wiki/Demo-server"
     },
     {
+      "description_vi": "Hình học đường đi theo mạng lưới đường bộ cho từng xe trong lộ trình, lấy từ VietMap Route API (hồ sơ motorcycle) và lưu đệm theo danh sách điểm. Chỉ dùng để vẽ bản đồ: quãng đường và giờ đến trong kết quả vẫn do bộ giải PACO ước lượng theo đường chim bay nhân hệ số đường vòng. Dữ liệu bản đồ nền của VietMap có thể thiếu hoặc lỗi thời.",
+      "id": "VIETMAP_ROUTE",
+      "kind": "public",
+      "license": "Theo điều khoản dịch vụ VietMap (chưa kiểm tra quyền lưu và phát hành lại)",
+      "name_vi": "Đường bộ theo VietMap Route API (hồ sơ xe máy)",
+      "retrieved_at": null,
+      "url": "https://maps.vietmap.vn/docs/"
+    },
+    {
       "description_vi": "Tổng lượng mưa ngày (precipitation_sum, mm, múi giờ Asia/Ho_Chi_Minh) tại tọa độ 10,78°N 106,70°E. Đây là dữ liệu tái phân tích/mô hình phân tích (ERA5, ECMWF IFS…) do Open-Meteo tổng hợp, không phải số đo trạm; vài ngày gần nhất có thể là số liệu sơ bộ và được cập nhật sau.",
       "details": {
         "days": 420,

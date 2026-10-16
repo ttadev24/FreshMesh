@@ -61,7 +61,8 @@ def city_rows(data_dir: Path, city_id: int, shelf_life: int, seed: int = 0) -> l
     per_store: dict[tuple[str, str], dict[str, int]] = defaultdict(lambda: dict.fromkeys(STATS, 0))
     for j, (si, ki) in enumerate(pairs):
         dem = np.rint(np.maximum(demand[si, ki], 0.0)).astype(int)
-        res = simulate_series(dem, quant[j], {b: v[j] for b, v in point.items()}, shelf_life, start, seed=seed)
+        series_point = {b: v[j] for b, v in point.items()}
+        res = simulate_series(dem, quant[j], series_point, shelf_life, start, seed=seed)
         store = f"C{city_id:02d}:{cd_rec.store_ids[si]}"
         for variant, tot in res.items():
             acc = per_store[(store, variant)]

@@ -50,7 +50,10 @@ def simulate_series(
 ) -> dict[str, dict[str, int]]:
     """``{variant.key: totals}`` for one series. ``demand`` (n,) units; ``quantiles`` (n, 3) the P10/P50/P90
     forecast of each day; ``point`` the baselines' P50 per day (``mean7``, ``seasonal_naive``)."""
-    sku = SkuEconomics("frn", "frn", unit_cost=1.0, unit_price=2.0, salvage_price=0.0, shelf_life_days=shelf_life)
+    # Prices do not affect a service-target order (quantity_for_service); placeholders only.
+    sku = SkuEconomics(
+        "frn", "frn", unit_cost=1.0, unit_price=2.0, salvage_price=0.0, shelf_life_days=shelf_life
+    )
     q_sorted = np.sort(np.maximum(quantiles, 0.0), axis=1)
     out: dict[str, dict[str, int]] = {}
     for v in VARIANTS:
@@ -62,7 +65,9 @@ def simulate_series(
                 tot["opening"] = on_hand
             if v.family == "freshmesh":
                 day = start + dt.timedelta(days=i)
-                stock = [StockLot("S", "frn", lot.qty, start + dt.timedelta(days=lot.expires)) for lot in lots]
+                stock = [
+                    StockLot("S", "frn", lot.qty, start + dt.timedelta(days=lot.expires)) for lot in lots
+                ]
                 row = ForecastQuantiles("S", "frn", day, *(float(x) for x in q_sorted[i]))
                 qty, _ = quantity_for_service("S", sku, [row], stock, v.param, seed=seed + i)
             else:

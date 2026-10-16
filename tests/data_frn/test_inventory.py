@@ -34,7 +34,7 @@ def test_net_ordering_counts_stock_on_hand():
 def test_freshmesh_service_target_trades_waste_for_stockout():
     res = _run(2, quant=(6.0, 10.0, 14.0))
     lo, hi = res["freshmesh:0.5:gross"], res["freshmesh:0.98:gross"]
-    assert hi["received"] >= lo["received"] and hi["lost"] <= lo["lost"]
+    assert hi["lost"] < lo["lost"] and hi["wasted"] >= lo["wasted"]  # more service costs more waste
     assert len(res) == len(VARIANTS)
 
 
@@ -45,7 +45,7 @@ def _sums(fm_waste_scale):
     sums = {}
     for v in VARIANTS:
         if v.family == "freshmesh":
-            so = (1 - v.param) * 30  # 15% … 0,6% stockout
+            so = (1 - v.param) * 40  # 20% … 0,8% stockout: spans the 5/10/15% levels with margin
             waste = fm_waste_scale * (v.param * 12)
         else:
             so = max(0.0, (1.6 - v.param) * 25)
@@ -57,7 +57,7 @@ def _sums(fm_waste_scale):
 
 def test_i1_passes_only_when_the_freshmesh_frontier_is_lower_at_all_levels(tmp_path):
     assert verdict(_sums(0.5))["pass"]
-    assert not verdict(_sums(3.0))["pass"]  # at 5% stockout FreshMesh would waste 30% vs the baseline's 19,6%
+    assert not verdict(_sums(3.0))["pass"]  # at 5% stockout FreshMesh would waste 31,5% vs the baseline's 19,6%
 
 
 def test_report_writes_the_primary_verdict_and_chart(tmp_path):

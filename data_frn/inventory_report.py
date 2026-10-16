@@ -1,6 +1,6 @@
-"""Verdict I1 of protocol frn-v1 (§3) from ``frn_inventory_sums_L*.csv`` → ``docs/experiments/frn-inventory.md``
-and ``frn_inventory_frontier.svg`` (generated). Waste % = wasted ÷ (opening + received); stockout % = lost ÷
-demand; frontiers are recomputed on every bootstrap resample of stores."""
+"""Verdict I1 of protocol frn-v1 (§3) from ``frn_inventory_sums_L*.csv`` → ``frn-inventory.md`` and
+``frn_inventory_frontier.svg`` in ``docs/experiments`` (generated). Waste % = wasted ÷ (opening + received);
+stockout % = lost ÷ demand; frontiers are recomputed on every bootstrap resample of stores."""
 
 from __future__ import annotations
 
@@ -82,17 +82,21 @@ def _svg(fr: dict[str, list], path: Path) -> None:
         return pad + (w - 2 * pad) * p[0] / xmax, h - pad - (h - 2 * pad) * p[1] / ymax
 
     colors = {"FreshMesh": "#14714C", "baseline": "#F7A11F"}
-    body = [f'<line x1="{pad}" y1="{h - pad}" x2="{w - pad}" y2="{h - pad}" stroke="#555"/>',
-            f'<line x1="{pad}" y1="{pad}" x2="{pad}" y2="{h - pad}" stroke="#555"/>',
-            f'<text x="{w / 2}" y="{h - 12}" text-anchor="middle" font-size="13">Hết hàng (%)</text>',
-            f'<text x="16" y="{h / 2}" font-size="13" transform="rotate(-90 16 {h / 2})" text-anchor="middle">'
-            "Hàng bỏ (%)</text>"]  # fmt: skip
+    mid = h / 2
+    body = [
+        f'<line x1="{pad}" y1="{h - pad}" x2="{w - pad}" y2="{h - pad}" stroke="#555"/>',
+        f'<line x1="{pad}" y1="{pad}" x2="{pad}" y2="{h - pad}" stroke="#555"/>',
+        f'<text x="{w / 2}" y="{h - 12}" text-anchor="middle" font-size="13">Hết hàng (%)</text>',
+        f'<text x="16" y="{mid}" font-size="13" transform="rotate(-90 16 {mid})" text-anchor="middle">'
+        "Hàng bỏ (%)</text>",
+    ]
     for i, (fam, f) in enumerate(fr.items()):
         pts = " ".join(f"{x:.1f},{y:.1f}" for x, y in map(xy, f))
         body.append(f'<polyline points="{pts}" fill="none" stroke="{colors[fam]}" stroke-width="2.5"/>')
-        body.append(f'<text x="{w - pad - 150}" y="{pad + 18 * i}" fill="{colors[fam]}" font-size="13">{fam}</text>')
-    path.write_text(f'<svg xmlns="http://www.w3.org/2000/svg" width="{w}" height="{h}" font-family="sans-serif">'
-                    + "".join(body) + "</svg>\n", encoding="utf-8", newline="\n")  # fmt: skip
+        label_y = pad + 18 * i
+        body.append(f'<text x="{w - pad - 150}" y="{label_y}" fill="{colors[fam]}" font-size="13">{fam}</text>')
+    head = f'<svg xmlns="http://www.w3.org/2000/svg" width="{w}" height="{h}" font-family="sans-serif">'
+    path.write_text(head + "".join(body) + "</svg>\n", encoding="utf-8", newline="\n")
 
 
 def write_report(paths: dict[int, Path], docs_dir: Path) -> Path:
@@ -104,12 +108,14 @@ def write_report(paths: dict[int, Path], docs_dir: Path) -> Path:
         v = verdict(sums)
         role = "chính / primary" if life == 2 else "độ nhạy / sensitivity"
         lines += [f"## Hạn dùng {life} ngày — {role}", "",
-                  f"Giao thức `{st['protocol']}` (sha256 `{st['protocol_sha256'][:12]}…`), {v['stores']} cửa hàng.",
+                  f"Giao thức `{st['protocol']}` (sha256 `{st['protocol_sha256'][:12]}…`), "
+                  f"{v['stores']} cửa hàng.",
                   "", "| Hết hàng | Hàng bỏ FreshMesh − baseline (điểm %) | 95% CI | Không xác định |",
                   "|---|---|---|---|"]  # fmt: skip
         for r in v["levels"]:
-            lines.append(f"| {_n(r['stockout'], 0)}% | {_n(r['diff'])} | [{_n(r['ci_low'])}; {_n(r['ci_high'])}] | "
-                         f"{_n(100 * r['undefined_share'], 1)}% |")  # fmt: skip
+            ci = f"[{_n(r['ci_low'])}; {_n(r['ci_high'])}]"
+            undefined = _n(100 * r["undefined_share"], 1)
+            lines.append(f"| {_n(r['stockout'], 0)}% | {_n(r['diff'])} | {ci} | {undefined}% |")
         if life == 2:
             lines += ["", f"**I1 {'ĐẠT / PASS' if v['pass'] else 'KHÔNG ĐẠT / FAIL'}**", ""]
             _svg(v["frontiers"], Path(docs_dir) / "frn_inventory_frontier.svg")

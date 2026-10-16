@@ -48,6 +48,6 @@ def test_network_shows_own_stores_and_only_anonymous_competitor_cells(client, ow
 def test_anonymous_cells_merge_or_drop_lonely_stores():
     pts = [(10.7712, 106.7001), (10.7714, 106.7003), (10.802, 106.66), (10.81, 106.67), (11.5, 107.5)]
     cells = anonymous_cells(pts)
-    assert {"lat": 10.77, "lng": 106.7, "stores": 2} in cells
-    assert {"lat": 10.8, "lng": 106.7, "stores": 2} in cells  # two lonely fine cells merged at ~11 km
+    assert {"lat": 10.77, "lng": 106.7, "stores": 2, "res_deg": 0.01} in cells
+    assert {"lat": 10.8, "lng": 106.7, "stores": 2, "res_deg": 0.1} in cells  # lonely fine cells merged at ~11 km
     assert sum(c["stores"] for c in cells) == 4  # the store alone even at ~11 km is dropped

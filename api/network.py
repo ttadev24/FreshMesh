@@ -22,11 +22,14 @@ STORE_FIELDS = ("store_id", "name", "lat", "lng", "area_type", "is_new")
 
 def anonymous_cells(points: Sequence[tuple[float, float]], k_min: int = K_MIN) -> list[dict[str, Any]]:
     """Store counts on ~1.1 km cells; a store alone there moves to ~11 km cells; still alone → dropped."""
+    def kept(counter: Counter, res_deg: float) -> list[dict[str, Any]]:
+        cells = counter.items()
+        return [{"lat": a, "lng": b, "stores": n, "res_deg": res_deg} for (a, b), n in cells if n >= k_min]
+
     fine = Counter((round(lat, FINE), round(lng, FINE)) for lat, lng in points)
-    cells = [{"lat": a, "lng": b, "stores": n} for (a, b), n in fine.items() if n >= k_min]
     rest = [(lat, lng) for lat, lng in points if fine[(round(lat, FINE), round(lng, FINE))] < k_min]
     coarse = Counter((round(lat, COARSE), round(lng, COARSE)) for lat, lng in rest)
-    cells += [{"lat": a, "lng": b, "stores": n} for (a, b), n in coarse.items() if n >= k_min]
+    cells = kept(fine, 0.01) + kept(coarse, 0.1)  # cell size in degrees, matching FINE / COARSE
     return sorted(cells, key=lambda c: (-c["stores"], c["lat"], c["lng"]))
 
 

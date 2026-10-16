@@ -282,26 +282,27 @@ def source_labels_vi(ids: Sequence[str], data_dir: Path = Path("data")) -> list[
 
 
 # --- training ----------------------------------------------------------------------------------------------
-def train_local(
-    chain_id: str, *, data_dir: Path, seed: int = 0, config: TrainConfig | None = None
-) -> ModelArtifact:
-    """Train the local quantile MLP for one chain, calibrate it, evaluate it and write the artifacts."""
+def fit_quantile_model(
+    cd: ChainData,
+    *,
+    train_last: int,
+    cal_first: int,
+    cal_last: int,
+    seed: int = 0,
+    config: TrainConfig | None = None,
+    target_cd: ChainData | None = None,
+) -> tuple[QuantileMLP, dict]:
+    """Fit the quantile MLP on targets ``1..train_last`` of ``cd``, then split-CQR offsets (one per horizon) on
+    targets ``cal_first..cal_last``. With ``target_cd`` (same layout; FreshRetailNet passes its uncensored view)
+    calibration only uses targets observed there, with their values: features and training still read ``cd``.
+    Returns the model and the prediction meta (feature scaling, conformal offsets, training log)."""
     cfg = config or TrainConfig()
-    data_dir = Path(data_dir)
-    cd = load_chain(chain_id, data_dir)
-    T = cd.n_hist
-    test_start = T - TEST_DAYS
-    cal_start = test_start - CAL_DAYS
-    train_end = cal_start - 1
-    if train_end < MIN_TRAIN_DAYS:
-        raise ValueError(f"chain {chain_id} has {T} days; need > {CAL_DAYS + TEST_DAYS + MIN_TRAIN_DAYS}")
     rng = np.random.default_rng(seed)
-
-    s, k, o, h = target_rows(cd, 1, train_end)
+    s, k, o, h = target_rows(cd, 1, train_last)
     if len(s) > cfg.max_train_rows:
         pick = np.sort(rng.choice(len(s), size=cfg.max_train_rows, replace=False))
         s, k, o, h = s[pick], k[pick], o[pick], h[pick]
-    fb = _rows_features(cd, (s, k, o, h), train_end, known_rain=False)
+    fb = _rows_features(cd, (s, k, o, h), train_last, known_rain=False)
     y_scaled = cd.units[s, k, fb.target_idx] / fb.scale
     mu = fb.X.mean(axis=0)
     sd = fb.X.std(axis=0)
@@ -319,6 +320,50 @@ def train_local(
         seed=seed,
     )
     meta: dict = {
+        "feature_mean": mu.tolist(),
+        "feature_std": sd.tolist(),
+        "train_loss": [float(x) for x in losses],
+        "n_train_rows": int(len(s)),
+    }
+
+    tcd = cd if target_cd is None else target_cd
+    cal_rows = target_rows(cd, cal_first, cal_last)
+    if target_cd is not None:
+        seen = ~np.isnan(tcd.units[cal_rows[0], cal_rows[1], cal_rows[2] + cal_rows[3]])
+        cal_rows = tuple(a[seen] for a in cal_rows)
+    fb_cal = _rows_features(cd, cal_rows, train_last, known_rain=False)
+    q_cal = _predict_scaled(model, meta, fb_cal)
+    y_cal = tcd.units[cal_rows[0], cal_rows[1], fb_cal.target_idx] / fb_cal.scale
+    offsets = []
+    for hh in range(1, MAX_HORIZON + 1):
+        sel = cal_rows[3] == hh
+        offsets.append(cqr_offset(q_cal[sel, 0], q_cal[sel, 2], y_cal[sel], alpha=1.0 - TARGET_COVERAGE))
+    meta["conformal_offsets"] = offsets
+    meta["conformal"] = {
+        "method": "split CQR in scaled space, one offset per horizon",
+        "target_coverage": TARGET_COVERAGE,
+        "n_cal": int(len(y_cal)),
+    }
+    return model, meta
+
+
+def train_local(
+    chain_id: str, *, data_dir: Path, seed: int = 0, config: TrainConfig | None = None
+) -> ModelArtifact:
+    """Train the local quantile MLP for one chain, calibrate it, evaluate it and write the artifacts."""
+    cfg = config or TrainConfig()
+    data_dir = Path(data_dir)
+    cd = load_chain(chain_id, data_dir)
+    T = cd.n_hist
+    test_start = T - TEST_DAYS
+    cal_start = test_start - CAL_DAYS
+    train_end = cal_start - 1
+    if train_end < MIN_TRAIN_DAYS:
+        raise ValueError(f"chain {chain_id} has {T} days; need > {CAL_DAYS + TEST_DAYS + MIN_TRAIN_DAYS}")
+    model, fit = fit_quantile_model(
+        cd, train_last=train_end, cal_first=cal_start, cal_last=test_start - 1, seed=seed, config=cfg
+    )
+    meta: dict = {
         "version": MODEL_VERSION,
         "chain_id": chain_id,
         "sources": data_sources(chain_id, data_dir),
@@ -330,31 +375,18 @@ def train_local(
         "emb_dim": cfg.emb_dim,
         "hidden": list(cfg.hidden),
         "max_horizon": MAX_HORIZON,
-        "feature_mean": mu.tolist(),
-        "feature_std": sd.tolist(),
+        "feature_mean": fit["feature_mean"],
+        "feature_std": fit["feature_std"],
         "train_config": {k_: (list(v) if isinstance(v, tuple) else v) for k_, v in cfg.__dict__.items()},
-        "train_loss": [float(x) for x in losses],
+        "train_loss": fit["train_loss"],
         "data_start": cd.start.isoformat(),
         "data_end": cd.last_date.isoformat(),
         "train_targets": [cd.date_of(1).isoformat(), cd.date_of(train_end).isoformat()],
         "cal_targets": [cd.date_of(cal_start).isoformat(), cd.date_of(test_start - 1).isoformat()],
         "test_targets": [cd.date_of(test_start).isoformat(), cd.last_date.isoformat()],
-        "n_train_rows": int(len(s)),
-    }
-
-    cal_rows = target_rows(cd, cal_start, test_start - 1)
-    fb_cal = _rows_features(cd, cal_rows, train_end, known_rain=False)
-    q_cal = _predict_scaled(model, meta, fb_cal)
-    y_cal = cd.units[cal_rows[0], cal_rows[1], fb_cal.target_idx] / fb_cal.scale
-    offsets = []
-    for hh in range(1, MAX_HORIZON + 1):
-        sel = cal_rows[3] == hh
-        offsets.append(cqr_offset(q_cal[sel, 0], q_cal[sel, 2], y_cal[sel], alpha=1.0 - TARGET_COVERAGE))
-    meta["conformal_offsets"] = offsets
-    meta["conformal"] = {
-        "method": "split CQR in scaled space, one offset per horizon",
-        "target_coverage": TARGET_COVERAGE,
-        "n_cal": int(len(y_cal)),
+        "n_train_rows": fit["n_train_rows"],
+        "conformal_offsets": fit["conformal_offsets"],
+        "conformal": fit["conformal"],
     }
 
     test_rows = target_rows(cd, test_start, T - 1)

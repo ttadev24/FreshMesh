@@ -390,9 +390,15 @@ def target_rows(
     """All ``(s, k, origin, h)`` whose target day lies in ``[first_target, last_target]``, is observed, and
     whose series has at least one observation at the origin."""
     hs = np.arange(1, MAX_HORIZON + 1) if horizons is None else np.asarray(horizons)
-    S, K = cd.units.shape[:2]
+    K = cd.units.shape[1]
     targets = np.arange(first_target, last_target + 1)
-    s, k, t, h = (a.ravel() for a in np.meshgrid(np.arange(S), np.arange(K), targets, hs, indexing="ij"))
+    # Only (store, sku) pairs observed somewhere in the target window can yield rows: expanding just those
+    # gives the same rows in the same order as the full S × K grid, without materialising it (FRN cities
+    # have up to 40 000 pairs).
+    window = cd.units[:, :, max(first_target, 0) : last_target + 1]
+    pairs = np.flatnonzero((~np.isnan(window)).any(axis=2))
+    p, t, h = (a.ravel() for a in np.meshgrid(pairs, targets, hs, indexing="ij"))
+    s, k = np.divmod(p, K)
     origin = t - h
     keep = origin >= 0
     s, k, origin, h, t = s[keep], k[keep], origin[keep], h[keep], t[keep]

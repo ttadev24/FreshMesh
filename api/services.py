@@ -264,6 +264,7 @@ class Services:
                     "expected_waste_pct": p.expected_waste_pct,
                     "expected_stockout_pct": p.expected_stockout_pct,
                     "service_level_pct": p.service_level_pct,
+                    "expected_leftover_units": p.expected_leftover_units,
                     "quantities": {ln.sku_id: ln.qty for ln in p.lines},
                 }
                 for p in frontier

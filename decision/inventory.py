@@ -73,6 +73,7 @@ class SkuCurve:
     available_units: np.ndarray
     demand_units: float
     stock_cold_units: float
+    carried_units: np.ndarray  # unexpired units left after the horizon
 
 
 def critical_ratio(sku: SkuEconomics, stockout_penalty_vnd: float) -> float:
@@ -167,6 +168,7 @@ def _sku_curve(
         available_units=available.mean(axis=1),
         demand_units=float(demand.sum(axis=1).mean()),
         stock_cold_units=stock_units * sku.cold_storage_units,
+        carried_units=carried.mean(axis=1),
     )
 
 
@@ -253,7 +255,7 @@ def _build_plan(
     assumptions_vi: Sequence[str],
 ) -> InventoryPlan:
     lines: list[PlanLine] = []
-    waste = shortage = available = demand = loss = weighted_service = 0.0
+    waste = shortage = available = demand = loss = weighted_service = leftover = 0.0
     for sku_id in sorted(idx):
         c, i = curves[sku_id], idx[sku_id]
         q = int(c.qty[i])
@@ -273,6 +275,7 @@ def _build_plan(
         available += float(c.available_units[i])
         demand += c.demand_units
         loss += float(c.expected_cost[i])
+        leftover += float(c.carried_units[i])
         weighted_service += c.demand_units * float(c.service_level[i])
     total = sum(line.cost_vnd for line in lines)
     waste_pct = round(100 * waste / available, 1) if available > 0 else 0.0
@@ -317,6 +320,7 @@ def _build_plan(
         constrained=bool(bound),
         rationale_vi=text,
         assumptions_vi=list(assumptions_vi),
+        expected_leftover_units=round(leftover, 1),
     )
 
 

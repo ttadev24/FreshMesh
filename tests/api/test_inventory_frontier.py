@@ -13,6 +13,7 @@ def test_inventory_plan_returns_a_monotone_trade_off_frontier(client, owner_a):
         assert b["total_cost_vnd"] >= a["total_cost_vnd"]
         assert b["expected_stockout_pct"] <= a["expected_stockout_pct"]
         assert b["service_level_pct"] >= a["service_level_pct"]
+        assert b["expected_leftover_units"] >= a["expected_leftover_units"]  # the other side of the trade-off
     skus = {ln["sku_id"] for ln in body["plans"][0]["lines"]}
     assert all(set(f["quantities"]) == skus for f in fr)
 

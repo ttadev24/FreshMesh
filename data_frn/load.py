@@ -33,8 +33,8 @@ def _hourly(col: pa.ChunkedArray, arrow_type: pa.DataType, dtype) -> np.ndarray:
 
 def city_ids(data_dir: Path | str) -> list[int]:
     files = ensure_files(data_dir, fetch=False)
-    col = ds.dataset([str(p) for p in files.values()], format="parquet").to_table(columns=["city_id"])["city_id"]
-    return sorted(int(c) for c in pc.unique(col).to_pylist())
+    dataset = ds.dataset([str(p) for p in files.values()], format="parquet")
+    return sorted(int(c) for c in pc.unique(dataset.to_table(columns=["city_id"])["city_id"]).to_pylist())
 
 
 def _city_table(data_dir: Path | str, city_id: int) -> pa.Table:

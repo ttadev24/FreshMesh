@@ -1,26 +1,30 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { clearSession } from "@/lib/session";
 import { getProvenance } from "@/lib/api";
 import { dashboardFromTurn, hasDashboardData } from "@/lib/dashboard";
 import { indexProvenance, ProvenanceContext, SourcesNavContext } from "@/lib/provenance";
-import type { User } from "@/lib/types";
 import { ErrorState, Skeleton } from "@/components/ui/primitives";
 import ChatPane from "@/components/chat/ChatPane";
 import DashboardOverview from "@/components/dashboard/DashboardOverview";
 import RightPane, { type TabId } from "@/components/dashboard/RightPane";
+import OverviewPage from "@/components/overview/OverviewPage";
+import { NAV_BY_ID, navForTab, type NavId } from "@/components/shell/nav";
+import PageHeader from "@/components/shell/PageHeader";
+import Sidebar from "@/components/shell/Sidebar";
+import sh from "@/components/shell/shell.module.css";
 import type { SourcesTarget } from "@/components/tabs/SourcesTab";
 import { useResource } from "@/components/tabs/useResource";
-import TopBar from "./TopBar";
 import { useConversation } from "./useConversation";
 import { useDirectTools, type ToolSlot } from "./useDirectTools";
 import { useDrafts } from "./useDrafts";
+import { usePendingDrafts } from "./usePendingDrafts";
 import { useWorkspaceData, type WorkspaceData } from "./useWorkspaceData";
 import s from "./workspace.module.css";
 
-export default function WorkspaceShell({ user }: { user: User }) {
+export default function WorkspaceShell() {
   const router = useRouter();
   const { state, retry } = useWorkspaceData();
 
@@ -31,27 +35,23 @@ export default function WorkspaceShell({ user }: { user: User }) {
 
   if (state.status === "loading") {
     return (
-      <div className={s.app}>
-        <TopBar user={user} onLogout={logout} />
-        <div className={s.bootPanes}>
-          <Skeleton lines={5} label="Đang tải không gian làm việc" />
-          <Skeleton lines={3} block label="Đang tải bảng điều khiển" />
-        </div>
+      <div className={s.boot}>
+        <Skeleton lines={5} label="Đang tải không gian làm việc" />
       </div>
     );
   }
   if (state.status === "error") {
     return (
-      <div className={s.app}>
-        <TopBar user={user} onLogout={logout} />
-        <div className={s.bootError}>
-          <ErrorState
-            testId="api-error"
-            title={state.network ? "Mất kết nối tới máy chủ" : "Không tải được không gian làm việc"}
-            message={state.message}
-            onRetry={retry}
-          />
-        </div>
+      <div className={s.boot}>
+        <ErrorState
+          testId="api-error"
+          title={state.network ? "Mất kết nối tới máy chủ" : "Không tải được không gian làm việc"}
+          message={state.message}
+          onRetry={retry}
+        />
+        <button type="button" className="btn btn-sm" onClick={logout} data-testid="logout">
+          Đăng xuất
+        </button>
       </div>
     );
   }
@@ -65,6 +65,9 @@ type Focus = "tools" | { entry: string };
 function WorkspaceReady({ data, onLogout }: { data: WorkspaceData; onLogout: () => void }) {
   const { me, health, stores, skus } = data;
   const [storeId, setStoreId] = useState<string | null>(me.store_id ?? stores[0]?.store_id ?? null);
+  const [nav, setNav] = useState<NavId>("overview");
+  // Bumped on every sidebar click, so clicking the current item again still scrolls its tool into view.
+  const [navTick, setNavTick] = useState(0);
   const [pane, setPane] = useState<Pane>("chat");
   const [tab, setTab] = useState<TabId>("dashboard");
   const [focus, setFocus] = useState<Focus>("tools");
@@ -72,9 +75,13 @@ function WorkspaceReady({ data, onLogout }: { data: WorkspaceData; onLogout: () 
 
   const conversation = useConversation(storeId);
   const tools = useDirectTools(storeId);
+  // The overview computes its own route + forecast, so the workspace panels only show what the user ran.
+  const overviewTools = useDirectTools(storeId);
+  const pending = usePendingDrafts();
   const provenance = useResource(getProvenance);
   const provenanceData = provenance.state.status === "ready" ? provenance.state.data : null;
   const provenanceIndex = useMemo(() => indexProvenance(provenanceData), [provenanceData]);
+  const sourcesCount = provenanceData ? provenanceData.datasets.length : null;
 
   const draftIds = useMemo(() => conversation.entries.flatMap((e) => e.turn.drafts), [conversation.entries]);
   const drafts = useDrafts(draftIds);
@@ -93,6 +100,39 @@ function WorkspaceReady({ data, onLogout }: { data: WorkspaceData; onLogout: () 
   const skuNames = useMemo(() => new Map(skus.map((k) => [k.sku_id, k.name])), [skus]);
   const skuMoq = useMemo(() => new Map(skus.map((k) => [k.sku_id, k.moq ?? 1])), [skus]);
   const storeNames = useMemo(() => new Map(stores.map((st) => [st.store_id, st.name])), [stores]);
+  const storeName = storeId ? (storeNames.get(storeId) ?? storeId) : null;
+
+  const refreshPending = pending.refresh;
+  const go = useCallback(
+    (id: NavId) => {
+      const item = NAV_BY_ID[id];
+      setNav(id);
+      setNavTick((n) => n + 1);
+      if (item.tab) {
+        setTab(item.tab);
+        setPane("dashboard");
+      }
+      if (item.slot) setFocus("tools");
+      // Decisions changed elsewhere (chat proposals, panel drafts): the queue and the bell reload.
+      if (id === "overview") refreshPending();
+    },
+    [refreshPending],
+  );
+
+  // Operations items bring their tool button into view once the workspace has rendered.
+  useEffect(() => {
+    const slot = NAV_BY_ID[nav].slot;
+    if (!slot) return;
+    const id = requestAnimationFrame(() =>
+      document.querySelector(`[data-testid="tool-${slot}"]`)?.scrollIntoView({ block: "nearest", behavior: "smooth" }),
+    );
+    return () => cancelAnimationFrame(id);
+  }, [nav, navTick]);
+
+  const onTab = useCallback((id: TabId) => {
+    setTab(id);
+    setNav((prev) => navForTab(id, prev));
+  }, []);
 
   const showOnDashboard = useCallback((entryId: string) => {
     setFocus({ entry: entryId });
@@ -121,89 +161,128 @@ function WorkspaceReady({ data, onLogout }: { data: WorkspaceData; onLogout: () 
     [drafts, storeId],
   );
 
-  const openSources = useCallback(() => {
-    setTab("sources");
-    setPane("dashboard");
-  }, []);
+  const openSources = useCallback(() => go("sources"), [go]);
 
   // Kind chips next to numbers open the sources tab at their dataset.
   const [sourcesTarget, setSourcesTarget] = useState<SourcesTarget | null>(null);
-  const openDataset = useCallback((id: string) => {
-    setTab("sources");
-    setPane("dashboard");
-    setSourcesTarget((prev) => ({ id, n: (prev?.n ?? 0) + 1 }));
-  }, []);
+  const openDataset = useCallback(
+    (id: string) => {
+      go("sources");
+      setSourcesTarget((prev) => ({ id, n: (prev?.n ?? 0) + 1 }));
+    },
+    [go],
+  );
+
+  const ask = useCallback(
+    (question: string) => {
+      go("import");
+      setPane("chat");
+      void conversation.send(question);
+    },
+    [go, conversation],
+  );
+
+  const openDecisions = useCallback(() => {
+    go("overview");
+    requestAnimationFrame(() => document.querySelector('[data-testid="decision-queue"]')?.scrollIntoView({ behavior: "smooth" }));
+  }, [go]);
 
   return (
     <ProvenanceContext.Provider value={provenanceIndex}>
       <SourcesNavContext.Provider value={openDataset}>
-      <div className={s.app}>
-        <TopBar
-          user={me}
-          health={health}
-          stores={stores}
-          storeId={storeId}
-          onStoreChange={setStoreId}
-          provenance={provenanceData}
-          onOpenSources={openSources}
-          onLogout={onLogout}
-        />
-        <div className={s.switcher} role="tablist" aria-label="Chọn khung hiển thị">
-          {(["chat", "dashboard"] as const).map((p) => (
-            <button
-              key={p}
-              type="button"
-              role="tab"
-              aria-selected={pane === p}
-              className={s.switchBtn}
-              onClick={() => setPane(p)}
-              data-testid={`pane-${p}`}
-            >
-              {p === "chat" ? "Trợ lý" : "Bảng điều khiển"}
-            </button>
-          ))}
-        </div>
-        <main className={s.panes} data-pane={pane}>
-          <section className={s.left} aria-label="Trợ lý và đề xuất">
-            <ChatPane
-              conversation={conversation}
-              drafts={drafts}
-              role={me.role}
-              llm={health.llm && !conversation.llmDown}
-              storeName={storeId ? (storeNames.get(storeId) ?? storeId) : null}
-              skuMoq={skuMoq}
-              dashboardEntryId={focusedEntry?.id ?? null}
-              onShowDashboard={showOnDashboard}
+        <div className={sh.app}>
+          <Sidebar nav={nav} onNav={go} user={me} onLogout={onLogout} sourcesCount={sourcesCount} />
+          <div className={sh.main}>
+            <PageHeader
+              chainName={me.chain_name || me.chain_id}
+              title={nav === "overview" ? null : NAV_BY_ID[nav].title}
+              health={health}
+              stores={stores}
+              storeId={storeId}
+              onStoreChange={setStoreId}
+              lockedStore={me.role === "store_manager" && Boolean(me.store_id)}
+              sourcesCount={sourcesCount}
+              onOpenSources={openSources}
+              pendingCount={pending.count}
+              onOpenDecisions={openDecisions}
             />
-          </section>
-          <section className={s.right} aria-label="Bảng điều khiển theo ngữ cảnh">
-            <RightPane
-              tab={tab}
-              onTab={setTab}
-              provenance={provenance}
-              sourcesTarget={sourcesTarget}
-              dashboard={
-                <DashboardOverview
+            {nav === "overview" ? (
+              <main className={sh.scroll}>
+                <OverviewPage
                   storeId={storeId}
-                  storeName={storeId ? (storeNames.get(storeId) ?? storeId) : null}
-                  tools={tools}
-                  onRunTool={runTool}
-                  entry={focusedEntry}
-                  onBackToTools={() => setFocus("tools")}
-                  drafts={drafts}
-                  panelDrafts={panelDrafts}
-                  onCreateDraft={createPanelDraft}
-                  role={me.role}
+                  storeName={storeName ?? ""}
                   stores={stores}
+                  health={health}
+                  tools={overviewTools}
+                  pending={pending}
                   skuNames={skuNames}
-                  skuMoq={skuMoq}
                   storeNames={storeNames}
+                  onNav={go}
+                  onAsk={ask}
+                  onOpenSources={openSources}
                 />
-              }
-            />
-          </section>
-        </main>
-      </div>
+              </main>
+            ) : (
+              <div className={s.work}>
+                <div className={s.switcher} role="tablist" aria-label="Chọn khung hiển thị">
+                  {(["chat", "dashboard"] as const).map((p) => (
+                    <button
+                      key={p}
+                      type="button"
+                      role="tab"
+                      aria-selected={pane === p}
+                      className={s.switchBtn}
+                      onClick={() => setPane(p)}
+                      data-testid={`pane-${p}`}
+                    >
+                      {p === "chat" ? "Trợ lý" : "Bảng điều khiển"}
+                    </button>
+                  ))}
+                </div>
+                <main className={s.panes} data-pane={pane}>
+                  <section className={s.left} aria-label="Trợ lý và đề xuất">
+                    <ChatPane
+                      conversation={conversation}
+                      drafts={drafts}
+                      role={me.role}
+                      llm={health.llm && !conversation.llmDown}
+                      storeName={storeName}
+                      skuMoq={skuMoq}
+                      dashboardEntryId={focusedEntry?.id ?? null}
+                      onShowDashboard={showOnDashboard}
+                    />
+                  </section>
+                  <section className={s.right} aria-label="Bảng điều khiển theo ngữ cảnh">
+                    <RightPane
+                      tab={tab}
+                      onTab={onTab}
+                      provenance={provenance}
+                      sourcesTarget={sourcesTarget}
+                      dashboard={
+                        <DashboardOverview
+                          storeId={storeId}
+                          storeName={storeName}
+                          tools={tools}
+                          onRunTool={runTool}
+                          entry={focusedEntry}
+                          onBackToTools={() => setFocus("tools")}
+                          drafts={drafts}
+                          panelDrafts={panelDrafts}
+                          onCreateDraft={createPanelDraft}
+                          role={me.role}
+                          stores={stores}
+                          skuNames={skuNames}
+                          skuMoq={skuMoq}
+                          storeNames={storeNames}
+                        />
+                      }
+                    />
+                  </section>
+                </main>
+              </div>
+            )}
+          </div>
+        </div>
       </SourcesNavContext.Provider>
     </ProvenanceContext.Provider>
   );

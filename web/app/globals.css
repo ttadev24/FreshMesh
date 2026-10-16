@@ -1,67 +1,44 @@
-/* FreshMesh design tokens (DESIGN.md §3): forest-green primary, amber = warning / at-risk,
-   red = critical SLA, blue = lockers / pickup points. Light by default, dark via system preference. */
+/* FreshMesh design tokens, light only (palette of the FM leaf logo, same as the login page):
+   forest = actions and routes, leaf = positive / live, mango = deadlines and the human decision,
+   red = critical SLA, blue = lockers / pickup points. */
 
 :root {
-  --bg: #eaefec;
-  --surface: #fbfcfb;
-  --surface-2: #f2f6f3;
-  --surface-3: #e6ece8;
-  --line: #d3dcd6;
-  --line-strong: #b9c6bf;
-  --ink: #12201a;
-  --ink-2: #44554c;
-  --ink-3: #5d6d65;
+  --bg: #efefe9;
+  --surface: #f8f8f3;
+  --surface-2: #f1f2ec;
+  --surface-3: #e7e9e1;
+  --line: #dcdfd6;
+  --line-strong: #c5cbc1;
+  --ink: #17221c;
+  --ink-2: #4a5850;
+  --ink-3: #66736b;
 
-  --green: #1d6a46;
-  --green-strong: #134f35;
-  --green-tint: #dfeee5;
-  --green-ink: #f4fbf7;
-  --amber: #8f5300;
-  --amber-fill: #e9971f;
-  --amber-tint: #fcefd7;
+  --green: #1f6b45;
+  --green-strong: #17553a;
+  --green-tint: #e3f0e6;
+  --green-ink: #f6faf6;
+  --leaf: #2bb673;
+  --lime: #a6e22e;
+  --amber: #8a5200;
+  --amber-fill: #ffa41b;
+  --amber-tint: #fff1d9;
   --red: #b0261b;
   --red-tint: #fbe7e4;
-  --blue: #1c5cb3;
-  --blue-tint: #e3ecf9;
+  --blue: #1d63b8;
+  --blue-tint: #e4eefa;
+  --btn-dark: #1c2620;
 
-  --radius: 6px;
-  --radius-sm: 4px;
-  --shadow: 0 1px 2px rgb(18 32 26 / 0.06), 0 4px 16px rgb(18 32 26 / 0.06);
-  --focus: 0 0 0 2px var(--surface), 0 0 0 4px var(--green);
+  --radius: 10px;
+  --radius-sm: 6px;
+  --radius-lg: 22px;
+  --shadow: 0 1px 2px rgb(23 34 28 / 0.05), 0 8px 24px rgb(23 34 28 / 0.06);
+  --focus: 0 0 0 2px var(--surface), 0 0 0 4px var(--leaf);
 
   --font-sans: var(--font-be-vietnam), "Segoe UI", system-ui, sans-serif;
   --font-mono: var(--font-jetbrains), ui-monospace, monospace;
   --topbar-h: 56px;
+  --sidebar-w: 248px;
   color-scheme: light;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #0c1310;
-    --surface: #131c18;
-    --surface-2: #18231e;
-    --surface-3: #1f2c26;
-    --line: #283731;
-    --line-strong: #3a4c44;
-    --ink: #e5eee9;
-    --ink-2: #b0c0b7;
-    --ink-3: #8fa097;
-
-    --green: #4fb383;
-    --green-strong: #74c99f;
-    --green-tint: #15332a;
-    --green-ink: #07130d;
-    --amber: #f2b34f;
-    --amber-fill: #e9a23a;
-    --amber-tint: #33270f;
-    --red: #f2867a;
-    --red-tint: #3b1a17;
-    --blue: #7eaef2;
-    --blue-tint: #15263d;
-
-    --shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 4px 16px rgb(0 0 0 / 0.25);
-    color-scheme: dark;
-  }
 }
 
 *,
@@ -252,9 +229,9 @@ code,
   }
 }
 
-/* VietMap GL follows the theme. Scoped under .vietmapgl-map: vietmap-gl.css loads after this file (with the
-   lazily imported map chunk), so equal-specificity selectors would lose. The basemap itself switches between
-   the tm / dm vector styles (RouteMap.tsx), so no tile filter is needed. */
+/* VietMap GL in the UI palette. Scoped under .vietmapgl-map: vietmap-gl.css loads after this file (with the
+   lazily imported map chunk), so equal-specificity selectors would lose. The basemap is the muted "lm" style
+   (RouteMap.tsx), so no tile filter is needed. */
 .vietmapgl-map {
   font-family: var(--font-sans);
   background: var(--surface-3);
@@ -299,24 +276,4 @@ code,
   border: 1px solid var(--line-strong);
   border-radius: 4px;
   white-space: nowrap;
-}
-
-@media (prefers-color-scheme: dark) {
-  .vietmapgl-map .vietmapgl-ctrl-group,
-  .vietmapgl-map .vietmapgl-ctrl-group button {
-    background: var(--surface-2);
-  }
-
-  .vietmapgl-map .vietmapgl-ctrl-group button .vietmapgl-ctrl-icon {
-    filter: invert(1);
-  }
-
-  .vietmapgl-map .vietmapgl-ctrl-attrib.vietmapgl-compact {
-    background: color-mix(in srgb, var(--surface) 85%, transparent);
-    color: var(--ink-3);
-  }
-
-  .vietmapgl-map .vietmapgl-ctrl-attrib a {
-    color: var(--ink-3);
-  }
 }

@@ -6,7 +6,7 @@
 import vietmapgl from "@vietmap/vietmap-gl-js/dist/vietmap-gl";
 import "@vietmap/vietmap-gl-js/dist/vietmap-gl.css";
 import { memo, useEffect, useMemo, useRef, useState } from "react";
-import { prefersReducedMotion, useColorScheme, useThemeTokens } from "@/lib/theme";
+import { prefersReducedMotion, useThemeTokens } from "@/lib/theme";
 import type { LatLng, RoutePlanView, Store } from "@/lib/types";
 import { VEHICLE_COLORS } from "./routeColors";
 import { buildRouteGeo, type RouteGeo } from "./routeGeo";
@@ -14,9 +14,8 @@ import s from "./dashboard.module.css";
 
 const API_KEY = process.env.NEXT_PUBLIC_VIETMAP_API_KEY ?? "";
 
-// tm = default street style, dm = dark style (the OS colour scheme picks one, like the rest of the UI).
-const styleUrl = (scheme: "dark" | "light") =>
-  `https://maps.vietmap.vn/maps/styles/${scheme === "dark" ? "dm" : "tm"}/style.json?apikey=${encodeURIComponent(API_KEY)}`;
+// lm = "SEA Map Light": the muted basemap the light-only UI is designed around (tm = street, dm = dark).
+const STYLE_URL = `https://maps.vietmap.vn/maps/styles/lm/style.json?apikey=${encodeURIComponent(API_KEY)}`;
 
 const MARKER_TOKENS = {
   store: ["--green-strong", "#134f35"],
@@ -225,7 +224,6 @@ function popupContent(title: string, body: string) {
 }
 
 function RouteMap({ plan, storeName, stores }: { plan: RoutePlanView; storeName: string; stores?: Store[] }) {
-  const scheme = useColorScheme();
   const colors = useThemeTokens(MARKER_TOKENS);
   // One vehicle can be picked to look at it alone; the pick belongs to the plan it was made on.
   const [picked, setPicked] = useState<{ plan: RoutePlanView; index: number } | null>(null);
@@ -236,7 +234,6 @@ function RouteMap({ plan, storeName, stores }: { plan: RoutePlanView; storeName:
   const box = useRef<HTMLDivElement>(null);
   const mapRef = useRef<vietmapgl.Map | null>(null);
   const geoRef = useRef(geo);
-  const schemeRef = useRef(scheme);
   const labelRef = useRef<vietmapgl.Popup | null>(null);
 
   const start: LatLng = plan.store ? [plan.store.lat, plan.store.lng] : HCMC;
@@ -246,7 +243,7 @@ function RouteMap({ plan, storeName, stores }: { plan: RoutePlanView; storeName:
     if (!el || !API_KEY) return;
     const map = new vietmapgl.Map({
       container: el,
-      style: styleUrl(schemeRef.current),
+      style: STYLE_URL,
       center: [start[1], start[0]],
       zoom: 13,
       cooperativeGestures: true,
@@ -388,12 +385,6 @@ function RouteMap({ plan, storeName, stores }: { plan: RoutePlanView; storeName:
       .setDOMContent(storeLabel(storeName, plan.routes, focus))
       .addTo(map);
   }, [plan.store, plan.routes, storeName, focus]);
-
-  useEffect(() => {
-    if (schemeRef.current === scheme) return;
-    schemeRef.current = scheme;
-    mapRef.current?.setStyle(styleUrl(scheme));
-  }, [scheme]);
 
   if (!API_KEY) {
     return (

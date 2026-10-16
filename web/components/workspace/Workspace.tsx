@@ -25,5 +25,5 @@ export default function Workspace() {
   }
   // Keyed on the user: with cacheComponents, routes stay mounted (Activity), so a re-login as another
   // user must not inherit the previous conversation.
-  return <WorkspaceShell key={session.user.user_id} user={session.user} />;
+  return <WorkspaceShell key={session.user.user_id} />;
 }

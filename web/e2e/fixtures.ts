@@ -78,7 +78,11 @@ export async function login(page: Page, username = "owner_a", password = DEMO_PA
   await page.getByTestId("login-submit").click();
   await expect(page).toHaveURL(/\/$/);
   await expect(page.getByTestId("provenance-badge")).toBeVisible();
+  // Login lands on the overview; the specs work in the chat + dashboard workspace, chat pane first.
+  await expect(page.getByTestId("overview")).toBeVisible();
+  await page.getByTestId("nav-import").click();
   await expect(page.getByTestId("direct-tools")).toBeAttached();
+  await showPane(page, "chat");
 }
 
 /** On phones the panes are stacked behind a segmented switch. */

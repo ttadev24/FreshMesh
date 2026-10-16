@@ -84,9 +84,8 @@ def demand_7d(services: Services, chain_id: str, store: StoreInfo) -> dict[str, 
     fc = services.forecast(chain_id, store.store_id, [sku], horizon_days=FORECAST_DAYS)
     empty = {"p10": None, "p50": None, "p90": None}
     points = [{"date": d, "actual": u, **empty} for d, u in actual]
-    points += [
-        {"date": r["date"], "actual": None, "p10": r["p10"], "p50": r["p50"], "p90": r["p90"]} for r in fc["rows"]
-    ]
+    for r in fc["rows"]:
+        points.append({"date": r["date"], "actual": None, "p10": r["p10"], "p50": r["p50"], "p90": r["p90"]})
     return {
         "store_id": store.store_id,
         "sku_id": sku.sku_id,

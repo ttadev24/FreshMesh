@@ -12,7 +12,8 @@ import ChatPane from "@/components/chat/ChatPane";
 import DashboardOverview from "@/components/dashboard/DashboardOverview";
 import RightPane, { type TabId } from "@/components/dashboard/RightPane";
 import OverviewPage from "@/components/overview/OverviewPage";
-import { NAV_BY_ID, navForTab, type NavId } from "@/components/shell/nav";
+import NetworkPage from "@/components/network/NetworkPage";
+import { NAV_BY_ID, navForTab, PAGE_NAVS, type NavId } from "@/components/shell/nav";
 import PageHeader from "@/components/shell/PageHeader";
 import Sidebar from "@/components/shell/Sidebar";
 import sh from "@/components/shell/shell.module.css";
@@ -211,7 +212,7 @@ function WorkspaceReady({ data, onLogout }: { data: WorkspaceData; onLogout: () 
           <div className={sh.main}>
             <PageHeader
               chainName={me.chain_name || me.chain_id}
-              title={nav === "overview" ? null : NAV_BY_ID[nav].title}
+              title={PAGE_NAVS.includes(nav) ? null : NAV_BY_ID[nav].title}
               health={health}
               stores={stores}
               storeId={storeId}
@@ -238,6 +239,10 @@ function WorkspaceReady({ data, onLogout }: { data: WorkspaceData; onLogout: () 
                   onAsk={ask}
                   onOpenSources={openSources}
                 />
+              </main>
+            ) : nav === "network" ? (
+              <main className={sh.scroll}>
+                <NetworkPage storeNames={storeNames} />
               </main>
             ) : (
               <div className={s.work}>

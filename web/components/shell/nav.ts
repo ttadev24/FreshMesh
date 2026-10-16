@@ -1,8 +1,8 @@
 import type { TabId } from "@/components/dashboard/RightPane";
 import type { ToolSlot } from "@/components/workspace/useDirectTools";
 
-// Sidebar destinations. Everything except the overview opens the two-pane workspace (chat + dashboard) on
-// the matching right-pane tab, and the three operations items bring their tool into view.
+// Sidebar destinations. The overview and the network are pages of their own; everything else opens the two-pane
+// workspace (chat + dashboard) on the matching right-pane tab, and the operations items bring their tool into view.
 export type NavId = "overview" | "import" | "stock" | "delivery" | "network" | "history" | "sources";
 
 export interface NavItem {
@@ -19,7 +19,7 @@ export const NAV_MAIN: NavItem[] = [
   { id: "import", label: "Nhập hàng", title: "Nhập hàng", tab: "dashboard", slot: "inventory" },
   { id: "stock", label: "Tồn kho", title: "Xử lý tồn", tab: "dashboard", slot: "stock" },
   { id: "delivery", label: "Giao hàng", title: "Giao hàng", tab: "dashboard", slot: "route" },
-  { id: "network", label: "Mạng lưới", title: "Mạng lưới học liên kết", tab: "fl" },
+  { id: "network", label: "Mạng lưới", title: "Mạng lưới học liên kết" },
   { id: "history", label: "Lịch sử", title: "Lịch sử quyết định", tab: "audit" },
 ];
 
@@ -30,7 +30,10 @@ export const NAV_BY_ID = Object.fromEntries([...NAV_MAIN, NAV_SOURCES].map((n) =
 /** Which sidebar item a right-pane tab belongs to (keeps the highlight in sync when tabs are switched inside). */
 export function navForTab(tab: TabId, current: NavId): NavId {
   if (tab === "audit") return "history";
-  if (tab === "fl") return "network";
   if (tab === "sources") return "sources";
+  // "dashboard" and the in-workspace FL tab keep the operations item the user came from.
   return current === "import" || current === "stock" || current === "delivery" ? current : "import";
 }
+
+/** Destinations rendered as full pages (own large title) instead of the chat + dashboard workspace. */
+export const PAGE_NAVS: readonly NavId[] = ["overview", "network"];

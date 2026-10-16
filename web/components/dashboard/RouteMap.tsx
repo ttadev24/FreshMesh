@@ -10,12 +10,8 @@ import { prefersReducedMotion, useThemeTokens } from "@/lib/theme";
 import type { LatLng, RoutePlanView, Store } from "@/lib/types";
 import { VEHICLE_COLORS } from "./routeColors";
 import { buildRouteGeo, type RouteGeo } from "./routeGeo";
+import { disposeMap, logMapErrors, MAP_LOCALE, quietBasemap, STYLE_URL, VIETMAP_KEY as API_KEY } from "./vietmapBase";
 import s from "./dashboard.module.css";
-
-const API_KEY = process.env.NEXT_PUBLIC_VIETMAP_API_KEY ?? "";
-
-// lm = "SEA Map Light": the muted basemap the light-only UI is designed around (tm = street, dm = dark).
-const STYLE_URL = `https://maps.vietmap.vn/maps/styles/lm/style.json?apikey=${encodeURIComponent(API_KEY)}`;
 
 const MARKER_TOKENS = {
   store: ["--green-strong", "#134f35"],
@@ -27,18 +23,6 @@ const MARKER_TOKENS = {
 
 /** Ho Chi Minh City centre (Bến Thành), used until the plan's own points are fitted. */
 const HCMC: LatLng = [10.7725, 106.698];
-
-const LOCALE = {
-  "CooperativeGesturesHandler.WindowsHelpText": "Giữ Ctrl và cuộn chuột để thu phóng bản đồ",
-  "CooperativeGesturesHandler.MacHelpText": "Giữ ⌘ và cuộn chuột để thu phóng bản đồ",
-  "CooperativeGesturesHandler.MobileHelpText": "Dùng hai ngón tay để di chuyển bản đồ",
-  "NavigationControl.ZoomIn": "Phóng to",
-  "NavigationControl.ZoomOut": "Thu nhỏ",
-  "FullscreenControl.Enter": "Phóng to toàn màn hình",
-  "FullscreenControl.Exit": "Thoát toàn màn hình",
-  "AttributionControl.ToggleAttribution": "Bật/tắt ghi nguồn bản đồ",
-  "AttributionControl.MapFeedback": "Góp ý bản đồ",
-};
 
 const ROUTES = "fm-routes";
 const POINTS = "fm-points";
@@ -247,17 +231,10 @@ function RouteMap({ plan, storeName, stores }: { plan: RoutePlanView; storeName:
       center: [start[1], start[0]],
       zoom: 13,
       cooperativeGestures: true,
-      locale: LOCALE,
+      locale: MAP_LOCALE,
     });
     mapRef.current = map;
-    // vietmapgl's Evented.fire() prints any "error" event straight to console.error when nobody is
-    // listening (so internal errors are never silently dropped). remove() cancels the in-flight style
-    // load, which fires exactly such an event; without a handler that is expected abort gets logged as
-    // if it were a real failure. A real error (bad key, network down, broken style) still reaches the
-    // console here, just via our own call instead of the library's fallback.
-    map.on("error", (e) => {
-      if (e.error?.name !== "AbortError") console.error("[RouteMap]", e.error);
-    });
+    logMapErrors(map, "RouteMap");
     // Controls sit on the right so the summary bar of the fullscreen view (top-left) never covers them. The
     // control takes the whole panel shell (summary + map) fullscreen; it also lifts cooperative gestures there.
     map.addControl(new vietmapgl.NavigationControl({ showCompass: false }), "top-right");
@@ -266,12 +243,7 @@ function RouteMap({ plan, storeName, stores }: { plan: RoutePlanView; storeName:
 
     const stopFlow = startFlow(map);
     map.on("style.load", () => {
-      // Quiet basemap: hide the POI icons (clinics, banks, cafés...) so routes and stores read first.
-      for (const layer of map.getStyle().layers ?? []) {
-        if (layer.type === "symbol" && (layer as { "source-layer"?: string })["source-layer"] === "poi") {
-          map.setLayoutProperty(layer.id, "visibility", "none");
-        }
-      }
+      quietBasemap(map);
       addPlanLayers(map, geoRef.current);
       el.dataset.layersReady = "true";
     });
@@ -325,27 +297,7 @@ function RouteMap({ plan, storeName, stores }: { plan: RoutePlanView; storeName:
       labelRef.current?.remove();
       labelRef.current = null;
       mapRef.current = null;
-      // remove() cancels the in-flight style/sprite request; Style._remove() (vietmapgl internals) clears
-      // its own link to the map before that request's rejection runs, so the resulting "error" event has
-      // nobody left to catch it and vietmapgl prints it straight to console.error (harmless, but noisy —
-      // hit on every mount in dev, since React Strict Mode mounts, cleans up and mounts again). Waiting for
-      // the style to finish loading first removes that race entirely; the timeout bounds the wait in case
-      // the style never loads (bad key, network down), so the map is still disposed either way.
-      let removed = false;
-      const removeOnce = () => {
-        if (removed) return;
-        removed = true;
-        map.remove();
-      };
-      if (map.isStyleLoaded()) {
-        removeOnce();
-      } else {
-        const timer = setTimeout(removeOnce, 8000);
-        map.once("load", () => {
-          clearTimeout(timer);
-          removeOnce();
-        });
-      }
+      disposeMap(map);
     };
     // The map is created once; plan, theme and size changes are applied by the effects below.
     // eslint-disable-next-line react-hooks/exhaustive-deps

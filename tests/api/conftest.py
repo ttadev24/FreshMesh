@@ -25,6 +25,8 @@ def make_settings(data_dir: Path, cache: Path, **kw) -> Settings:
         token_ttl_s=kw.pop("token_ttl_s", 3600),
         solver_url="http://127.0.0.1:9",
         cache_root=cache,
+        chat_per_ip_daily=kw.pop("chat_per_ip_daily", 0),  # quotas off unless a test turns them on
+        chat_global_daily=kw.pop("chat_global_daily", 0),
         **kw,
     )
 

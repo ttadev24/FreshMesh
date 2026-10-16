@@ -41,6 +41,21 @@ def default_solver_url() -> str:
     return _env_file_value("FRESHMESH_SOLVER_URL") or DEFAULT_SOLVER_URL
 
 
+def _env_count(name: str, default: int) -> int:
+    """Non-negative integer from the environment; empty = default. A negative or non-numeric value stops the
+    API at startup instead of silently disabling a guard."""
+    raw = os.environ.get(name, "").strip()
+    if not raw:
+        return default
+    try:
+        value = int(raw)
+    except ValueError:
+        raise RuntimeError(f"{name} phải là số nguyên >= 0 (0 = tắt hạn mức).") from None
+    if value < 0:
+        raise RuntimeError(f"{name} phải là số nguyên >= 0 (0 = tắt hạn mức).")
+    return value
+
+
 def _secret() -> str:
     secret = os.environ.get("FRESHMESH_SECRET", "").strip()
     if secret:
@@ -75,6 +90,9 @@ class Settings:
     jev_guardrail: bool = field(default_factory=lambda: os.environ.get("FRESHMESH_JEV_GUARDRAIL") == "1")
     fleet_vehicles: int = FLEET_VEHICLES
     fleet_capacity: int = FLEET_CAPACITY
+    # Daily chat turns per client address and for the whole site (api/chat_quota.py); 0 disables a cap.
+    chat_per_ip_daily: int = field(default_factory=lambda: _env_count("FRESHMESH_CHAT_PER_IP_DAILY", 20))
+    chat_global_daily: int = field(default_factory=lambda: _env_count("FRESHMESH_CHAT_GLOBAL_DAILY", 300))
 
     cache_root: Path | None = field(
         default_factory=lambda: (

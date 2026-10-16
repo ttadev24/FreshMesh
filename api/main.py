@@ -14,7 +14,7 @@ from collections.abc import Callable, Iterator
 from contextlib import asynccontextmanager
 from typing import Any
 
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
@@ -26,6 +26,7 @@ from agent.loop import AgentSession, AgentTurn
 from agent.tools import ToolContext, ToolError
 from api import provenance_view
 from api.auth import User, authenticate, current_user, issue_token
+from api.chat_quota import ChatQuota, client_ip
 from api.config import Settings
 from api.drafts import DRAFT_KINDS, SqlDraftStore
 from api.errors import ApiError, install_error_handlers
@@ -145,6 +146,12 @@ def create_app(
     )
     drafts = SqlDraftStore(settings.data_dir)
     registry = build_registry(services, drafts)
+    chat_quota = ChatQuota(
+        settings.data_dir / "usage.sqlite",
+        settings.chat_per_ip_daily,
+        settings.chat_global_daily,
+        salt=settings.secret,
+    )
     health_cache: dict[str, Any] = {"t": 0.0, "solver": False, "client": None}
 
     @asynccontextmanager
@@ -224,6 +231,7 @@ def create_app(
             "llm_model": configured_model(),
             "data": data_ready,
             "jev": jev_client is not None,
+            "chat_quota": {"per_ip_daily": chat_quota.per_ip_daily, "global_daily": chat_quota.global_daily},
         }
 
     @app.post("/api/auth/login")
@@ -362,12 +370,17 @@ def create_app(
         yield _sse("final", _turn_dict(session.last_turn, extra))
 
     @app.post("/api/agent/chat")
-    def chat(body: ChatBody, user: User = Depends(current_user)):
+    def chat(body: ChatBody, request: Request, user: User = Depends(current_user)):
         default_sid = store_for(user, body.store_id) if body.store_id else None
         try:
             client = llm_client_factory() if llm_client_factory is not None else AnthropicClient()
         except LLMUnavailableError as exc:
             raise ApiError(503, "llm_unavailable", exc.message_vi) from None
+        # Counted only once the LLM is usable, so a 503 never costs the visitor a turn.
+        peer = request.client.host if request.client else None
+        decision = chat_quota.consume(client_ip(peer, request.headers))
+        if not decision.allowed:
+            raise ApiError(429, "chat_quota_exceeded", decision.message_vi())
         session = AgentSession(
             client,
             registry,

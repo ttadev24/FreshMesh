@@ -79,8 +79,8 @@ def run(
         print(f"city {c:2d} done in {time.time() - t0:.0f}s", flush=True)
     path = docs_dir / f"frn_forecast_sums_{history}.csv"
     with open(path, "w", newline="", encoding="utf-8") as fh:
-        fields = ["protocol", "protocol_sha256", "history", "seed", "city_id", "store", "window", "method", *STATS]
-        w = csv.DictWriter(fh, fieldnames=fields, lineterminator="\n")
+        fields = ["protocol", "protocol_sha256", "history", "seed", "city_id", "store", "window", "method"]
+        w = csv.DictWriter(fh, fieldnames=[*fields, *STATS], lineterminator="\n")
         w.writeheader()
         for r in rows:
             w.writerow({**stamp_fields, "history": history, "seed": seed, **r})

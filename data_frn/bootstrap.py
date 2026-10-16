@@ -1,5 +1,6 @@
-"""Paired bootstrap over stores for ratio metrics built from per-store sums (protocol frn-v1: 1 000 resamples,
-seed 0). Resampling whole stores keeps each store's rows together, so the CI reflects store-to-store variation."""
+"""Paired bootstrap over stores for ratio metrics built from per-store sums (protocol frn-v1: 1 000
+resamples, seed 0). Resampling whole stores keeps each store's rows together, so the CI reflects
+store-to-store variation."""
 
 from __future__ import annotations
 

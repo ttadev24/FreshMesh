@@ -292,9 +292,9 @@ def fit_quantile_model(
     config: TrainConfig | None = None,
     target_cd: ChainData | None = None,
 ) -> tuple[QuantileMLP, dict]:
-    """Fit the quantile MLP on targets ``1..train_last`` of ``cd``, then split-CQR offsets (one per horizon) on
-    targets ``cal_first..cal_last``. With ``target_cd`` (same layout; FreshRetailNet passes its uncensored view)
-    calibration only uses targets observed there, with their values: features and training still read ``cd``.
+    """Fit the quantile MLP on targets ``1..train_last`` of ``cd``, then split-CQR offsets (one per horizon)
+    on targets ``cal_first..cal_last``. With ``target_cd`` (same layout; FreshRetailNet passes its uncensored
+    view) calibration only uses targets observed there, with their values; features and training read ``cd``.
     Returns the model and the prediction meta (feature scaling, conformal offsets, training log)."""
     cfg = config or TrainConfig()
     rng = np.random.default_rng(seed)

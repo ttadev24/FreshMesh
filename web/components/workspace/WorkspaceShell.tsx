@@ -191,7 +191,7 @@ function WorkspaceReady({ data, onLogout }: { data: WorkspaceData; onLogout: () 
     <ProvenanceContext.Provider value={provenanceIndex}>
       <SourcesNavContext.Provider value={openDataset}>
         <div className={sh.app}>
-          <Sidebar nav={nav} onNav={go} user={me} onLogout={onLogout} sourcesCount={sourcesCount} />
+          <Sidebar nav={nav} onNav={go} user={me} onLogout={onLogout} />
           <div className={sh.main}>
             <PageHeader
               chainName={me.chain_name || me.chain_id}

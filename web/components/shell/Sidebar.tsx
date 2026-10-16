@@ -23,8 +23,6 @@ interface Props {
   onNav: (id: NavId) => void;
   user: User;
   onLogout: () => void;
-  /** Number of datasets behind the numbers (GET /api/provenance), shown next to "Nguồn dữ liệu". */
-  sourcesCount: number | null;
 }
 
 function initials(name: string): string {
@@ -32,8 +30,8 @@ function initials(name: string): string {
   return (parts.length > 1 ? parts[0][0] + parts[1][0] : name.slice(0, 2)).toUpperCase();
 }
 
-export default function Sidebar({ nav, onNav, user, onLogout, sourcesCount }: Props) {
-  const item = (id: NavId, label: string, extra?: number | null) => {
+export default function Sidebar({ nav, onNav, user, onLogout }: Props) {
+  const item = (id: NavId, label: string) => {
     const Icon = ICONS[id];
     return (
       <button
@@ -46,7 +44,6 @@ export default function Sidebar({ nav, onNav, user, onLogout, sourcesCount }: Pr
       >
         <Icon />
         <span className={s.navLabel}>{label}</span>
-        {extra != null ? <span className={s.navCount}>{extra}</span> : null}
       </button>
     );
   };
@@ -61,7 +58,7 @@ export default function Sidebar({ nav, onNav, user, onLogout, sourcesCount }: Pr
       <nav className={s.nav}>{NAV_MAIN.map((n) => item(n.id, n.label))}</nav>
 
       <div className={s.sideFoot}>
-        {item(NAV_SOURCES.id, NAV_SOURCES.label, sourcesCount)}
+        {item(NAV_SOURCES.id, NAV_SOURCES.label)}
         <div className={s.userRow}>
           <span className={s.avatar} aria-hidden="true">
             {initials(user.username)}

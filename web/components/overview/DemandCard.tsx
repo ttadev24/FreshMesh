@@ -34,7 +34,7 @@ export default function DemandCard({ forecast, state, skuNames, onRetry }: Props
   }, [forecast]);
   const [picked, setPicked] = useState<string | null>(null);
   const current = bySku.find((x) => x.sku === picked) ?? bySku[0];
-  const sources = forecast?.sources.map((s) => s.label_vi).join("; ");
+  const sources = forecast?.sources ?? [];
 
   return (
     <div className={o.demand}>
@@ -64,7 +64,16 @@ export default function DemandCard({ forecast, state, skuNames, onRetry }: Props
           <Spinner /> Đang chạy mô hình dự báo
         </div>
       )}
-      {sources ? <p className={o.sourceNote}>Nguồn: {sources}</p> : null}
+      {sources.length ? (
+        <details className={o.sources}>
+          <summary>Nguồn: {sources.length} bộ dữ liệu</summary>
+          <ul>
+            {sources.map((s) => (
+              <li key={s.id}>{s.label_vi}</li>
+            ))}
+          </ul>
+        </details>
+      ) : null}
     </div>
   );
 }

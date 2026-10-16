@@ -158,10 +158,11 @@
   animation: pulse 1.4s ease-out infinite;
 }
 
+/* Top-left: the vehicle chips of RouteMap own the bottom-left corner. */
 .mapStat {
   position: absolute;
+  top: 14px;
   left: 14px;
-  bottom: 14px;
   z-index: 2;
   display: flex;
   align-items: center;
@@ -482,6 +483,29 @@
   font-size: 12px;
 }
 
+.sources {
+  margin-top: 8px;
+  color: var(--ink-3);
+  font-size: 12px;
+}
+
+.sources summary {
+  width: fit-content;
+  cursor: pointer;
+}
+
+.sources summary:hover {
+  color: var(--ink);
+}
+
+.sources ul {
+  display: grid;
+  gap: 4px;
+  margin: 8px 0 0;
+  padding-left: 18px;
+  line-height: 1.5;
+}
+
 .assistantTitle {
   display: flex;
   align-items: center;
@@ -570,8 +594,7 @@
   }
 
   .mapStat {
-    max-width: calc(100% - 28px);
-    bottom: 64px;
+    max-width: calc(100% - 80px);
   }
 
   .bottom {

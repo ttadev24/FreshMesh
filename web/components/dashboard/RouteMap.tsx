@@ -266,6 +266,12 @@ function RouteMap({ plan, storeName, stores }: { plan: RoutePlanView; storeName:
 
     const stopFlow = startFlow(map);
     map.on("style.load", () => {
+      // Quiet basemap: hide the POI icons (clinics, banks, cafés...) so routes and stores read first.
+      for (const layer of map.getStyle().layers ?? []) {
+        if (layer.type === "symbol" && (layer as { "source-layer"?: string })["source-layer"] === "poi") {
+          map.setLayoutProperty(layer.id, "visibility", "none");
+        }
+      }
       addPlanLayers(map, geoRef.current);
       el.dataset.layersReady = "true";
     });

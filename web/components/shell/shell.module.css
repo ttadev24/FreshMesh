@@ -85,17 +85,6 @@
   min-width: 0;
 }
 
-.navCount {
-  min-width: 26px;
-  padding: 1px 7px;
-  border-radius: 999px;
-  background: var(--green-tint);
-  color: var(--green);
-  font-size: 12px;
-  font-weight: 600;
-  text-align: center;
-}
-
 .sideFoot {
   display: grid;
   gap: 12px;

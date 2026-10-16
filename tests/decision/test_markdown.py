@@ -91,3 +91,28 @@ def test_output_is_serializable_and_rationale_uses_fields():
     assert sum(s.expected_units_sold for s in plan.schedule) == pytest.approx(
         plan.expected_units_sold, abs=0.5
     )
+
+
+def test_simulate_markdown_zero_discount_is_the_full_price_baseline_and_deeper_sells_more():
+    import datetime as _dt
+
+    from decision.markdown import simulate_markdown
+    from decision.types import SkuEconomics as _Sku
+    from decision.types import StockLot as _Lot
+
+    day = _dt.date(2026, 10, 1)
+    now = _dt.datetime(2026, 10, 1, 14)
+    hourly = {_dt.datetime(2026, 10, 1, h): 3.0 for h in range(14, 21)}
+    sku = _Sku("RAU", "Rau muống", unit_cost=8000, unit_price=12000, salvage_price=0, shelf_life_days=1)
+    lots = [_Lot("S", "RAU", 40, day)]
+
+    def run(d, h=14):
+        return simulate_markdown(lots, hourly, sku, -2.2, now=now, discount_pct=d, start=_dt.datetime(2026, 10, 1, h))
+
+    zero, thirty, fifty = run(0), run(30), run(50)
+    assert zero["cash_gain_vnd"] == 0 and zero["expected_units_wasted"] == zero["baseline_units_wasted"]
+    assert zero["expected_units_sold"] < thirty["expected_units_sold"] < fifty["expected_units_sold"]
+    assert fifty["expected_units_wasted"] < zero["expected_units_wasted"]
+    late = run(30, h=19)
+    assert late["expected_units_sold"] < thirty["expected_units_sold"]  # discounting later sells less
+    assert [s["discount_pct"] for s in late["slots"]] == [0, 0, 0, 0, 0, 30, 30]

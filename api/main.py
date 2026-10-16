@@ -71,6 +71,14 @@ class StockBody(BaseModel):
     now_hour: int = Field(default=DEFAULT_NOW_HOUR, ge=6, le=21)
 
 
+class MarkdownSimBody(BaseModel):
+    store_id: str | None = None
+    sku_id: str = Field(min_length=1, max_length=64)
+    discount_pct: float = Field(ge=0, le=90)
+    start_hour: int = Field(ge=6, le=21)
+    now_hour: int = Field(default=DEFAULT_NOW_HOUR, ge=6, le=21)
+
+
 class RoutingBody(BaseModel):
     store_id: str | None = None
     now_minute: int = Field(default=0, ge=0, le=240)
@@ -313,6 +321,16 @@ def create_app(
         sid = store_for(user, body.store_id)
         selected = services.repo(user.chain_id).select_skus(body.sku_ids, body.categories)
         return services.markdown(user.chain_id, sid, selected, now_hour=body.now_hour)
+
+    @app.post("/api/markdown/simulate")
+    def markdown_simulate(body: MarkdownSimBody, user: User = Depends(current_user)) -> dict[str, Any]:
+        """What-if of one flat discount from start_hour, next to the recommended schedule (slider)."""
+        sid = store_for(user, body.store_id)
+        sku = services.repo(user.chain_id).select_skus([body.sku_id], [])[0]
+        return services.markdown_simulate(
+            user.chain_id, sid, sku, discount_pct=body.discount_pct, start_hour=body.start_hour,
+            now_hour=body.now_hour,
+        )  # fmt: skip
 
     @app.post("/api/transfer/plan")
     def transfer_plan(body: StockBody, user: User = Depends(current_user)) -> dict[str, Any]:

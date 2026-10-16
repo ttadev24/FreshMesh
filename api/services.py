@@ -47,6 +47,7 @@ from decision import (
     transfer_stock,
 )
 from decision.inventory import FRONTIER_TARGETS, plan_inventory_with_frontier
+from decision.markdown import simulate_markdown
 from decision.surplus import SURPLUS_ASSUMPTIONS_VI, rank_surplus_stores, units_left_now
 from decision.text import pct, units, vnd
 from decision.types import MarkdownPlan
@@ -338,40 +339,102 @@ class Services:
         share_before = self._share_before(store.area_type, now_hour)
         out, skipped = [], []
         for sku in fresh:
-            expiring = sum(
-                lot.qty for lot in stock if lot.sku_id == sku.sku_id and lot.expires_on == FIRST_DAY
-            )
-            p50 = rows[sku.sku_id].p50
-            sold_before = round(p50 * share_before, 1)
-            remaining = units_left_now(expiring, p50, share_before)
-            if remaining <= 0:
-                skipped.append({"sku_id": sku.sku_id, "sku_name": sku.name, "start_of_day_units": expiring})
+            inputs = self._markdown_inputs(store_id, sku, rows[sku.sku_id], stock, shares, share_before, now_hour)
+            if inputs["remaining"] <= 0:
+                skipped.append(
+                    {"sku_id": sku.sku_id, "sku_name": sku.name, "start_of_day_units": inputs["expiring"]}
+                )
                 continue
-            hourly = {
-                dt.datetime.combine(FIRST_DAY, dt.time(h)): p50 * v
-                for h, v in sorted(shares.items())
-                if h >= now_hour
-            }
-            elasticity = float(ASSUMPTIONS["markdown_elasticity"][sku.category])
             plan = suggest_markdown(
-                [StockLot(store_id, sku.sku_id, remaining, FIRST_DAY)],
-                hourly,
-                sku.economics(),
-                elasticity,
-                now=now,
+                inputs["lots"], inputs["hourly"], sku.economics(), inputs["elasticity"], now=now
             )
-            extra = {
-                "sku_name": sku.name,
-                "start_of_day_units": expiring,
-                "expected_sold_before_now": sold_before,
-                "forecast_p50_day": p50,
-                "unit_price": sku.unit_price,
-                "forecast_confidence": rows[sku.sku_id].confidence,
-                "forecast_confidence_reason": rows[sku.sku_id].reason,
-            }
-            out.append((sku, plan, extra))
+            out.append((sku, plan, inputs["extra"]))
         out.sort(key=lambda t: (-t[1].units_at_risk, t[0].sku_id))
         return store, now, out, skipped
+
+    @staticmethod
+    def _markdown_inputs(
+        store_id: str,
+        sku: SkuInfo,
+        row: Any,
+        stock: Sequence[StockLot],
+        shares: dict[int, float],
+        share_before: float,
+        now_hour: int,
+    ) -> dict[str, Any]:
+        """Units of today's expiring lots left at ``now``, the rest-of-day hourly forecast and the elasticity:
+        the inputs shared by the markdown recommendation and its what-if simulation."""
+        expiring = sum(lot.qty for lot in stock if lot.sku_id == sku.sku_id and lot.expires_on == FIRST_DAY)
+        remaining = units_left_now(expiring, row.p50, share_before)
+        return {
+            "expiring": expiring,
+            "remaining": remaining,
+            "lots": [StockLot(store_id, sku.sku_id, remaining, FIRST_DAY)],
+            "hourly": {
+                dt.datetime.combine(FIRST_DAY, dt.time(h)): row.p50 * v
+                for h, v in sorted(shares.items())
+                if h >= now_hour
+            },
+            "elasticity": float(ASSUMPTIONS["markdown_elasticity"][sku.category]),
+            "extra": {
+                "sku_name": sku.name,
+                "start_of_day_units": expiring,
+                "expected_sold_before_now": round(row.p50 * share_before, 1),
+                "forecast_p50_day": row.p50,
+                "unit_price": sku.unit_price,
+                "forecast_confidence": row.confidence,
+                "forecast_confidence_reason": row.reason,
+            },
+        }
+
+    def markdown_simulate(
+        self,
+        chain_id: str,
+        store_id: str,
+        sku: SkuInfo,
+        *,
+        discount_pct: float,
+        start_hour: int,
+        now_hour: int = DEFAULT_NOW_HOUR,
+    ) -> dict:
+        """What-if of one flat discount from ``start_hour`` (``decision.simulate_markdown``) next to the
+        recommended schedule, for a discount slider. Same inputs as ``markdown``."""
+        if not sku.is_fresh:
+            raise ApiError(422, "not_fresh", "Chỉ mô phỏng giảm giá cho hàng tươi.")
+        if not now_hour <= start_hour <= 21:
+            raise ApiError(422, "bad_start_hour", f"Giờ bắt đầu giảm giá phải từ {now_hour}h đến 21h.")
+        repo = self.repo(chain_id)
+        store = repo.store(store_id)
+        now = self._now(now_hour)
+        shares = {int(h): float(v) for h, v in ASSUMPTIONS["hourly_sales_share"][store.area_type].items()}
+        row = self._forecast_rows(chain_id, [store_id], [sku], 1)[0]
+        stock = repo.stock([store_id], [sku.sku_id])
+        inputs = self._markdown_inputs(
+            store_id, sku, row, stock, shares, self._share_before(store.area_type, now_hour), now_hour
+        )
+        if inputs["remaining"] <= 0:
+            raise ApiError(
+                422, "no_stock_at_risk", f"{sku.name} ở {store.name} không còn hàng sắp hết hạn để giảm giá."
+            )
+        what_if = simulate_markdown(
+            inputs["lots"], inputs["hourly"], sku.economics(), inputs["elasticity"], now=now,
+            discount_pct=float(discount_pct), start=dt.datetime.combine(FIRST_DAY, dt.time(start_hour)),
+        )  # fmt: skip
+        recommended = suggest_markdown(
+            inputs["lots"], inputs["hourly"], sku.economics(), inputs["elasticity"], now=now
+        ).to_dict()
+        return {
+            "store_id": store_id,
+            "store_name": store.name,
+            "sku_id": sku.sku_id,
+            "now": now.isoformat(),
+            "elasticity": inputs["elasticity"],
+            **inputs["extra"],
+            "what_if": what_if,
+            "recommended": recommended,
+            "assumptions_vi": list(MARKDOWN_ASSUMPTIONS_VI),
+            **repo.provenance(STOCK_TABLES),
+        }
 
     def markdown(
         self, chain_id: str, store_id: str, skus: Sequence[SkuInfo], *, now_hour: int = DEFAULT_NOW_HOUR

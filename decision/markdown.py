@@ -166,3 +166,59 @@ def suggest_markdown(
         elasticity=elasticity,
         rationale_vi=rationale,
     )
+
+
+def simulate_markdown(
+    stock: Sequence[StockLot],
+    hourly_forecast: Mapping[datetime.datetime, float],
+    sku: SkuEconomics,
+    elasticity: float,
+    *,
+    now: datetime.datetime,
+    discount_pct: float,
+    start: datetime.datetime,
+) -> dict:
+    """What-if for one flat discount from ``start`` until closing (full price before): the same demand model
+    as ``suggest_markdown`` (hourly Poisson, constant elasticity, exact stock propagation), compared with
+    selling at full price. Cash gain = extra sales + salvage money, as in ``MarkdownPlan.cash_gain_vnd``."""
+    if not 0 <= discount_pct < 100:
+        raise ValueError("discount_pct must be within [0, 100)")
+    slots = sorted(t for t in hourly_forecast if t + SLOT > now)
+    if not slots:
+        raise ValueError("hourly_forecast has no slot at or after `now`")
+    lots = [
+        lot
+        for lot in stock
+        if lot.sku_id == sku.sku_id and now.date() <= lot.expires_on <= slots[-1].date() and lot.qty > 0
+    ]
+    at_risk = sum(lot.qty for lot in lots)
+    base = [max(0.0, float(hourly_forecast[t])) for t in slots]
+
+    def run(discounts: list[float]) -> tuple[list[float], float, float]:
+        dist = np.zeros(at_risk + 1)
+        dist[at_risk] = 1.0
+        sold, revenue = [], 0.0
+        for b, d in zip(base, discounts, strict=True):
+            dist, s = _sell(dist, _poisson_pmf(b * demand_multiplier(d, elasticity), at_risk))
+            sold.append(s)
+            revenue += s * sku.unit_price * (1 - d / 100.0)
+        return sold, float(dist @ np.arange(dist.size)), revenue
+
+    plan = [float(discount_pct) if t >= start else 0.0 for t in slots]
+    sold, wasted, revenue = run(plan)
+    _, base_wasted, base_revenue = run([0.0] * len(slots))
+    return {
+        "units_at_risk": at_risk,
+        "discount_pct": discount_pct,
+        "start": start.isoformat(),
+        "expected_units_sold": round(sum(sold), 1),
+        "expected_units_wasted": round(wasted, 1),
+        "revenue_vnd": round(revenue),
+        "baseline_units_wasted": round(base_wasted, 1),
+        "baseline_revenue_vnd": round(base_revenue),
+        "cash_gain_vnd": round(revenue - base_revenue - sku.salvage_price * (base_wasted - wasted)),
+        "slots": [
+            {"start": t.isoformat(), "discount_pct": d, "expected_units_sold": round(s, 1)}
+            for t, d, s in zip(slots, plan, sold, strict=True)
+        ],
+    }

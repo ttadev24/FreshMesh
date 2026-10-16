@@ -26,10 +26,12 @@ from agent.loop import AgentSession, AgentTurn
 from agent.tools import ToolContext, ToolError
 from api import provenance_view
 from api.auth import User, authenticate, current_user, issue_token
+from api.brief import BriefService
 from api.chat_quota import ChatQuota, client_ip
 from api.config import Settings
 from api.drafts import DRAFT_KINDS, SqlDraftStore
 from api.errors import ApiError, install_error_handlers
+from api.network import build_network
 from api.repo import ChainRepo, ensure_store_access, resolve_store_id
 from api.road_path import RoadRouter
 from api.routing_service import RoutingService, make_solver_client
@@ -146,6 +148,7 @@ def create_app(
     )
     drafts = SqlDraftStore(settings.data_dir)
     registry = build_registry(services, drafts)
+    briefs = BriefService(services)
     chat_quota = ChatQuota(
         settings.data_dir / "usage.sqlite",
         settings.chat_per_ip_daily,
@@ -252,6 +255,19 @@ def create_app(
         repo = services.repo(user.chain_id)
         store_name = repo.store(user.store_id).name if user.store_id else None
         return {**user.to_dict(), "chain_name": repo.chain_name(), "store_name": store_name}
+
+    @app.get("/api/brief")
+    def brief(store_id: str | None = None, user: User = Depends(current_user)) -> dict[str, Any]:
+        """Morning decision brief (api/brief.py); owners get chain scope, managers their own store."""
+        store = services.repo(user.chain_id).store(store_for(user, store_id))
+        return briefs.get(user.chain_id, store, user.is_owner)
+
+    @app.get("/api/network")
+    def network(user: User = Depends(current_user)) -> dict[str, Any]:
+        own = None if user.is_owner else [user.store_id]
+        return build_network(
+            services, settings.data_dir, user.chain_id, own, briefs.flows_today(user.chain_id)
+        )
 
     @app.get("/api/stores")
     def stores(user: User = Depends(current_user)) -> list[dict[str, Any]]:

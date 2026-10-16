@@ -75,21 +75,24 @@ export function useDirectTools(storeId: string | null) {
     setByStore((prev) => ({ ...prev, [store]: fn(prev[store] ?? EMPTY) }));
   }, []);
 
+  // `forStore` lets a caller that is switching stores in the same event (a brief card about another store)
+  // compute for the target store right away; results are kept per store either way.
   const run = useCallback(
-    async (slot: ToolSlot) => {
-      if (!storeId) return;
-      const key = `${storeId}:${slot}`;
+    async (slot: ToolSlot, forStore?: string) => {
+      const store = forStore ?? storeId;
+      if (!store) return;
+      const key = `${store}:${slot}`;
       ctrls.current.get(key)?.abort();
       const ctrl = new AbortController();
       ctrls.current.set(key, ctrl);
-      update(storeId, (r) => ({ ...r, state: { ...r.state, [slot]: { status: "loading" } } }));
+      update(store, (r) => ({ ...r, state: { ...r.state, [slot]: { status: "loading" } } }));
       try {
-        const patch = await compute(slot, storeId, ctrl.signal);
-        update(storeId, (r) => ({ data: { ...r.data, ...patch }, state: { ...r.state, [slot]: { status: "ready" } } }));
+        const patch = await compute(slot, store, ctrl.signal);
+        update(store, (r) => ({ data: { ...r.data, ...patch }, state: { ...r.state, [slot]: { status: "ready" } } }));
       } catch (err) {
         if (ctrl.signal.aborted) return;
         const code = err instanceof ApiError ? err.code : "unknown";
-        update(storeId, (r) => ({ ...r, state: { ...r.state, [slot]: { status: "error", message: errorMessage(err), code } } }));
+        update(store, (r) => ({ ...r, state: { ...r.state, [slot]: { status: "error", message: errorMessage(err), code } } }));
       } finally {
         if (ctrls.current.get(key) === ctrl) ctrls.current.delete(key);
       }

@@ -9,6 +9,7 @@ import {
   normalizeFl,
   type TurnEvent,
 } from "./normalize";
+import type { Brief, NetworkView } from "./brief-types";
 import { normalizePromptEvidence, normalizeProvenance } from "./provenance";
 import type {
   Assumptions,
@@ -301,4 +302,19 @@ export async function getProvenance(signal?: AbortSignal): Promise<Provenance> {
 /** Evidence of one logged AI call (full prompt, raw response, server-checked SHA-256). 404 unknown_prompt if absent. */
 export async function getPromptEvidence(promptId: string, signal?: AbortSignal): Promise<PromptEvidence> {
   return normalizePromptEvidence(await request<unknown>(`/api/provenance/prompts/${encodeURIComponent(promptId)}`, { signal }));
+}
+
+// ---------------------------------------------------------------- morning brief + network (api/brief.py, api/network.py)
+
+/** Brief for one store (owners may pick any of theirs). The first call can take ~30 s (PACO), then it is cached. */
+export async function getBrief(storeId: string | null, signal?: AbortSignal): Promise<Brief> {
+  const q = storeId ? `?store_id=${encodeURIComponent(storeId)}` : "";
+  const raw = await request<Brief>(`/api/brief${q}`, { signal });
+  return { ...raw, cards: raw.cards ?? [], errors: raw.errors ?? [], flows_today: raw.flows_today ?? [] };
+}
+
+/** Own-chain stores exactly, other chains only as anonymised ≥2-store cells, plus the federated-learning summary. */
+export async function getNetwork(signal?: AbortSignal): Promise<NetworkView> {
+  const raw = await request<NetworkView>("/api/network", { signal });
+  return { ...raw, stores: raw.stores ?? [], flows_today: raw.flows_today ?? [] };
 }

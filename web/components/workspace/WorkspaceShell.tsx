@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { clearSession } from "@/lib/session";
 import { getProvenance } from "@/lib/api";
 import { dashboardFromTurn, hasDashboardData } from "@/lib/dashboard";
+import type { BriefPanel } from "@/lib/brief-types";
 import { indexProvenance, ProvenanceContext, SourcesNavContext } from "@/lib/provenance";
 import { ErrorState, Skeleton } from "@/components/ui/primitives";
 import ChatPane from "@/components/chat/ChatPane";
@@ -182,6 +183,21 @@ function WorkspaceReady({ data, onLogout }: { data: WorkspaceData; onLogout: () 
     [go, conversation],
   );
 
+  // A brief card opens its tool for the store it is about (the surplus card may name another store).
+  const lockedStore = me.role === "store_manager" && Boolean(me.store_id);
+  const openAction = useCallback(
+    (panel: BriefPanel, target: string) => {
+      const nav: NavId = panel === "inventory" ? "import" : panel === "stock" ? "stock" : "delivery";
+      const slot: ToolSlot = panel === "inventory" ? "inventory" : panel === "stock" ? "stock" : "route";
+      const store = !lockedStore && stores.some((st) => st.store_id === target) ? target : storeId;
+      if (store) setStoreId(store);
+      go(nav);
+      setFocus("tools");
+      if (store) void tools.run(slot, store);
+    },
+    [go, lockedStore, storeId, stores, tools],
+  );
+
   const openDecisions = useCallback(() => {
     go("overview");
     requestAnimationFrame(() => document.querySelector('[data-testid="decision-queue"]')?.scrollIntoView({ behavior: "smooth" }));
@@ -200,7 +216,7 @@ function WorkspaceReady({ data, onLogout }: { data: WorkspaceData; onLogout: () 
               stores={stores}
               storeId={storeId}
               onStoreChange={setStoreId}
-              lockedStore={me.role === "store_manager" && Boolean(me.store_id)}
+              lockedStore={lockedStore}
               sourcesCount={sourcesCount}
               onOpenSources={openSources}
               pendingCount={pending.count}
@@ -218,6 +234,7 @@ function WorkspaceReady({ data, onLogout }: { data: WorkspaceData; onLogout: () 
                   skuNames={skuNames}
                   storeNames={storeNames}
                   onNav={go}
+                  onAction={openAction}
                   onAsk={ask}
                   onOpenSources={openSources}
                 />

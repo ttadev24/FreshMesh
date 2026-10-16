@@ -98,6 +98,25 @@
   font-size: 13px;
 }
 
+.up,
+.down {
+  font-weight: 600;
+}
+
+.up {
+  color: var(--green);
+}
+
+.down {
+  color: var(--red);
+}
+
+.briefNote {
+  margin-top: -16px;
+  color: var(--amber);
+  font-size: 13px;
+}
+
 /* ---------- map hero + decision queue ---------- */
 
 .grid {
@@ -264,10 +283,33 @@
   transform: translateX(3px);
 }
 
+.qRowMuted {
+  cursor: default;
+  opacity: 0.7;
+}
+
 .qNum {
   padding-top: 1px;
   color: var(--ink-3);
   font-size: 15px;
+}
+
+.attention {
+  margin-left: 8px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--amber-tint);
+  color: var(--amber);
+  font-size: 12px;
+  font-weight: 600;
+  vertical-align: 2px;
+}
+
+.groupTitle {
+  margin: 18px 0 0;
+  color: var(--ink-2);
+  font-size: 13px;
+  font-weight: 600;
 }
 
 .qTitle,
@@ -449,17 +491,42 @@
 }
 
 .legendLine,
+.legendActual,
 .legendBand {
   display: inline-block;
   width: 22px;
   margin-left: 8px;
 }
 
-.legendLine {
+.legendLine,
+.legendActual {
   height: 2.5px;
-  margin-left: 0;
   border-radius: 2px;
   background: var(--green);
+}
+
+.legendActual {
+  margin-left: 0;
+  background: var(--ink);
+}
+
+.legendDashed {
+  display: inline-block;
+  width: 22px;
+  margin-left: 8px;
+  border-top: 2.5px dashed var(--green);
+}
+
+.legendLine:first-child,
+.legendDashed:first-child {
+  margin-left: 0;
+}
+
+.cardSub {
+  margin-left: 6px;
+  color: var(--ink-3);
+  font-size: 15px;
+  font-weight: 400;
 }
 
 .legendBand {

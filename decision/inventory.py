@@ -30,6 +30,8 @@ PLAN_SPECS: tuple[tuple[str, str, float | None], ...] = (
     ("balanced", "Cân bằng", None),
     ("lean", "Tiết kiệm", 0.50),
 )
+# Service targets of the trade-off frontier the owner slides along (same grid as the FRN protocol §3).
+FRONTIER_TARGETS: tuple[float, ...] = (0.50, 0.60, 0.70, 0.80, 0.85, 0.90, 0.95, 0.98)
 
 ASSUMPTIONS_VI = [
     "Phân bố nhu cầu dựng từ P10/P50/P90 bằng hàm phân vị tuyến tính từng đoạn với đuôi mũ; "
@@ -333,6 +335,54 @@ def plan_inventory(
     The order arrives at the start of the first forecast day and covers `horizon_days` days.
     Per SKU: safe ≥ balanced ≥ lean in quantity, before and after constraints.
     """
+    return plan_inventory_with_frontier(
+        forecasts, stock, skus, constraints, horizon_days=horizon_days, n_sims=n_sims, seed=seed, targets=()
+    )[0]
+
+
+def plan_inventory_with_frontier(
+    forecasts: Sequence[ForecastQuantiles],
+    stock: Sequence[StockLot],
+    skus: Mapping[str, SkuEconomics],
+    constraints: Constraints,
+    *,
+    horizon_days: int = 1,
+    n_sims: int = 2000,
+    seed: int = 0,
+    targets: Sequence[float] = FRONTIER_TARGETS,
+) -> tuple[list[InventoryPlan], list[InventoryPlan]]:
+    """(the three plans, one plan per service target): the frontier the owner slides along. Both come from
+    the same Monte Carlo curves, so a target plan and a named plan at the same service level agree."""
+    curves = _store_curves(forecasts, stock, skus, constraints, horizon_days, n_sims, seed)
+    assumptions_vi = inventory_assumptions_vi(constraints)
+    plans = _three_plans(curves, constraints, assumptions_vi)
+    return plans, [_target_plan(t, curves, constraints, assumptions_vi) for t in targets]
+
+
+def _target_plan(
+    target: float, curves: Mapping[str, SkuCurve], constraints: Constraints, assumptions_vi: Sequence[str]
+) -> InventoryPlan:
+    raw, unreachable = {}, []
+    for sku_id, curve in curves.items():
+        raw[sku_id], reached = _service_index(curve, target)
+        if not reached:
+            unreachable.append(sku_id)
+    idx, bound, reduced = _apply_constraints(raw, curves, constraints)
+    pct = round(100 * target)
+    return _build_plan(
+        f"target_{pct}", f"Mức phục vụ {pct}%", target, idx, curves, bound, reduced, unreachable, assumptions_vi
+    )
+
+
+def _store_curves(
+    forecasts: Sequence[ForecastQuantiles],
+    stock: Sequence[StockLot],
+    skus: Mapping[str, SkuEconomics],
+    constraints: Constraints,
+    horizon_days: int,
+    n_sims: int,
+    seed: int,
+) -> dict[str, SkuCurve]:
     if horizon_days < 1:
         raise ValueError("horizon_days must be >= 1")
     if not forecasts:
@@ -367,7 +417,12 @@ def plan_inventory(
         ]
         rng = np.random.default_rng(ss)
         curves[sku_id] = _sku_curve(store_id, sku, rows, lots, day0, constraints, n_sims, rng)
+    return curves
 
+
+def _three_plans(
+    curves: Mapping[str, SkuCurve], constraints: Constraints, assumptions_vi: Sequence[str]
+) -> list[InventoryPlan]:
     raw: dict[str, dict[str, int]] = {}
     unreachable: dict[str, list[str]] = {}
     for name, _, target in PLAN_SPECS:
@@ -391,8 +446,6 @@ def plan_inventory(
     bal_idx = {s: min(i, safe_idx[s]) for s, i in final["balanced"][0].items()}
     lean_idx = {s: min(i, bal_idx[s]) for s, i in final["lean"][0].items()}
     adjusted = {"safe": safe_idx, "balanced": bal_idx, "lean": lean_idx}
-    assumptions_vi = inventory_assumptions_vi(constraints)
-
     return [
         _build_plan(
             name,

@@ -21,7 +21,7 @@ from agent.tools import Tool, ToolContext, ToolError, ToolRegistry, ToolResult
 from api.drafts import SqlDraftStore
 from api.errors import ApiError
 from api.repo import CATEGORY_ALIASES, ensure_store_access, resolve_store_id
-from api.services import DEFAULT_NOW_HOUR, Services, plan_key
+from api.services import DEFAULT_NOW_HOUR, FRONTIER_PLAN_NAMES, Services, plan_key
 from data_sim import CHAIN_IDS, chain_db_path
 from decision.text import units, vnd
 
@@ -41,7 +41,7 @@ _NOW_HOUR = {
 }
 _NOW_MIN = {"type": "integer", "minimum": 0, "maximum": 240, "description": "Phút từ đầu đợt giao (09:00)."}
 _STORE_ARGS = {"store_id": _STORE, "sku_ids": _SKUS, "categories": _CATS}
-PLAN_NAMES = ["An toàn", "Cân bằng", "Tiết kiệm", "safe", "balanced", "lean"]
+PLAN_NAMES = ["An toàn", "Cân bằng", "Tiết kiệm", "safe", "balanced", "lean", *FRONTIER_PLAN_NAMES]
 
 
 def _obj(props: dict[str, Any], required: tuple[str, ...] = ()) -> dict[str, Any]:
@@ -180,11 +180,12 @@ def build_registry(services: Services, drafts: SqlDraftStore) -> ToolRegistry:
             budget_vnd=args.get("budget_vnd"),
             cold_storage_units=args.get("cold_storage_units"),
         )
+        quantities = [{ln["sku_id"]: ln["qty"] for ln in p["lines"]} for p in result["plans"]]
+        quantities += [f["quantities"] for f in result["frontier"]]
         options = {}
-        for p in result["plans"]:
+        for p, qty in zip([*result["plans"], *result["frontier"]], quantities, strict=True):
             priced = services.purchase_order_lines(
-                ctx.chain_id,
-                [{"sku_id": ln["sku_id"], "qty": ln["qty"]} for ln in p["lines"] if ln["qty"] > 0],
+                ctx.chain_id, [{"sku_id": s, "qty": q} for s, q in qty.items() if q > 0]
             )
             options[p["name"]] = {
                 "label_vi": p["label_vi"],
@@ -327,7 +328,9 @@ def build_registry(services: Services, drafts: SqlDraftStore) -> ToolRegistry:
         ),
         Tool(
             "plan_inventory",
-            "Lập 3 phương án nhập hàng (An toàn / Cân bằng / Tiết kiệm) từ dự báo và tồn kho.",
+            "Lập 3 phương án nhập hàng (An toàn / Cân bằng / Tiết kiệm) từ dự báo và tồn kho, kèm đường đánh "
+            "đổi frontier: mỗi mức phục vụ 50–98% có tiền nhập, % hàng bỏ, % hết hàng (dùng để trả lời "
+            "'nếu chấp nhận hết hàng X% thì bỏ bao nhiêu').",
             _obj(
                 {
                     **_STORE_ARGS,

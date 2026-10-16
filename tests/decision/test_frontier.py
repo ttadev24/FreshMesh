@@ -2,8 +2,8 @@ import datetime as dt
 import math
 
 from decision.frontier import pareto, waste_at
-from decision.inventory import quantity_for_service
-from decision.types import ForecastQuantiles, SkuEconomics, StockLot
+from decision.inventory import FRONTIER_TARGETS, plan_inventory, plan_inventory_with_frontier, quantity_for_service
+from decision.types import Constraints, ForecastQuantiles, SkuEconomics, StockLot
 
 
 def test_pareto_keeps_only_non_dominated_points_in_stockout_order():
@@ -29,3 +29,19 @@ def test_quantity_for_service_rises_with_the_target_and_counts_stock_on_hand():
     assert 25 <= lean <= 35  # around the median
     with_stock, _ = quantity_for_service("S", SKU, rows, [StockLot("S", "K", 10, DAY)], 0.9)
     assert with_stock < safe  # usable stock reduces the order
+
+
+def test_plans_are_unchanged_and_the_frontier_is_monotone():
+    skus = {"K": SKU, "L": SkuEconomics("L", "Thịt", 3.0, 5.0, 0.5, 1)}
+    rows = [ForecastQuantiles("S", "K", DAY, 20.0, 30.0, 45.0), ForecastQuantiles("S", "L", DAY, 5.0, 8.0, 12.0)]
+    stock = [StockLot("S", "K", 6, DAY)]
+    plans, frontier = plan_inventory_with_frontier(rows, stock, skus, Constraints())
+    assert plans == plan_inventory(rows, stock, skus, Constraints())
+    assert [f.target_service_pct for f in frontier] == [round(100 * t, 1) for t in FRONTIER_TARGETS]
+    for a, b in zip(frontier, frontier[1:], strict=False):
+        assert b.total_cost_vnd >= a.total_cost_vnd and b.expected_stockout_pct <= a.expected_stockout_pct
+    lean = next(p for p in plans if p.name == "lean")
+    at_50 = frontier[0]
+    assert {ln.sku_id: ln.qty for ln in at_50.lines} == {ln.sku_id: ln.qty for ln in lean.lines} or (
+        lean.total_cost_vnd <= at_50.total_cost_vnd  # lean is capped at the balanced plan
+    )

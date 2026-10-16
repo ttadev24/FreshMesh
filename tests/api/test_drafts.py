@@ -1,5 +1,6 @@
 import sqlite3
 
+from api.services import FRONTIER_PLAN_NAMES
 from data_sim import chain_db_path
 from tests.api.conftest import assert_error
 
@@ -15,7 +16,7 @@ def test_purchase_order_draft_is_not_executed_until_approved(client, owner_a):
     draft = _po(client, owner_a)
     assert draft["status"] == "draft" and "execution" not in draft["payload"]
     assert draft["payload"]["total_cost_vnd"] == sum(ln["cost_vnd"] for ln in draft["payload"]["lines"])
-    assert set(draft["payload"]["options"]) == {"safe", "balanced", "lean"}
+    assert set(draft["payload"]["options"]) == {"safe", "balanced", "lean", *FRONTIER_PLAN_NAMES}
     listed = {
         d["draft_id"]: d for d in client.get("/api/drafts?status=draft", headers=owner_a).json()["drafts"]
     }

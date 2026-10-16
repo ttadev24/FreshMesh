@@ -43,10 +43,10 @@ from decision import (
     ForecastQuantiles,
     StockLot,
     compare_markdown_vs_transfer,
-    plan_inventory,
     suggest_markdown,
     transfer_stock,
 )
+from decision.inventory import FRONTIER_TARGETS, plan_inventory_with_frontier
 from decision.surplus import SURPLUS_ASSUMPTIONS_VI, rank_surplus_stores, units_left_now
 from decision.text import pct, units, vnd
 from decision.types import MarkdownPlan
@@ -69,6 +69,7 @@ TRANSFER_VEHICLE_CAPACITY = 200
 TRANSFER_SERVICE_MIN = 10
 TRANSFER_WINDOW_MIN = 240
 CONFIDENCE_ORDER = {"Thấp": 0, "Trung bình": 1, "Cao": 2}
+FRONTIER_PLAN_NAMES = tuple(f"target_{round(100 * t)}" for t in FRONTIER_TARGETS)
 PLAN_KEYS = {
     "safe": "safe",
     "balanced": "balanced",
@@ -209,7 +210,7 @@ class Services:
         stock = repo.stock([store_id], [s.sku_id for s in skus])
         economics = {s.sku_id: s.economics(price=s.unit_price + self._penalty(s)) for s in skus}
         try:
-            plans = plan_inventory(
+            plans, frontier = plan_inventory_with_frontier(
                 [ForecastQuantiles(r.store_id, r.sku_id, r.date, r.p10, r.p50, r.p90) for r in rows],
                 stock,
                 economics,
@@ -252,6 +253,20 @@ class Services:
             "order_date": FIRST_DAY.isoformat(),
             "horizon_days": horizon_days,
             "plans": plan_dicts,
+            # Trade-off frontier (owner slides along it): one plan per service target, quantities compact.
+            "frontier": [
+                {
+                    "name": p.name,
+                    "label_vi": p.label_vi,
+                    "target_service_pct": p.target_service_pct,
+                    "total_cost_vnd": p.total_cost_vnd,
+                    "expected_waste_pct": p.expected_waste_pct,
+                    "expected_stockout_pct": p.expected_stockout_pct,
+                    "service_level_pct": p.service_level_pct,
+                    "quantities": {ln.sku_id: ln.qty for ln in p.lines},
+                }
+                for p in frontier
+            ],
             "recommended_plan": recommended,
             "recommended_label_vi": rec_plan["label_vi"],
             "recommended_reason_vi": rec_reason,
@@ -676,9 +691,16 @@ def fl_summary_payload(data_dir: Path) -> dict[str, Any]:
 
 
 def plan_key(name: str) -> str:
-    if name not in PLAN_KEYS:
-        raise ApiError(422, "bad_plan_name", "Phương án phải là An toàn, Cân bằng hoặc Tiết kiệm.")
-    return PLAN_KEYS[name]
+    if name in PLAN_KEYS:
+        return PLAN_KEYS[name]
+    if name in FRONTIER_PLAN_NAMES:
+        return name
+    raise ApiError(
+        422,
+        "bad_plan_name",
+        "Phương án phải là An toàn, Cân bằng, Tiết kiệm hoặc một mức phục vụ trên đường đánh đổi "
+        "(target_50 … target_98).",
+    )
 
 
 def fmt_flow1_text(result: dict[str, Any]) -> str:

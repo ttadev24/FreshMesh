@@ -28,7 +28,8 @@ def test_evidence_lists_every_claim_with_fail_next_to_pass(tmp_path):
     assert "5%: ngoài đường biên FreshMesh" in by_id["frn_inventory"]["headline_vi"]
     assert by_id["frn_forecast"]["verdict"] == "not_run"  # missing report: listed, never dropped
     assert by_id["federated"]["verdict"] == "measured" and "0,4550" in by_id["federated"]["headline_vi"]
-    assert out["counts"] == {"not_run": 6, "fail": 1, "measured": 1}
+    assert out["counts"] == {"not_run": 5, "fail": 1, "measured": 1}  # exploratory items are not counted
+    assert by_id["elasticity"]["exploratory"] and by_id["elasticity"]["verdict"] == "not_run"
     assert all(it["report"].startswith("docs/experiments/") and it["data_vi"] for it in out["items"])
 
 

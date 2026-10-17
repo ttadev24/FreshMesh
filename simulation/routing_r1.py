@@ -39,8 +39,7 @@ def verdicts(docs_dir: Path, tag: str = "") -> dict[str, Any]:
     frn-v1.2 run (routing-PL with the stop service time)."""
     out = {}
     for d in DETOURS:
-        name = routing_bench.results_name(d).replace("routing_benchmark", f"routing_benchmark{tag}")
-        rows = routing_bench.read_results(Path(docs_dir) / name)
+        rows = routing_bench.read_results(Path(docs_dir) / routing_bench.results_name(d, tag))
         out[str(d)] = verdict(rows) if rows else None
     return out
 

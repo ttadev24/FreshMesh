@@ -49,6 +49,9 @@ def main(argv: list[str] | None = None) -> int:
     r.add_argument("--docs-dir", type=Path, default=DOCS_DIR)
     r.add_argument("--detour", type=float, default=routing_bench.PRIMARY_DETOUR,
                    help="road/straight-line factor; 1.3 primary, 1.58 sensitivity (frn-v1 §6)")  # fmt: skip
+    r.add_argument("--tag", default="", help="result set suffix, e.g. _v12 (frn-v1.2 solver)")
+    r.add_argument("--solver-build", default="", help="solver image tag recorded in every row")
+    r.add_argument("--overwrite-frozen", action="store_true", help="rewrite a set holding an R1 verdict")
 
     sub.add_parser("summary", help="print experiment_summary(docs/experiments) as JSON")
     args = p.parse_args(argv)
@@ -86,6 +89,9 @@ def main(argv: list[str] | None = None) -> int:
             container=args.container,
             progress=print,
             detour_factor=args.detour,
+            tag=args.tag,
+            solver_build=args.solver_build,
+            overwrite_frozen=args.overwrite_frozen,
         )
         summary = report.write_routing_report(args.docs_dir)
         print(json.dumps(summary, ensure_ascii=False, indent=2))

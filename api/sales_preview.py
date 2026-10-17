@@ -47,7 +47,7 @@ def preview(services: Any, chain_id: str, store_id: str, text: str) -> dict[str,
         for k in sorted(compared) if abs(past[k] - held[k]) >= 0.5
     ]  # fmt: skip
     new_days = sorted({d for (sku, d) in past if (sku, d) not in held})
-    before = [d for d in new_days if first is None or d < dt.date.fromisoformat(first)]
+    before = _days_before(set(new_days), first)
     check = _forecast_check(services, chain_id, store_id, skus, ahead)
     inside = sum(c["inside"] for c in check)
     parts = [
@@ -57,7 +57,7 @@ def preview(services: Any, chain_id: str, store_id: str, text: str) -> dict[str,
         if compared else "",
         f"{len(before)} ngày trước ngày đầu tiên FreshMesh có: cửa hàng sẽ có "
         f"{store.history_days + len(before)} ngày lịch sử nếu được duyệt nhập." if before else "",
-        f"Ngày sau dữ liệu: số bán thật nằm trong khoảng dự báo P10–P90 ở {inside}/{len(check)} dòng "
+        f"Ngày sau dữ liệu: số bán trong file nằm trong khoảng dự báo P10–P90 ở {inside}/{len(check)} dòng "
         f"({pct(100 * inside / len(check))})." if check else "",
     ]  # fmt: skip
     return {
@@ -78,6 +78,17 @@ def preview(services: Any, chain_id: str, store_id: str, text: str) -> dict[str,
         "summary_vi": " ".join(p for p in parts if p),
         "saved": False,  # preview only: nothing is written to the chain DB
     }
+
+
+def _days_before(days: set[dt.date], first: str | None) -> list[dt.date]:
+    """New days that extend the store's history backwards without a gap (stray old dates do not count)."""
+    if first is None:
+        return sorted(days)
+    out, d = [], dt.date.fromisoformat(first) - dt.timedelta(days=1)
+    while d in days:
+        out.append(d)
+        d -= dt.timedelta(days=1)
+    return sorted(out)
 
 
 def _forecast_check(services: Any, chain_id: str, store_id: str, skus: dict, ahead: dict) -> list[dict]:

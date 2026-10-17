@@ -3,7 +3,10 @@ chain DB. The preview says which rows were understood, how they compare with the
 for days after the data, how FreshMesh's own forecast did against the real sales (P10–P90 coverage). Saving
 an import would be a draft a person approves (not offered yet).
 
-Columns are found by name, accent- and case-insensitive (``Ngày``, ``Mã hàng``, ``Tên hàng``, ``Số lượng``…);
+Quantities follow the file's own convention: when any quantity uses a decimal comma (``0,5``,
+``1.234,5``) dots are thousands separators, otherwise dots are decimal points (``0.500`` = 0,5). Non-finite
+values are rejected. Columns are found by name, accent- and case-insensitive (``Ngày``, ``Mã hàng``, ``Tên hàng``,
+``Số lượng``…);
 dates ``dd/mm/yyyy`` (optional time), ``yyyy-mm-dd`` or ``dd-mm-yyyy``. Products are matched by FreshMesh
 code, else by name."""
 
@@ -12,6 +15,7 @@ from __future__ import annotations
 import csv
 import datetime as dt
 import io
+import math
 import re
 import unicodedata
 from collections import defaultdict
@@ -27,7 +31,8 @@ ALIASES = {
     "name": ("ten_hang", "ten_hang_hoa", "ten_san_pham", "ten_sp", "san_pham", "name", "product"),
     "qty": ("so_luong", "so_luong_ban", "sl", "sl_ban", "qty", "quantity"),
 }
-_DATE = re.compile(r"^(\d{1,2})[/-](\d{1,2})[/-](\d{4})|^(\d{4})-(\d{2})-(\d{2})")
+_DATE = re.compile(r"^(?:(\d{1,2})[/-](\d{1,2})[/-](\d{4})|(\d{4})-(\d{2})-(\d{2}))(?:[ T].*)?$")
+_COMMA_DECIMAL = re.compile(r"-?\d{1,3}(?:\.\d{3})*,\d+")  # 0,5 · 12,25 · 1.234,5
 
 
 def key(text: str) -> str:
@@ -48,14 +53,18 @@ def _date(text: str) -> dt.date | None:
         return None
 
 
-def _qty(text: str) -> float | None:
-    t = text.strip().replace(" ", "")
-    if re.fullmatch(r"-?\d{1,3}(\.\d{3})+", t):  # Vietnamese thousands: 1.200
-        t = t.replace(".", "")
+def _clean(text: str) -> str:
+    return text.strip().replace(" ", "").replace("\u00a0", "")
+
+
+def _qty(text: str, comma_decimal: bool) -> float | None:
+    t = _clean(text)
+    t = t.replace(".", "").replace(",", ".") if comma_decimal else t.replace(",", "")
     try:
-        return float(t.replace(",", "."))
+        v = float(t)
     except ValueError:
         return None
+    return v if math.isfinite(v) else None
 
 
 @dataclass(frozen=True)
@@ -75,8 +84,14 @@ def parse_sales(text: str, skus: dict[str, str]) -> Parsed:
         dialect = csv.Sniffer().sniff(sample, delimiters=",;\t")
     except csv.Error:
         dialect = csv.excel
-    reader = csv.reader(io.StringIO(text.lstrip("﻿")), dialect)
-    header = next(reader, [])
+    try:  # newline="" lets the csv module read CR-only (classic Mac) line endings too
+        rows = list(csv.reader(io.StringIO(text.lstrip("﻿"), newline=""), dialect))
+    except csv.Error:
+        raise ApiError(422, "bad_sales_file", "File CSV bị lỗi định dạng (dấu ngoặc kép không đóng hoặc ô quá "
+                       "dài); hãy xuất lại file từ máy bán hàng.") from None  # fmt: skip
+    if len(rows) > MAX_ROWS + 1:
+        raise ApiError(413, "sales_file_too_large", f"File bán hàng tối đa {MAX_ROWS} dòng.")
+    header = rows[0] if rows else []
     keys = [key(h) for h in header]
     cols = {k: next((i for i, h in enumerate(keys) if h in names), None) for k, names in ALIASES.items()}
     if cols["date"] is None or cols["qty"] is None or (cols["sku"] is None and cols["name"] is None):
@@ -87,12 +102,11 @@ def parse_sales(text: str, skus: dict[str, str]) -> Parsed:
     totals: dict[tuple[str, dt.date], float] = defaultdict(float)
     issues: list[str] = []
     unknown: set[str] = set()
+    cells = [{k: row[c] if c is not None and c < len(row) else "" for k, c in cols.items()} for row in rows[1:]]
+    comma_decimal = any(_COMMA_DECIMAL.fullmatch(_clean(c["qty"])) for c in cells)
     n = 0
-    for n, row in enumerate(reader, start=1):
-        if n > MAX_ROWS:
-            raise ApiError(413, "sales_file_too_large", f"File bán hàng tối đa {MAX_ROWS} dòng.")
-        cell = {k: row[c] if c is not None and c < len(row) else "" for k, c in cols.items()}
-        day, qty = _date(cell["date"]), _qty(cell["qty"])
+    for n, cell in enumerate(cells, start=1):
+        day, qty = _date(cell["date"]), _qty(cell["qty"], comma_decimal)
         code, name = cell["sku"], cell["name"]
         sku = by_code.get(key(code)) or by_name.get(key(name))
         if day is None or qty is None:

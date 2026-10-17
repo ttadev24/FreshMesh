@@ -87,7 +87,8 @@ class ScenarioBody(BaseModel):
 
 class SalesImportBody(BaseModel):
     store_id: str | None = None
-    csv_text: str = Field(min_length=1, max_length=1_000_000)  # a POS export (KiotViet, Sapo, any CSV)
+    # A POS export (KiotViet, Sapo, any CSV); api/sales_import.py enforces the 1 000 000-character limit (413).
+    csv_text: str = Field(min_length=1, max_length=3_000_000)
 
 
 class StockBody(BaseModel):

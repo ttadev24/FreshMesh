@@ -12,14 +12,14 @@ def test_kiotviet_like_export_is_read_by_column_name_and_product_name():
         "﻿Ngày;Mã hàng;Tên hàng;Số lượng\n"
         "30/09/2026 08:15;SP0001;Rau muống (bó 500g);12\n"
         "30/09/2026 17:40;SP0001;RAU MUONG (BO 500G);3\n"
-        "2026-09-29;SKU_CA_CHUA;;1.200\n"
+        "2026-09-29;SKU_CA_CHUA;;0.500\n"
         "hôm qua;SP0001;Rau muống (bó 500g);4\n"
         "30/09/2026;SP9;Bánh mì;2\n"
     )
     out = parse_sales(text, SKUS)
     import datetime as dt
 
-    assert out.totals == {("SKU_RAU_MUONG", dt.date(2026, 9, 30)): 15.0, ("SKU_CA_CHUA", dt.date(2026, 9, 29)): 1200.0}
+    assert out.totals == {("SKU_RAU_MUONG", dt.date(2026, 9, 30)): 15.0, ("SKU_CA_CHUA", dt.date(2026, 9, 29)): 0.5}
     assert out.rows_read == 5 and out.unknown_products == ["Bánh mì"] and "Dòng 5" in out.issues_vi[0]
     assert key("Số lượng bán") == "so_luong_ban" and key("Đơn vị") == "don_vi"
 
@@ -46,3 +46,27 @@ def test_sample_file_round_trips_and_checks_the_forecast(client, owner_a):
 def test_manager_cannot_preview_another_store(client, manager_a):
     body = {"store_id": "A-CH3", "csv_text": "Ngày,Mã hàng,Số lượng\n30/09/2026,SKU_RAU_MUONG,1\n"}
     assert_error(client.post("/api/sales/import/preview", json=body, headers=manager_a), 403)
+
+
+def test_quantities_follow_the_files_decimal_convention_and_reject_non_finite_values():
+    import datetime as dt
+
+    vn = parse_sales("Ngày;Mã hàng;Số lượng\n29/09/2026;SKU_CA_CHUA;1.234,5\n30/09/2026;SKU_CA_CHUA;0,5\n", SKUS)
+    assert vn.totals == {("SKU_CA_CHUA", dt.date(2026, 9, 29)): 1234.5, ("SKU_CA_CHUA", dt.date(2026, 9, 30)): 0.5}
+    bad = parse_sales("Ngày,Mã hàng,Số lượng\n29/09/2026,SKU_CA_CHUA,nan\n30/09/2026,SKU_CA_CHUA,1e400\n"
+                      "15/10/20261,SKU_CA_CHUA,2\n", SKUS)  # fmt: skip
+    assert bad.totals == {} and len(bad.issues_vi) == 3
+
+
+def test_broken_csv_is_a_422_not_a_crash():
+    unclosed = 'Ngày,Mã hàng,Số lượng\n30/09/2026,"SKU_CA_CHUA,1\n'
+    too_long = "Ngày,Mã hàng,Số lượng\n30/09/2026,SKU_CA_CHUA," + "1" * 200_000 + "\n"
+    for text in (unclosed, too_long):
+        with pytest.raises(ApiError) as exc:
+            parse_sales(text, SKUS)
+        assert exc.value.status in (413, 422) and exc.value.code in ("bad_sales_file", "sales_file_too_large")
+
+
+def test_classic_mac_line_endings_are_read():
+    out = parse_sales("Ngày,Mã hàng,Số lượng\r30/09/2026,SKU_CA_CHUA,2\r", SKUS)
+    assert sum(out.totals.values()) == 2.0

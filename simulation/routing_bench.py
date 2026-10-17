@@ -14,7 +14,10 @@
 * Dispatcher baseline = ``routing.dispatch_baseline.zone_sweep`` (protocol frn-v1 §6, R1): bearing zones,
   nearest-neighbour trips, the batch's fleet reused trip after trip; "vehicles" are its trips.
 * ``detour_factor`` 1,3 is the primary setting (``routing_benchmark.csv``); other values are sensitivity runs
-  written to ``routing_benchmark_detour<factor×100>.csv``.
+  written to ``routing_benchmark_detour<factor×100>.csv``. A ``tag`` (``_v12``: frn-v1.2, the solver with the stop
+  service time) names a separate result set. Every row records the solver build it was solved with.
+* Result sets that hold a pre-registered verdict (R1: dispatcher rows present) are frozen: a run refuses to
+  rewrite them unless ``overwrite_frozen`` is set.
 * Solves run sequentially (the solver container is shared with the API).
 """
 
@@ -65,6 +68,7 @@ CSV_FIELDS = (
     "cached",
     "batch_hash",
     "source",
+    "solver_build",
 )
 
 
@@ -189,8 +193,14 @@ def run_routing_benchmark(
     container: str = DEFAULT_CONTAINER,
     progress: Callable[[str], None] | None = None,
     detour_factor: float = PRIMARY_DETOUR,
+    tag: str = "",
+    solver_build: str = "",
+    overwrite_frozen: bool = False,
 ) -> list[dict[str, Any]]:
-    """Benchmark every store of every chain; writes ``docs_dir/<results_name(detour_factor)>``."""
+    """Benchmark every store of every chain; writes ``docs_dir/<results_name(detour_factor, tag)>``."""
+    target = Path(docs_dir) / results_name(detour_factor, tag)
+    if not overwrite_frozen and any(r["method"] == DISPATCHER for r in read_results(target)):
+        raise ValueError(f"{target} holds a pre-registered R1 result; use another tag or overwrite_frozen")
     data_dir = Path(data_dir)
     cache = data_dir / "cache"
     http = SolverClient(solver_url, timeout_s=RoutingConfig().solver_timeout_s)
@@ -223,6 +233,7 @@ def run_routing_benchmark(
                     n_orders=len(batch.orders),
                     at_risk=len(batch.orders) - n_routable,
                     source=sources,
+                    solver_build=solver_build,
                 )
                 out.append(r)
                 if progress:
@@ -230,14 +241,16 @@ def run_routing_benchmark(
                         f"{store.store_id} {r['method']}: {r['status']} km={r.get('road_km')} "
                         f"veh={r.get('vehicles')} wall={r.get('wall_s')}s"
                     )
-            _merge_write(Path(docs_dir) / results_name(detour_factor), out)
+            _merge_write(target, out)
     return out
 
 
-def results_name(detour_factor: float) -> str:
+def results_name(detour_factor: float, tag: str = "") -> str:
+    base = f"routing_benchmark{tag}"
     if detour_factor == PRIMARY_DETOUR:
-        return RESULTS_CSV
-    return f"routing_benchmark_detour{round(100 * detour_factor)}.csv"
+        return f"{base}.csv"
+    code = f"{detour_factor:g}".replace(".", "")  # 1.58 -> 158, 1.585 -> 1585 (no collision)
+    return f"{base}_detour{code}.csv"
 
 
 def _merge_write(path: Path, rows: Sequence[dict[str, Any]]) -> None:
@@ -248,11 +261,13 @@ def _merge_write(path: Path, rows: Sequence[dict[str, Any]]) -> None:
 
 
 def write_results(path: Path, rows: Sequence[dict[str, Any]]) -> None:
-    with Path(path).open("w", encoding="utf-8", newline="") as f:
+    tmp = Path(path).with_suffix(".csv.tmp")  # readers never see a half-written file
+    with tmp.open("w", encoding="utf-8", newline="") as f:
         w = csv.DictWriter(f, fieldnames=list(CSV_FIELDS))
         w.writeheader()
         for r in rows:
             w.writerow({k: r.get(k, "") for k in CSV_FIELDS})
+    tmp.replace(path)
 
 
 def read_results(path: Path) -> list[dict[str, Any]]:

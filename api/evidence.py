@@ -4,7 +4,8 @@ recomputed or typed by hand). A report that has not been run is listed as ``not_
 
 Verdicts: ``pass`` / ``fail`` against a criterion written before the run (``pre_registered``), ``mixed``
 when some parts of a pre-registered claim pass and others fail, ``measured`` when there is no criterion
-(the number is reported as is)."""
+(the number is reported as is). Exploratory checks never set a verdict: they are ``measured`` with
+``exploratory = true`` and are left out of ``counts`` (protocol frn-v1 §7)."""
 
 from __future__ import annotations
 
@@ -32,12 +33,13 @@ def _read(docs: Path, name: str) -> dict | None:
     return json.loads(path.read_text(encoding="utf-8")) if path.exists() else None
 
 
-def _item(id_: str, title: str, data: str, report: str, pre: bool, fn: Callable[[], tuple]) -> dict:
+def _item(id_: str, title: str, data: str, report: str, pre: bool, fn: Callable[[], tuple],
+          exploratory: bool = False) -> dict:  # fmt: skip
     out = {"id": id_, "title_vi": title, "data_vi": data, "report": f"docs/experiments/{report}",
-           "pre_registered": pre}  # fmt: skip
+           "pre_registered": pre, "exploratory": exploratory}  # fmt: skip
     try:
         verdict, headline, numbers = fn()
-    except (FileNotFoundError, KeyError, TypeError, ValueError):
+    except Exception:  # a missing or malformed report is listed as not run, never a 500
         log.warning("evidence item %s unavailable", id_, exc_info=True)
         verdict, headline, numbers = "not_run", "Chưa có kết quả trong docs/experiments.", {}
     return out | {"verdict": verdict, "headline_vi": headline, "numbers": numbers}
@@ -49,13 +51,13 @@ def _frn_forecast(docs: Path) -> tuple:
         raise FileNotFoundError("frn_forecast_summary.json")
     v = s["histories"][s["primary"]]
     t = v["test"]
-    passed = [k for k in ("F1", "F2", "F3") if v[k]["pass"]]
-    verdict = "pass" if len(passed) == 3 else "fail" if not passed else "mixed"
+    passed = [k for k in ("F1", "F2") if v[k]["pass"]]  # the confirmatory criteria; F3 is exploratory
+    verdict = "pass" if len(passed) == 2 else "fail" if not passed else "mixed"
     headline = (
         f"WAPE: MLP {_n(t['mlp']['wape'])}, TB 7 ngày {_n(t['mean7']['wape'])}, cùng thứ tuần trước "
         f"{_n(t['seasonal_naive']['wape'])}, phân vị 28 ngày {_n(t['empirical_q28']['wape'])}. "
-        f"Đạt: {', '.join(passed) or 'không'}; không đạt: "
-        f"{', '.join(k for k in ('F1', 'F2', 'F3') if k not in passed) or 'không'}."
+        f"F1 {'đạt' if v['F1']['pass'] else 'không đạt'}, F2 {'đạt' if v['F2']['pass'] else 'không đạt'}; "
+        f"F3 (thăm dò): độ phủ P10–P90 {_n(100 * v['F3']['coverage'], 1)}%."
     )
     return verdict, headline, {"test": t, "criteria": {k: v[k] for k in ("F1", "F2", "F3")}}
 
@@ -103,6 +105,8 @@ def _sim30(summary: dict | None) -> tuple:
     s = summary["sim30"]
     chains = {c: e["verdicts"] for c, e in s["chains"].items()}
     v1 = {c: v["sim30-v1"]["pass"] for c, v in chains.items() if "sim30-v1" in v}
+    if not v1:
+        raise KeyError("sim30-v1")
     headline = (
         "So với đặt theo TB 7 ngày, 30 ngày mô phỏng: "
         + "; ".join(
@@ -133,8 +137,8 @@ def _routing(summary: dict | None) -> tuple:
     numbers = {"methods": r["methods"], "orders": r["orders"], "batches": r["n_batches"], "r1": r.get("r1"),
                "r1_v12": r.get("r1_v12")}  # fmt: skip
     r1 = (r.get("r1") or {}).get("1.3")
-    if r1 is None:  # dispatcher baseline not run yet: only the weak one-trip comparison exists
-        return "measured", headline, numbers
+    if r1 is None:  # the pre-registered R1 has not been run: only the weak one-trip comparison exists
+        return "not_run", headline, numbers
     headline += (
         f" So với điều phối chia vùng (cách làm tay): PACO ngắn hơn ở {r1['paco_shorter_batches']}/"
         f"{r1['batches']} đợt, {_n(r1['km']['paco'], 1)} so với {_n(r1['km']['zone_sweep'], 1)} km "
@@ -183,14 +187,15 @@ def _elasticity(docs: Path) -> tuple:
     if s is None:
         raise FileNotFoundError("frn_elasticity_summary.json")
     lo, hi = s["ai_range"]
-    where = "nằm trong" if s["inside_ai_range"] else "nằm ngoài"
+    inside = s["inside_ai_range"]
+    where = "nằm trong" if inside else "nằm ngoài"
     headline = (
         f"Trung vị hệ số co giãn giá trên {len(s['categories'])} nhóm hàng: {_n(s['median_elasticity'], 2)}, "
         f"{where} khoảng AI đề xuất ({_n(lo, 1)} … {_n(hi, 1)}). Giảm giá có thể nội sinh nên chỉ để "
         "tham khảo."
     )
-    verdict = "pass" if s["inside_ai_range"] else "fail"  # frn-v1 §4: is the median inside the range?
-    return verdict, headline, {"median": s["median_elasticity"], "categories": s["categories"]}
+    numbers = {"median": s["median_elasticity"], "categories": s["categories"], "inside_ai_range": inside}
+    return "measured", headline, numbers  # frn-v1 §4 is exploratory: the range check is reported, not a verdict
 
 
 def _drivers(docs: Path) -> tuple:
@@ -208,7 +213,8 @@ def build_evidence(docs: Path, fl: Callable[[], dict], experiments: Callable[[],
     """``fl``/``experiments``: the FL and sim30/routing summaries (``forecasting.fl``, ``simulation``)."""
     try:
         sim = experiments()
-    except FileNotFoundError:
+    except Exception:  # partial or missing sim30/routing CSVs: those items become not_run
+        log.warning("experiment summary unavailable", exc_info=True)
         sim = None
     claims = [  # (id, question, data, report, pre-registered, result)
         ("frn_forecast", "Dự báo tốt hơn cách đặt hàng quen thuộc?", REAL_VI, "frn-forecast.md", True,
@@ -225,11 +231,12 @@ def build_evidence(docs: Path, fl: Callable[[], dict], experiments: Callable[[],
          True, lambda: _frn_fl(docs)),
         ("drivers", "Lời giải thích dự báo có đúng không?", SIM_VI, "forecast-drivers-check.md", False,
          lambda: _drivers(docs)),
-        ("elasticity", "Độ co giãn giá mà động cơ giảm giá dùng có hợp lý trên dữ liệu thật?", REAL_VI,
-         "frn-elasticity.md", True, lambda: _elasticity(docs)),
     ]  # fmt: skip
     items = [_item(*c) for c in claims]
+    items.append(_item("elasticity", "Độ co giãn giá mà động cơ giảm giá dùng có hợp lý trên dữ liệu thật?",
+                       REAL_VI, "frn-elasticity.md", True, lambda: _elasticity(docs), exploratory=True))
     counts: dict[str, int] = {}
     for it in items:
-        counts[it["verdict"]] = counts.get(it["verdict"], 0) + 1
+        if not it["exploratory"]:
+            counts[it["verdict"]] = counts.get(it["verdict"], 0) + 1
     return {"items": items, "counts": counts, "note_vi": "Kết quả KHÔNG ĐẠT được công bố cùng kết quả ĐẠT."}

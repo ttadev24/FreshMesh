@@ -11,7 +11,7 @@ Mọi tiêu chí của giao thức đăng ký trước [frn-protocol.md](frn-pro
 | I1 | `frn-v1` | **KHÔNG ĐẠT / FAIL** | hàng bỏ − baseline ở hết hàng 5%: —; 10%: 1,42; 15%: 1,10 (điểm %) | [frn-inventory.md](frn-inventory.md) |
 | I1′ (sau khi xem) | `frn-v1.1` | **KHÔNG ĐẠT / FAIL** | hàng bỏ − baseline ở hết hàng 5%: —; 10%: 2,48; 15%: 1,44 (điểm %) | [frn-inventory-v1.1.md](frn-inventory-v1.1.md) |
 | E (thăm dò) | `frn-v1` | **ĐẠT / PASS** | trung vị e = -1,87 (khoảng AI −3,8 … −1,3) | [frn-elasticity.md](frn-elasticity.md) |
-| L1 | `frn-v1` | **chưa chạy / not run** | 18 thành phố cùng lúc vượt bộ nhớ máy chủ dùng chung (7 GB); cần lưu sẵn đặc trưng từng thành phố ra đĩa trước khi chạy | [frn-protocol.md](frn-protocol.md) |
+| L1 | `frn-v1` | **ĐẠT / PASS** | WAPE cửa hàng mới: tự học 0,3438, liên kết 0,3026; Δ = -0,0412 [-0,0464; -0,0360] | [frn-fl.md](frn-fl.md) |
 | R1 | `frn-v1` | **KHÔNG ĐẠT / FAIL** | PACO ngắn hơn ở 17/18 đợt (27,7% km); trễ PACO 26 vs chia vùng 0 | [routing-benchmark.md](routing-benchmark.md) |
 | R1′ (sau khi xem) | `frn-v1.2` | **ĐẠT / PASS** | PACO ngắn hơn ở 17/18 đợt (25,7% km); trễ PACO 0 vs chia vùng 0 | [routing-benchmark.md](routing-benchmark.md) |
 

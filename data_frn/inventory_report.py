@@ -83,8 +83,11 @@ def _n(x: float, nd: int = 2) -> str:
 def reach_note(fr: dict[str, list]) -> str:
     """Why a cell can be '—': the lowest stockout each family reaches (its most generous policy)."""
     lows = "; ".join(f"{fam} {_n(min(p[0] for p in f))}%" for fam, f in fr.items())
-    return (f"Hết hàng thấp nhất mỗi họ chính sách đạt được: {lows}. Ô '—' là mức nằm ngoài đường biên của một "
-            "họ; quy tắc tính ô đó là không đạt. 'Không xác định' là tỉ lệ lần lấy mẫu lại rơi vào trường hợp này.")  # fmt: skip
+    return (
+        f"Hết hàng thấp nhất mỗi họ chính sách đạt được: {lows}. Ô '—' là mức nằm ngoài đường biên của "
+        "một họ; quy tắc tính ô đó là không đạt. 'Không xác định' là tỉ lệ lần lấy mẫu lại rơi vào "
+        "trường hợp này."
+    )
 
 
 def _svg(fr: dict[str, list], path: Path) -> None:

@@ -5,7 +5,10 @@ from api.evidence import build_evidence
 
 def _fl() -> dict:
     return {
-        "metrics": {"local": {"wape": 0.47, "new_store_wape": 0.54}, "fl": {"wape": 0.455, "new_store_wape": 0.52}},
+        "metrics": {
+            "local": {"wape": 0.47, "new_store_wape": 0.54},
+            "fl": {"wape": 0.455, "new_store_wape": 0.52},
+        },
         "improvement_vs_local": {"wape": 3.0, "new_store": 2.6},
         "rounds": 20,
         "seeds": 3,
@@ -22,7 +25,7 @@ def test_evidence_lists_every_claim_with_fail_next_to_pass(tmp_path):
     assert by_id["frn_inventory"]["verdict"] == "fail" and "1,38" in by_id["frn_inventory"]["headline_vi"]
     assert by_id["frn_forecast"]["verdict"] == "not_run"  # missing report: listed, never dropped
     assert by_id["federated"]["verdict"] == "measured" and "0,4550" in by_id["federated"]["headline_vi"]
-    assert out["counts"] == {"not_run": 3, "fail": 1, "measured": 2} or sum(out["counts"].values()) == 6
+    assert out["counts"] == {"not_run": 4, "fail": 1, "measured": 1}
     assert all(it["report"].startswith("docs/experiments/") and it["data_vi"] for it in out["items"])
 
 

@@ -12,8 +12,6 @@ import json
 import logging
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any
-
 from decision.text import pct
 
 log = logging.getLogger(__name__)
@@ -71,8 +69,8 @@ def _frn_inventory(docs: Path) -> tuple:
         for r in main["levels"]
     ]
     headline = (
-        f"Hàng bỏ của FreshMesh trừ baseline tốt nhất, cùng mức hết hàng ({main['stores']} cửa hàng, hạn dùng "
-        f"{s['primary_shelf_life']} ngày): {'; '.join(parts)}. Âm là FreshMesh tốt hơn."
+        f"Hàng bỏ của FreshMesh trừ baseline tốt nhất, cùng mức hết hàng ({main['stores']} cửa hàng, "
+        f"hạn dùng {s['primary_shelf_life']} ngày): {'; '.join(parts)}. Âm là FreshMesh tốt hơn."
     )
     return ("pass" if main["pass"] else "fail"), headline, {"shelf_lives": s["shelf_lives"]}
 
@@ -104,8 +102,8 @@ def _routing(summary: dict | None) -> tuple:
     paco, base = r["methods"]["paco"], r["methods"]["one_trip_per_order"]
     headline = (
         f"PACO: {_n(paco['total_km'], 1)} km, {paco['total_vehicles']} xe cho {r['orders']} đơn ở "
-        f"{r['n_batches']} đợt; mỗi đơn một chuyến: {_n(base['total_km'], 1)} km, {base['total_vehicles']} xe "
-        f"(giảm {_n(paco['km_saving_vs_baseline_pct'], 1)}% km)."
+        f"{r['n_batches']} đợt; mỗi đơn một chuyến: {_n(base['total_km'], 1)} km, "
+        f"{base['total_vehicles']} xe (giảm {_n(paco['km_saving_vs_baseline_pct'], 1)}% km)."
     )
     return "measured", headline, {"methods": r["methods"], "orders": r["orders"], "batches": r["n_batches"]}
 
@@ -140,20 +138,21 @@ def build_evidence(docs: Path, fl: Callable[[], dict], experiments: Callable[[],
         sim = experiments()
     except FileNotFoundError:
         sim = None
-    items = [
-        _item("frn_forecast", "Dự báo tốt hơn cách đặt hàng quen thuộc?", REAL_VI, "frn-forecast.md", True,
-              lambda: _frn_forecast(docs)),
-        _item("frn_inventory", "Đặt hàng theo mức phục vụ ít hàng bỏ hơn ở cùng mức hết hàng?", REAL_VI,
-              "frn-inventory.md", True, lambda: _frn_inventory(docs)),
-        _item("sim30", "30 ngày vận hành: ít hàng bỏ mà không hết hàng thêm?", SIM_VI, "sim30-results.md", True,
-              lambda: _sim30(sim)),
-        _item("routing", "Gom đơn giao bằng PACO tiết kiệm bao nhiêu km và xe?", SIM_VI, "routing-benchmark.md",
-              False, lambda: _routing(sim)),
-        _item("federated", "Học liên kết giữa các chuỗi có giúp cửa hàng mới?", SIM_VI, "fl-results.md", False,
-              lambda: _fl(fl)),
-        _item("drivers", "Lời giải thích dự báo có đúng không?", SIM_VI, "forecast-drivers-check.md", False,
-              lambda: _drivers(docs)),
+    claims = [  # (id, question, data, report, pre-registered, result)
+        ("frn_forecast", "Dự báo tốt hơn cách đặt hàng quen thuộc?", REAL_VI, "frn-forecast.md", True,
+         lambda: _frn_forecast(docs)),
+        ("frn_inventory", "Đặt theo mức phục vụ ít hàng bỏ hơn ở cùng mức hết hàng?", REAL_VI,
+         "frn-inventory.md", True, lambda: _frn_inventory(docs)),
+        ("sim30", "30 ngày vận hành: ít hàng bỏ mà không hết hàng thêm?", SIM_VI, "sim30-results.md", True,
+         lambda: _sim30(sim)),
+        ("routing", "Gom đơn giao bằng PACO tiết kiệm bao nhiêu km và xe?", SIM_VI, "routing-benchmark.md",
+         False, lambda: _routing(sim)),
+        ("federated", "Học liên kết giữa các chuỗi có giúp cửa hàng mới?", SIM_VI, "fl-results.md", False,
+         lambda: _fl(fl)),
+        ("drivers", "Lời giải thích dự báo có đúng không?", SIM_VI, "forecast-drivers-check.md", False,
+         lambda: _drivers(docs)),
     ]  # fmt: skip
+    items = [_item(*c) for c in claims]
     counts: dict[str, int] = {}
     for it in items:
         counts[it["verdict"]] = counts.get(it["verdict"], 0) + 1

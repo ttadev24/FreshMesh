@@ -1,4 +1,5 @@
-"""CLI: ``python -m forecasting train --chain CHAIN_A`` / ``forecast --chain CHAIN_A --store S --sku K``."""
+"""CLI: ``python -m forecasting train --chain CHAIN_A`` / ``forecast --chain CHAIN_A --store S --sku K`` /
+``drivers-check`` (explanations vs simulator truth → docs/experiments)."""
 
 from __future__ import annotations
 
@@ -33,8 +34,16 @@ def main(argv: list[str] | None = None) -> int:
     p_fc.add_argument("--horizon", type=int, default=1)
     p_fc.add_argument("--as-of", type=dt.date.fromisoformat, default=None)
     p_fc.add_argument("--data", type=Path, default=Path("data"))
+    p_check = sub.add_parser("drivers-check", help="compare forecast drivers with the simulator's truth")
+    p_check.add_argument("--data", type=Path, default=Path("data"))
+    p_check.add_argument("--docs", type=Path, default=Path("docs/experiments"))
     args = parser.parse_args(argv)
 
+    if args.cmd == "drivers-check":
+        from forecasting.drivers_check import write_report
+
+        print(write_report(args.data, args.docs))
+        return 0
     if args.cmd == "train":
         t0 = time.perf_counter()
         art = train_local(args.chain, data_dir=args.data, seed=args.seed)

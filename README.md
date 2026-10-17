@@ -310,5 +310,5 @@ Bug reports, documentation fixes, translations, and reproducible research improv
 <div align="center">
   <img src="web/public/brand/freshmesh-logo.png" alt="" width="32" />
   <p><strong>Fresh decisions. Connected stores.</strong></p>
-  <p><a href="https://github.com/ttadev24/FreshMesh/issues/new/choose">Report an issue</a> · <a href="CONTRIBUTING.md">Make a contribution</a> · <a href="#freshmesh">Back to the top</a></p>
+  <p><a href="https://github.com/ttadev24/FreshMesh/issues/new/choose">Report an issue</a> · <a href="CONTRIBUTING.md">Make a contribution</a> · <a href="#freshmesh">Back to the top again</a></p>
 </div>

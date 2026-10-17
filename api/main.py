@@ -29,9 +29,10 @@ from api import provenance_view
 from api.auth import User, authenticate, current_user, issue_token
 from api.brief import BriefService
 from api.chat_quota import ChatQuota, client_ip
-from api.config import Settings
+from api.config import REPO_ROOT, Settings
 from api.drafts import DRAFT_KINDS, SqlDraftStore
 from api.errors import ApiError, install_error_handlers
+from api.evidence import build_evidence
 from api.network import build_network
 from api.repo import ChainRepo, ensure_store_access, resolve_store_id
 from api.road_path import RoadRouter
@@ -301,6 +302,17 @@ def create_app(
     def verify_run(user: User = Depends(current_user)) -> dict[str, Any]:
         """'Kiểm chứng 90 giây': the safety rules checked live on the real guard code (api/verify.py)."""
         return run_verify(settings.data_dir, settings.approval_policy)
+
+    @app.get("/api/evidence")
+    def evidence(user: User = Depends(current_user)) -> dict[str, Any]:
+        """'Bằng chứng': each claim with its measured result, PASS and FAIL alike (api/evidence.py)."""
+        from forecasting.fl.summary import fl_summary
+        from simulation import experiment_summary
+
+        docs = REPO_ROOT / "docs" / "experiments"
+        return build_evidence(
+            docs, fl=lambda: fl_summary(settings.data_dir, docs), experiments=lambda: experiment_summary(docs)
+        )
 
     @app.get("/api/network")
     def network(user: User = Depends(current_user)) -> dict[str, Any]:

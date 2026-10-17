@@ -9,7 +9,11 @@ from pathlib import Path
 
 PROTOCOL_ID = "frn-v1"
 PROTOCOL_FILE = "frn-protocol.md"
-PROTOCOL_FILES = {PROTOCOL_ID: PROTOCOL_FILE, "frn-v1.1": "frn-protocol-v1.1.md", "frn-v1.2": "frn-protocol-v1.2.md"}
+PROTOCOL_FILES = {
+    PROTOCOL_ID: PROTOCOL_FILE,
+    "frn-v1.1": "frn-protocol-v1.1.md",  # inventory: the ordering rule on empirical quantiles
+    "frn-v1.2": "frn-protocol-v1.2.md",  # routing: routing-PL with the stop service time
+}
 
 
 def require_protocol(docs_dir: Path | str, version: str = PROTOCOL_ID) -> str:

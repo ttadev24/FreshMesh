@@ -14,6 +14,7 @@ import logging
 from collections.abc import Callable
 from pathlib import Path
 
+from api.evidence_impact import impact
 from decision.text import pct
 
 log = logging.getLogger(__name__)
@@ -42,7 +43,12 @@ def _item(id_: str, title: str, data: str, report: str, pre: bool, fn: Callable[
     except Exception:  # a missing or malformed report is listed as not run, never a 500
         log.warning("evidence item %s unavailable", id_, exc_info=True)
         verdict, headline, numbers = "not_run", "Chưa có kết quả trong docs/experiments.", {}
-    return out | {"verdict": verdict, "headline_vi": headline, "numbers": numbers}
+    try:
+        big = impact(id_, numbers)
+    except Exception:
+        log.warning("evidence impact %s unavailable", id_, exc_info=True)
+        big = None
+    return out | {"verdict": verdict, "headline_vi": headline, "numbers": numbers, "impact": big}
 
 
 def _frn_forecast(docs: Path) -> tuple:

@@ -39,3 +39,15 @@ def test_evidence_endpoint_reads_the_committed_reports(client, owner_a):
     items = {it["id"]: it for it in r.json()["items"]}
     assert items["sim30"]["verdict"] in ("pass", "fail", "mixed") and items["sim30"]["pre_registered"]
     assert items["routing"]["verdict"] in ("measured", "pass", "fail") and "PACO" in items["routing"]["headline_vi"]
+
+
+def test_every_reported_item_has_an_impact_number_from_its_own_numbers(client, owner_a):
+    items = {it["id"]: it for it in client.get("/api/evidence", headers=owner_a).json()["items"]}
+    for it in items.values():
+        if it["verdict"] == "not_run":
+            assert it["impact"] is None
+        else:
+            assert it["impact"]["value_vi"] and it["impact"]["label_vi"]
+    route = items["routing"]["impact"]
+    assert route["value_vi"].endswith("% km") and route["before_vi"].startswith("284 chuyến")
+    assert items["frn_federated"]["impact"]["value_vi"] == "−12%"

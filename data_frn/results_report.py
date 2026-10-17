@@ -65,7 +65,8 @@ def rows(docs: Path, routing: dict | None) -> list[tuple[str, str, str, str, str
             continue
         out.append((crit, proto, PASS if r["pass"] else FAIL,
                     f"PACO ngắn hơn ở {r['paco_shorter_batches']}/{r['batches']} đợt "
-                    f"({_n(r['km_saving_pct'], 1)}% km); trễ PACO {r['late_stops']['paco']} vs chia vùng {r['late_stops']['zone_sweep']}",
+                    f"({_n(r['km_saving_pct'], 1)}% km); trễ PACO {r['late_stops']['paco']} vs chia vùng "
+                    f"{r['late_stops']['zone_sweep']}",
                     "routing-benchmark.md"))  # fmt: skip
     return out
 

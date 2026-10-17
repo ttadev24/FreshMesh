@@ -3,7 +3,6 @@
 import { useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import type { Provenance } from "@/lib/types";
 import AuditTab from "@/components/tabs/AuditTab";
-import FlTab from "@/components/tabs/FlTab";
 import SourcesTab, { type SourcesTarget } from "@/components/tabs/SourcesTab";
 import type { Resource } from "@/components/tabs/useResource";
 import s from "./dashboard.module.css";
@@ -11,7 +10,6 @@ import s from "./dashboard.module.css";
 const TABS = [
   { id: "dashboard", label: "Bảng điều khiển", testId: "tab-dashboard" },
   { id: "audit", label: "Lịch sử quyết định", testId: "tab-audit" },
-  { id: "fl", label: "Mạng lưới FL", testId: "tab-fl" },
   { id: "sources", label: "Nguồn & giả định dữ liệu", testId: "tab-sources" },
 ] as const;
 export type TabId = (typeof TABS)[number]["id"];
@@ -96,8 +94,6 @@ export default function RightPane({ tab, onTab, dashboard, provenance, sourcesTa
                 dashboard
               ) : t.id === "audit" ? (
                 <AuditTab version={auditVersion} />
-              ) : t.id === "fl" ? (
-                <FlTab />
               ) : (
                 <SourcesTab provenance={provenance} target={sourcesTarget} />
               )}

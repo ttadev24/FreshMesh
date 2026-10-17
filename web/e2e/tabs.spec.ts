@@ -2,7 +2,7 @@ import { createPanelDraft, expect, login, runTool, showPane, test } from "./fixt
 
 // Shape of GET /api/provenance (provenance.describe). Kinds: public | ai_generated | derived | synthetic_code.
 
-test("Các tab: lịch sử quyết định, mạng lưới FL, nguồn & giả định dữ liệu", async ({ page }) => {
+test("Các tab: lịch sử quyết định, nguồn & giả định dữ liệu", async ({ page }) => {
   await login(page, "owner_a");
   await runTool(page, "inventory");
   const card = await createPanelDraft(page, "inventory", "draft-purchase");
@@ -13,14 +13,6 @@ test("Các tab: lịch sử quyết định, mạng lưới FL, nguồn & giả 
   const audit = page.getByTestId("audit-list");
   await expect(audit).toBeVisible();
   await expect(audit.locator("li").first()).toBeVisible();
-
-  await page.getByTestId("tab-fl").click();
-  // The FL experiments have been run (docs/experiments), so the real panel must render, never the empty state.
-  const fl = page.getByTestId("fl-panel");
-  await expect(fl).toBeVisible();
-  await expect(page.getByTestId("fl-not-ready")).toHaveCount(0);
-  await expect(fl).toContainText("Chuỗi tham gia");
-  await expect(fl).toContainText("dự báo đang dùng mô hình cục bộ");
 
   await page.getByTestId("tab-sources").click();
   await expect(page.getByTestId("tab-sources")).toHaveText("Nguồn & giả định dữ liệu");
@@ -34,7 +26,9 @@ test("Các tab: lịch sử quyết định, mạng lưới FL, nguồn & giả 
   // Keyboard: arrow keys move between tabs.
   await page.getByTestId("tab-sources").focus();
   await page.keyboard.press("ArrowLeft");
-  await expect(page.getByTestId("tab-fl")).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByTestId("tab-audit")).toHaveAttribute("aria-selected", "true");
+  // The federated-learning tab is gone from the workspace; the network page still shows learning together.
+  await expect(page.getByTestId("tab-fl")).toHaveCount(0);
 });
 
 test("Huy hiệu nguồn dữ liệu mở tab nguồn: bộ dữ liệu có loại, giấy phép, đường dẫn an toàn", async ({ page }) => {

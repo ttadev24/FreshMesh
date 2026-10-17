@@ -55,8 +55,8 @@ def city_rows(data_dir: Path, city_id: int, shelf_life: int, seed: int = 0, v11:
         point = {}
     else:
         cd_obs, _ = city_chain(rows, "observed")
-        model, fit = fit_quantile_model(cd_rec, train_last=FIT_LAST, cal_first=FIT_LAST + 1, cal_last=CAL_LAST,
-                                        seed=seed, target_cd=cd_obs)  # fmt: skip
+        windows = {"train_last": FIT_LAST, "cal_first": FIT_LAST + 1, "cal_last": CAL_LAST}
+        model, fit = fit_quantile_model(cd_rec, **windows, seed=seed, target_cd=cd_obs)
         clim = cd_rec.rain_climatology(CAL_LAST)
         fb = build_features(cd_rec, s, k, o, h, known_rain=False, rain_clim=clim)
         quant = _predict_units(model, fit, fb, h).reshape(len(pairs), n_days, 3)

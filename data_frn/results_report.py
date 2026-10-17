@@ -57,7 +57,14 @@ def rows(docs: Path, routing: dict | None) -> list[tuple[str, str, str, str, str
     out.append(("E (thăm dò)", "frn-v1", NOT_RUN if e is None else (PASS if e["inside_ai_range"] else FAIL),
                 "—" if e is None else f"trung vị e = {_n(e['median_elasticity'])} (khoảng AI −3,8 … −1,3)",
                 "frn-elasticity.md"))  # fmt: skip
-    out.append(("L1", "frn-v1", NOT_RUN, L1_NOT_RUN, "frn-protocol.md"))
+    fl = _read(docs, "frn_fl_summary.json")
+    if fl is None:
+        out.append(("L1", "frn-v1", NOT_RUN, L1_NOT_RUN, "frn-protocol.md"))
+    else:
+        r, m = fl["L1"], fl["metrics"]["new_store"]
+        out.append(("L1", "frn-v1", PASS if r["pass"] else FAIL,
+                    f"WAPE cửa hàng mới: tự học {_n(m['local']['wape'], 4)}, liên kết {_n(m['fl']['wape'], 4)}; "
+                    f"Δ = {_n(r['diff'], 4)} [{_n(r['ci_low'], 4)}; {_n(r['ci_high'], 4)}]", "frn-fl.md"))  # fmt: skip
     for key, crit, proto in (("r1", "R1", "frn-v1"), ("r1_v12", "R1′ (sau khi xem)", "frn-v1.2")):
         r = ((routing or {}).get(key) or {}).get("1.3")
         if r is None:

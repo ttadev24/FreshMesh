@@ -178,6 +178,14 @@ class ChainClient:
     def n_train(self) -> int:
         return int(len(self.y))
 
+    def calibrate(self, model: QuantileMLP, meta: dict) -> tuple[list[float], int]:
+        """Conformal offsets on this client's calibration window (other clients, e.g. FreshRetailNet cities,
+        override this and ``eval_sums``)."""
+        return calibrate(self.cd, model, meta, self.window)
+
+    def eval_sums(self, model: QuantileMLP, meta: dict) -> dict[str, float]:
+        return eval_sums(self.cd, model, meta, self.window)
+
     def meta(
         self, cfg: FLConfig, feature_mean: np.ndarray | None = None, feature_std: np.ndarray | None = None
     ) -> dict:
@@ -406,14 +414,14 @@ def build_client_app(client: ChainClient, cfg: FLConfig, *, seed: int = 0, dp: b
                 trainable=range(nb, nb + 2),
             )
         meta = client.meta(cfg)
-        offsets, n_cal = calibrate(client.cd, model, meta, client.window)
+        offsets, n_cal = client.calibrate(model, meta)
         meta["conformal_offsets"] = offsets
         meta["conformal"] = {
             "method": "split CQR in scaled space, one offset per horizon, on this chain's calibration window",
             "target_coverage": TARGET_COVERAGE,
             "n_cal": n_cal,
         }
-        sums = eval_sums(client.cd, model, meta, client.window)
+        sums = client.eval_sums(model, meta)
         if bool(conf["save"]):
             meta["seed"] = seed
             meta["federated"] = json.loads(str(conf["run-info"]))

@@ -129,9 +129,9 @@ def _routing(summary: dict | None) -> tuple:
     fixed = (r.get("r1_v12") or {}).get("1.3")
     if fixed:  # frn-v1.2, written after R1: the solver with the stop service time
         headline += (
-            f" Sau khi sửa lỗi bộ giải bỏ qua thời gian giao tại điểm (frn-v1.2, viết sau khi xem R1): PACO ngắn "
-            f"hơn ở {fixed['paco_shorter_batches']}/{fixed['batches']} đợt (giảm {_n(fixed['km_saving_pct'], 1)}%"
-            f" km), điểm trễ {fixed['late_stops']['paco']}."
+            " Sau khi sửa lỗi bộ giải bỏ qua thời gian giao tại điểm (frn-v1.2, viết sau khi xem R1): "
+            f"PACO ngắn hơn ở {fixed['paco_shorter_batches']}/{fixed['batches']} đợt "
+            f"(giảm {_n(fixed['km_saving_pct'], 1)}% km), điểm trễ {fixed['late_stops']['paco']}."
         )
     return ("pass" if r1["pass"] else "fail"), headline, numbers
 

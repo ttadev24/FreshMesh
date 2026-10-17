@@ -13,7 +13,7 @@ import PosImportDialog from "./PosImportDialog";
 import QuestionCard from "./QuestionCard";
 import ScenarioCard from "./ScenarioCard";
 import TradeoffChart from "./TradeoffChart";
-import { STUDIO_SCOPE, pointFor, useStudio } from "./useStudio";
+import { STUDIO_SCOPE, useStudio } from "./useStudio";
 import st from "./studio.module.css";
 
 interface Props {
@@ -42,10 +42,9 @@ export default function DecisionStudio({ storeId, storeName, role, drafts, draft
     if (!plan) return;
     if (field === "recent_sales" && i === 0) setPosOpen(true);
     // A conflict's answers name the order they mean ("Mức phục vụ 95%: …"); "dùng phương án An toàn" picks the safe plan.
-    const named = plan.frontier.find((f) => text.includes(f.label_vi));
-    const safe = /an toàn/i.test(text) ? pointFor(plan, "safe") : undefined;
-    const target = named ?? safe;
-    if (target) studio.pick(target.name);
+    const named = plan.frontier.find((f) => text.includes(f.label_vi))?.name;
+    const target = named ?? (/an toàn/i.test(text) ? "safe" : undefined);
+    if (target) studio.pick(target);
   }
 
   async function createOrder() {
@@ -92,7 +91,7 @@ export default function DecisionStudio({ storeId, storeName, role, drafts, draft
                 <h2 id="studio-tradeoff" className={st.sheetTitle}>
                   Đánh đổi bằng tiền
                 </h2>
-                <TradeoffChart frontier={plan.frontier} selected={selected} goals={studio.goals} onSelect={studio.pick} />
+                <TradeoffChart plan={plan} selected={selected} goals={studio.goals} onSelect={studio.pick} />
                 <PlanPicks plan={plan} selected={selected} onSelect={studio.pick} />
               </section>
 

@@ -460,13 +460,18 @@
   gap: 6px;
 }
 
+/* Only a pass is green; a fail keeps its red badge, its number stays ink so a large gain is not read as a loss. */
 .impactValue {
-  color: var(--accent);
+  color: var(--ink);
   font-size: 46px;
   font-weight: 300;
   line-height: 1;
   letter-spacing: -0.04em;
   font-variant-numeric: tabular-nums;
+}
+
+.card[data-verdict="pass"] .impactValue {
+  color: var(--green);
 }
 
 .impactMove {

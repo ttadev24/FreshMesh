@@ -36,6 +36,12 @@ export interface FrontierPoint {
   quantities: Record<string, number>;
 }
 
+/** Anything the owner can pick: a point of the frontier or one of the three named plans. */
+export type Choice = Pick<
+  FrontierPoint,
+  "name" | "label_vi" | "total_cost_vnd" | "expected_waste_pct" | "expected_stockout_pct" | "expected_leftover_units"
+>;
+
 export interface PlanOption {
   name: string;
   label_vi: string;

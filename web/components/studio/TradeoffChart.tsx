@@ -1,5 +1,6 @@
 import { fmtNum, fmtPct, fmtVnd } from "@/lib/format";
-import type { FrontierPoint, Goals } from "@/lib/studio-types";
+import type { Choice, Goals, StudioPlan } from "@/lib/studio-types";
+import { nearestPoint } from "./useStudio";
 import st from "./studio.module.css";
 
 const W = 760;
@@ -7,22 +8,25 @@ const H = 300;
 const PAD = { l: 64, r: 24, t: 20, b: 44 };
 
 interface Props {
-  frontier: FrontierPoint[];
-  selected: FrontierPoint | undefined;
+  plan: StudioPlan;
+  selected: Choice | undefined;
   goals: Goals;
   onSelect: (name: string) => void;
 }
 
-/** Money against stockouts: each dot is one order size; the slider walks along them. */
-export default function TradeoffChart({ frontier, selected, goals, onSelect }: Props) {
-  const pts = [...frontier].sort((a, b) => a.total_cost_vnd - b.total_cost_vnd);
-  const costs = pts.map((p) => p.total_cost_vnd);
-  const xMin = Math.min(...costs) * 0.94;
-  const xMax = Math.max(...costs) * 1.04;
-  const yMax = Math.max(1, ...pts.map((p) => p.expected_stockout_pct)) * 1.2;
+const millions = (v: number) => `${fmtNum(v / 1e6, 1)} triệu đ`;
+
+/** Money against stockouts: the frontier the slider walks, with the three named plans marked on it. */
+export default function TradeoffChart({ plan, selected, goals, onSelect }: Props) {
+  const pts = [...plan.frontier].sort((a, b) => a.total_cost_vnd - b.total_cost_vnd);
+  const all = [...pts, ...plan.plans];
+  const xMin = Math.min(...all.map((p) => p.total_cost_vnd)) * 0.94;
+  const xMax = Math.max(...all.map((p) => p.total_cost_vnd)) * 1.04;
+  const yMax = Math.max(1, ...all.map((p) => p.expected_stockout_pct)) * 1.2;
   const x = (v: number) => PAD.l + ((v - xMin) / (xMax - xMin)) * (W - PAD.l - PAD.r);
   const y = (v: number) => PAD.t + (1 - v / yMax) * (H - PAD.t - PAD.b);
-  const idx = Math.max(0, pts.findIndex((p) => p.name === selected?.name));
+  const rest = nearestPoint(plan, selected);
+  const idx = Math.max(0, pts.findIndex((p) => p.name === rest?.name));
   const goalX = goals.max_cost_vnd ? x(Math.min(goals.max_cost_vnd, xMax)) : null;
   const goalY = goals.max_stockout_pct !== undefined ? y(Math.min(goals.max_stockout_pct, yMax)) : null;
 
@@ -40,7 +44,13 @@ export default function TradeoffChart({ frontier, selected, goals, onSelect }: P
         ) : null}
         <line className={st.axis} x1={PAD.l} y1={H - PAD.b} x2={W - PAD.r} y2={H - PAD.b} />
         <line className={st.axis} x1={PAD.l} y1={PAD.t} x2={PAD.l} y2={H - PAD.b} />
-        <text className={st.axisLabel} x={W - PAD.r} y={H - 10} textAnchor="end">
+        <text className={st.axisLabel} x={PAD.l} y={H - 22}>
+          {millions(xMin / 0.94)}
+        </text>
+        <text className={st.axisLabel} x={W - PAD.r} y={H - 22} textAnchor="end">
+          {millions(xMax / 1.04)}
+        </text>
+        <text className={st.axisLabel} x={(W + PAD.l) / 2} y={H - 6} textAnchor="middle">
           Tiền nhập →
         </text>
         <text className={st.axisLabel} x={12} y={PAD.t + 4}>
@@ -57,6 +67,19 @@ export default function TradeoffChart({ frontier, selected, goals, onSelect }: P
             onClick={() => onSelect(p.name)}
           />
         ))}
+        {plan.plans.map((p) => {
+          const on = p.name === selected?.name;
+          const cx = x(p.total_cost_vnd);
+          const cy = y(p.expected_stockout_pct);
+          return (
+            <g key={p.name} className={on ? st.planOn : st.plan} onClick={() => onSelect(p.name)}>
+              <rect x={cx - 7} y={cy - 7} width={14} height={14} rx={3} transform={`rotate(45 ${cx} ${cy})`} />
+              <text x={cx} y={cy - 14} textAnchor="middle">
+                {p.label_vi}
+              </text>
+            </g>
+          );
+        })}
       </svg>
 
       <label className={st.slider}>

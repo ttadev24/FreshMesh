@@ -264,6 +264,35 @@
   stroke-width: 3;
 }
 
+/* The three named plans: diamonds with their name, so the slider's points and the cards read as one chart. */
+.plan,
+.planOn {
+  cursor: pointer;
+}
+
+.plan rect {
+  fill: var(--surface);
+  stroke: var(--ink-2);
+  stroke-width: 2;
+}
+
+.planOn rect {
+  fill: var(--green);
+  stroke: #fff;
+  stroke-width: 3;
+}
+
+.plan text,
+.planOn text {
+  fill: var(--ink-2);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.planOn text {
+  fill: var(--green);
+}
+
 .slider {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;

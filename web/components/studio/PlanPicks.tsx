@@ -1,15 +1,13 @@
 import { fmtNum, fmtPct, fmtVnd } from "@/lib/format";
-import type { FrontierPoint, StudioPlan } from "@/lib/studio-types";
-import { pointFor } from "./useStudio";
+import type { Choice, StudioPlan } from "@/lib/studio-types";
 import st from "./studio.module.css";
 
-/** The three named plans as quick picks on the same frontier the slider walks. */
-export default function PlanPicks({ plan, selected, onSelect }: { plan: StudioPlan; selected: FrontierPoint | undefined; onSelect: (name: string) => void }) {
+/** The three named plans; picking one marks it on the chart next to the frontier the slider walks. */
+export default function PlanPicks({ plan, selected, onSelect }: { plan: StudioPlan; selected: Choice | undefined; onSelect: (name: string) => void }) {
   return (
     <div className={st.picks} role="radiogroup" aria-label="Ba phương án nhập">
       {plan.plans.map((p) => {
-        const point = pointFor(plan, p.name);
-        const on = point !== undefined && point.name === selected?.name;
+        const on = p.name === selected?.name;
         return (
           <button
             key={p.name}
@@ -17,7 +15,7 @@ export default function PlanPicks({ plan, selected, onSelect }: { plan: StudioPl
             role="radio"
             aria-checked={on}
             className={st.pick}
-            onClick={() => point && onSelect(point.name)}
+            onClick={() => onSelect(p.name)}
             data-testid={`pick-${p.name}`}
           >
             <span className={st.pickHead}>

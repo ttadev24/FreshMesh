@@ -263,30 +263,6 @@
   accent-color: var(--l-green);
 }
 
-.linkBtn {
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--l-green);
-  font: inherit;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-  cursor: pointer;
-}
-
-.note {
-  margin: 0;
-  padding: 12px 14px;
-  border-radius: 12px;
-  background: #e5f2e9;
-  font-size: 14px;
-  line-height: 1.6;
-}
-
-.note code {
-  font-weight: 600;
-}
-
 .submit {
   position: relative;
   display: flex;
@@ -390,7 +366,6 @@
 .help:focus-visible,
 .heroLink:focus-visible,
 .eye:focus-visible,
-.linkBtn:focus-visible,
 .submit:focus-visible,
 .dot:focus-visible,
 .privacy summary:focus-visible {

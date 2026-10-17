@@ -8,18 +8,13 @@ import { Spinner } from "@/components/ui/primitives";
 import { ArrowRightIcon, EyeIcon, EyeOffIcon } from "./login-icons";
 import s from "./login.module.css";
 
-// Public demo account, prefilled so visitors can sign in with one click ("Quên mật khẩu?" lists the others).
-const DEMO_USERNAME = "owner_a";
-const DEMO_PASSWORD = "demo123";
-
 export default function LoginForm() {
   const router = useRouter();
   const session = useSession();
-  const [username, setUsername] = useState(DEMO_USERNAME);
-  const [password, setPassword] = useState(DEMO_PASSWORD);
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember] = useState(false);
-  const [showDemo, setShowDemo] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<{ message: string; network: boolean } | null>(null);
 
@@ -106,24 +101,7 @@ export default function LoginForm() {
           <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
           Ghi nhớ đăng nhập
         </label>
-        <button
-          type="button"
-          className={s.linkBtn}
-          onClick={() => setShowDemo((v) => !v)}
-          aria-expanded={showDemo}
-          aria-controls="demo-accounts"
-        >
-          Quên mật khẩu?
-        </button>
       </div>
-
-      {showDemo ? (
-        <p id="demo-accounts" className={s.note}>
-          Đây là bản demo: mọi tài khoản dùng mật khẩu <code>{DEMO_PASSWORD}</code>. Chủ chuỗi: <code>owner_a</code>,{" "}
-          <code>owner_b</code>, <code>owner_c</code>. Quản lý cửa hàng: <code>manager_a1</code>, <code>manager_b1</code>
-          , <code>manager_c1</code>.
-        </p>
-      ) : null}
 
       {error ? (
         <p id="login-error" className={error.network ? s.errorNetwork : s.error} role="alert" data-testid="login-error">

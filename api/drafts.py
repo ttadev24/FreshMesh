@@ -250,7 +250,7 @@ class SqlDraftStore:
         return sum(int(json.loads(r[0])["execution"].get("total_cost_vnd") or 0) for r in rows)
 
     def approve(self, user: User, draft_id: str, revision: int | None = None) -> dict[str, Any]:
-        """``revision``: the payload revision the approver looked at; a draft edited since is refused (409)."""
+        """``revision``: the payload revision the approver saw; a draft edited since is refused (409)."""
         escalated: dict[str, Any] = {}
 
         def mutate(draft: dict[str, Any], con: sqlite3.Connection) -> tuple[str, dict[str, Any], str, dict]:

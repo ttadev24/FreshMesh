@@ -9,7 +9,7 @@ from pathlib import Path
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="python -m data_frn", description=__doc__)
     commands = ["download", "audit", "forecast", "forecast-report", "inventory", "inventory-report",
-                "elasticity"]  # fmt: skip
+                "elasticity", "results"]  # fmt: skip
     parser.add_argument("command", choices=commands)
     parser.add_argument("--shelf-life", type=int, default=2)
     parser.add_argument("--data", type=Path, default=Path("data"))
@@ -37,6 +37,15 @@ def main(argv: list[str] | None = None) -> int:
 
         paths = {h: sums_path(args.docs / f"frn_forecast_sums_{h}.csv") for h in ("recovered", "observed")}
         print(forecast_report({h: p for h, p in paths.items() if p}, args.docs))
+    elif args.command == "results":
+        from data_frn.results_report import write_report as results_report
+        from simulation import experiment_summary
+
+        try:
+            routing = experiment_summary(args.docs).get("routing")
+        except FileNotFoundError:
+            routing = None
+        print(results_report(args.docs, routing))
     elif args.command == "elasticity":
         from data_frn.elasticity import run as elasticity_run
 

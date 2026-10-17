@@ -45,7 +45,9 @@ def rows(docs: Path, routing: dict | None) -> list[tuple[str, str, str, str, str
                     "frn-forecast.md"))  # fmt: skip
     for name, crit, proto, report in (("frn_inventory_summary.json", "I1", "frn-v1", "frn-inventory.md"),
                                       ("frn_inventory_v11_summary.json", "I1′ (sau khi xem)", "frn-v1.1",
-                                       "frn-inventory-v1.1.md")):  # fmt: skip
+                                       "frn-inventory-v1.1.md"),
+                                      ("frn_inventory_v13_summary.json", "I1″ (sau khi xem)", "frn-v1.3",
+                                       "frn-inventory-v1.3.md")):  # fmt: skip
         s = _read(docs, name)
         if s is None:
             out.append((crit, proto, NOT_RUN, "—", report))
@@ -86,7 +88,8 @@ def write_report(docs_dir: Path | str, routing: dict | None) -> Path:
         "# FreshRetailNet và định tuyến — tổng hợp kết quả / results summary",
         "",
         "Mọi tiêu chí của giao thức đăng ký trước [frn-protocol.md](frn-protocol.md) (`frn-v1`) và các sửa "
-        "đổi viết sau khi xem kết quả ([v1.1](frn-protocol-v1.1.md), [v1.2](frn-protocol-v1.2.md)). Kết quả "
+        "đổi viết sau khi xem kết quả ([v1.1](frn-protocol-v1.1.md), [v1.2](frn-protocol-v1.2.md), "
+        "[v1.3](frn-protocol-v1.3.md)). Kết quả "
         "KHÔNG ĐẠT được báo cáo như kết quả ĐẠT; sửa đổi không đổi kết luận của `frn-v1`.",
         "",
         "| Tiêu chí | Giao thức | Kết luận | Kết quả chính | Báo cáo |",

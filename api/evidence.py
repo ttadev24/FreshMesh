@@ -83,19 +83,24 @@ def _frn_inventory(docs: Path) -> tuple:
         f"hạn dùng {s['primary_shelf_life']} ngày): {'; '.join(parts)}. Âm là FreshMesh tốt hơn."
     )
     numbers = {"shelf_lives": s["shelf_lives"]}
-    v11 = _read(docs, "frn_inventory_v11_summary.json")
-    if v11:  # frn-v1.1, written after the v1 result: the same ordering rule on the 28-day quantiles
-        q = v11["shelf_lives"][str(v11["primary_shelf_life"])]
+    amendments = (  # written after the v1 result, never a verdict of this item
+        ("v11", "frn-v1.1", "cùng quy tắc đặt hàng với dự báo phân vị 28 ngày"),
+        ("v13", "frn-v1.3", "trung vị dự báo MLP trong quy tắc đặt bù tồn (m × P50 trừ tồn)"),
+    )
+    for tag, version, what in amendments:
+        am = _read(docs, f"frn_inventory_{tag}_summary.json")
+        if not am:
+            continue
+        q = am["shelf_lives"][str(am["primary_shelf_life"])]
         diffs = "; ".join(
             f"{pct(r['stockout']).replace(',0%', '%')}: {'—' if r['diff'] is None else _n(r['diff'], 2)}"
             for r in q["levels"]
         )
-        verdict = "đạt" if q["pass"] else "không đạt"
         headline += (
-            f" Thăm dò sau khi xem kết quả (frn-v1.1): cùng quy tắc đặt hàng với dự báo phân vị 28 ngày, "
-            f"chênh lệch {diffs} điểm % — {verdict}."
+            f" Thăm dò sau khi xem kết quả ({version}): {what}, chênh lệch {diffs} điểm % — "
+            f"{'đạt' if q['pass'] else 'không đạt'}."
         )
-        numbers["v11"] = v11["shelf_lives"]
+        numbers[tag] = am["shelf_lives"]
     return ("pass" if main["pass"] else "fail"), headline, numbers
 
 

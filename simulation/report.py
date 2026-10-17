@@ -360,9 +360,10 @@ def write_routing_report(docs_dir: Path) -> dict[str, Any]:
             f"{docs_dir / routing_bench.RESULTS_CSV} missing; run routing-benchmark first"
         )
     summary = routing_summary(rows)
-    r1 = routing_r1.verdicts(docs_dir)
-    summary["r1"] = r1
-    write_generated(docs_dir / ROUTING_MD, routing_markdown(rows, summary) + routing_r1.markdown(r1))
+    r1, r1v12 = routing_r1.verdicts(docs_dir), routing_r1.verdicts(docs_dir, "_v12")
+    summary |= {"r1": r1, "r1_v12": r1v12}
+    sections = routing_r1.markdown(r1) + routing_r1.markdown(r1v12, routing_r1.V12_TITLE, "R1′")
+    write_generated(docs_dir / ROUTING_MD, routing_markdown(rows, summary) + sections)
     (docs_dir / ROUTING_SVG).write_text(routing_svg(rows, summary), encoding="utf-8")
     return summary
 
@@ -418,5 +419,6 @@ def experiment_summary(docs_dir: Path) -> dict[str, Any]:
             "chains": chains,
         }
     if route_rows:
-        out["routing"] = routing_summary(route_rows) | {"r1": routing_r1.verdicts(docs_dir)}
+        r1 = {"r1": routing_r1.verdicts(docs_dir), "r1_v12": routing_r1.verdicts(docs_dir, "_v12")}
+        out["routing"] = routing_summary(route_rows) | r1
     return out

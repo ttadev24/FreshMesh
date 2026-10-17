@@ -34,11 +34,13 @@ def verdict(rows: list[dict[str, Any]]) -> dict[str, Any] | None:
     }
 
 
-def verdicts(docs_dir: Path) -> dict[str, Any]:
-    """``{"1.3": verdict | None, "1.58": verdict | None}`` from the benchmark CSVs."""
+def verdicts(docs_dir: Path, tag: str = "") -> dict[str, Any]:
+    """``{"1.3": verdict | None, "1.58": verdict | None}`` from the benchmark CSVs; ``tag`` "_v12" reads the
+    frn-v1.2 run (routing-PL with the stop service time)."""
     out = {}
     for d in DETOURS:
-        rows = routing_bench.read_results(Path(docs_dir) / routing_bench.results_name(d))
+        name = routing_bench.results_name(d).replace("routing_benchmark", f"routing_benchmark{tag}")
+        rows = routing_bench.read_results(Path(docs_dir) / name)
         out[str(d)] = verdict(rows) if rows else None
     return out
 
@@ -47,11 +49,15 @@ def _f(x: float) -> str:
     return f"{x:.1f}".replace(".", ",")
 
 
-def markdown(r1: dict[str, Any]) -> str:
+V12_TITLE = "R1′ — routing-PL có thời gian phục vụ (frn-v1.2, thăm dò, viết sau khi xem R1)"
+
+
+def markdown(r1: dict[str, Any], title: str = "R1 — PACO so với điều phối chia vùng (frn-v1 §6)",
+             label: str = "R1") -> str:  # fmt: skip
     primary = r1.get("1.3")
     if primary is None:
         return ""
-    lines = ["", "## R1 — PACO so với điều phối chia vùng / vs dispatcher zones (frn-v1 §6)", "",
+    lines = ["", f"## {title}", "",
              "| Hệ số đường vòng | PACO ngắn hơn | Tổng km PACO | Tổng km chia vùng | Tiết kiệm | Trễ PACO | "
              "Trễ chia vùng |", "|---|---|---|---|---|---|---|"]  # fmt: skip
     for d, v in r1.items():
@@ -65,7 +71,7 @@ def markdown(r1: dict[str, Any]) -> str:
             f"{v['late_stops']['zone_sweep']} |"
         )
     result = "ĐẠT / PASS" if primary["pass"] else "KHÔNG ĐẠT / FAIL"
-    lines += ["", f"**R1 {result}** — tiêu chí: PACO ngắn hơn ở ≥ {MIN_BATCHES}/18 đợt và tổng điểm trễ "
+    lines += ["", f"**{label} {result}** — tiêu chí: PACO ngắn hơn ở ≥ {MIN_BATCHES}/18 đợt và tổng điểm trễ "
               "không nhiều hơn, ở hệ số 1,3. Chia vùng = cách điều phối viên làm tay: quét theo hướng quanh "
               "cửa hàng, đầy xe hoặc sắp trễ thì sang chuyến mới, xe về trước nhận chuyến sau "
               "(`routing/dispatch_baseline.py`).", ""]  # fmt: skip

@@ -1,8 +1,7 @@
 """Daily chat quotas per client address and for the whole site.
 
-The public demo shares its accounts (``owner_a`` / ``demo123`` is printed on the login page), so a per-user
-cap would be meaningless: the cost guard is a per-address cap plus a site-wide cap per Vietnamese calendar
-day. Counts live in SQLite (``<data_dir>/usage.sqlite``, mode 0600) so a restart does not reset them. Only
+Demo accounts are shared by everyone given the credentials, so a per-user cap would be meaningless: the cost
+guard is a per-address cap plus a site-wide cap per Vietnamese calendar day. Counts live in SQLite (``<data_dir>/usage.sqlite``, mode 0600) so a restart does not reset them. Only
 the day, a keyed hash of the client address (IPv6 grouped by /64) and a counter are stored; rows older than
 ``KEEP_DAYS`` are deleted. Deleting the file resets every count (it is recreated on the next turn).
 """

@@ -143,7 +143,8 @@ def undo_refusal(
     if not is_owner and draft.get("decided_by") != username:
         return 403, "forbidden_undo", "Chỉ người đã duyệt hoặc chủ chuỗi được hoàn tác bản nháp này."
     if draft.get("kind") == "dispatch_routes":
-        return 409, "undo_not_supported", "Lộ trình đã gửi cho shipper không hoàn tác được; hãy lập lộ trình mới."
+        msg = "Lộ trình đã gửi cho shipper không hoàn tác được; hãy lập lộ trình mới."
+        return 409, "undo_not_supported", msg
     if not policy.undo_window_min:
         return 409, "undo_disabled", "Hệ thống này đã tắt chức năng hoàn tác."
     if not draft.get("decided_at"):

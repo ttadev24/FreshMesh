@@ -44,7 +44,8 @@ def chain_check(chain_id: str, data_dir: Path) -> dict[str, dict]:
         base = forecast_demand(chain_id, [store_id], skus, HORIZON, explain=True, **kw)
         for name in ("promo", "is_holiday"):
             alt = forecast_demand(chain_id, [store_id], skus, HORIZON, scenario={name: True}, **kw)
-            lift[(area, name)] += [100 * (a.p50 - b.p50) / max(b.p50, 1.0) for a, b in zip(alt, base, strict=True)]
+            pairs = zip(alt, base, strict=True)
+            lift[(area, name)] += [100 * (a.p50 - b.p50) / max(b.p50, 1.0) for a, b in pairs]
         for r in base:
             wd = r.date.weekday()
             week[(area, wd)].append(next((d["delta_pct"] for d in r.drivers if d["key"] == f"dow_{wd}"), 0.0))
@@ -76,7 +77,8 @@ def write_report(data_dir: Path | str, docs_dir: Path | str) -> Path:
         "",
     ]
     for chain_id in CHAIN_IDS:
-        lines += [f"## {chain_id}", "", "| Khu vực | Yếu tố | Thật | Mô hình | Lệch |", "|---|---|---|---|---|"]
+        head = ["| Khu vực | Yếu tố | Thật | Mô hình | Lệch |", "|---|---|---|---|---|"]
+        lines += [f"## {chain_id}", "", *head]
         errors = []
         for area, res in chain_check(chain_id, data_dir).items():
             rows = [(WEEKDAY_VI[d], *res["weekday"][d]) for d in range(7)]
@@ -84,8 +86,8 @@ def write_report(data_dir: Path | str, docs_dir: Path | str) -> Path:
             for label, truth, model in rows:
                 lines.append(f"| {area} | {label} | {_n(truth)} | {_n(model)} | {_n(model - truth)} |")
             errors += [abs(m - t) for t, m in res["weekday"]]
-        lines += ["", f"Sai số tuyệt đối trung bình của yếu tố thứ trong tuần: {_n(float(np.mean(errors)))[1:]} "
-                  "điểm %.", ""]  # fmt: skip
+        mae = _n(float(np.mean(errors)))[1:]
+        lines += ["", f"Sai số tuyệt đối trung bình của yếu tố thứ trong tuần: {mae} điểm %.", ""]
     lines += [
         "Đọc kết quả: hiệu ứng là thứ mô hình học được từ lịch sử (tương quan), được nêu kèm mỗi dự báo để "
         "người dùng kiểm tra lại; bảng này cho biết chúng gần sự thật đến đâu trên dữ liệu có đáp án.",

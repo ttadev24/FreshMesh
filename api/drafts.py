@@ -257,13 +257,14 @@ class SqlDraftStore:
             payload = dict(draft["payload"])
             current = int(payload.get("revision", 0))
             if revision is not None and revision != current:
-                raise ApiError(409, "draft_changed", f"Bản nháp đã được sửa (phiên bản {current}) sau khi bạn "
-                               "xem; hãy mở lại để xem số mới rồi duyệt.")  # fmt: skip
+                msg = f"Bản nháp đã được sửa (phiên bản {current}) sau khi bạn xem; hãy mở lại rồi duyệt."
+                raise ApiError(409, "draft_changed", msg)
             ref = {"draft_id": draft["draft_id"], "kind": draft["kind"], "store_id": draft["store_id"]}
             same_day = 0 if user.is_owner else self._manager_approved_same_day(con, draft)
             esc = approval_escalation(
-                draft["kind"], payload, is_owner=user.is_owner, policy=self.policy, approved_same_day_vnd=same_day
-            )
+                draft["kind"], payload, is_owner=user.is_owner, policy=self.policy,
+                approved_same_day_vnd=same_day,
+            )  # fmt: skip
             if esc:  # not executed: stays pending for the owner
                 prev = payload.get("escalation") or {}
                 if not prev.get("resolved_by") and prev.get("revision") == current:
@@ -363,7 +364,12 @@ def execution_record(draft: dict[str, Any], user: User) -> tuple[dict[str, Any],
     p = draft["payload"]
     now = _now()
     kind = draft["kind"]
-    base = {"executed_at": now, "approved_by": user.username, "approver_role": user.role, "note_vi": SIM_NOTE_VI}
+    base = {
+        "executed_at": now,
+        "approved_by": user.username,
+        "approver_role": user.role,
+        "note_vi": SIM_NOTE_VI,
+    }
     suffix = draft["draft_id"].split("-")[-1][:8].upper()
     if p.get("undone"):  # re-approval after an undo: a new record number
         suffix += f"-R{len(p['undone'])}"

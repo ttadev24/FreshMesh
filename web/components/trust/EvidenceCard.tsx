@@ -18,6 +18,7 @@ export default function EvidenceCard({ item }: { item: EvidenceItem }) {
       <div className={t.cardTop}>
         <span className={t.verdict}>{VERDICT_VI[item.verdict] ?? item.verdict}</span>
         {item.pre_registered ? <span className={t.prereg}>Đăng ký trước khi chạy</span> : null}
+        {item.exploratory ? <span className={t.prereg}>Thăm dò</span> : null}
       </div>
       <h2 className={t.cardTitle}>{item.title_vi}</h2>
       <p className={t.headline}>{item.headline_vi}</p>

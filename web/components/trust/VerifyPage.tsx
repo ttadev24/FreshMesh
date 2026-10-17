@@ -21,11 +21,6 @@ type RunState =
 
 const TRUST = ["Chạy trên mã thật đang vận hành", "Không gọi AI", "Không ghi vào dữ liệu"];
 
-function clock(iso: string): string {
-  const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? iso : d.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-}
-
 /** "Kiểm chứng 90 giây": one click runs the safety rules on the live guard code; results appear one by one. */
 export default function VerifyPage() {
   const [state, setState] = useState<RunState>({ status: "idle" });
@@ -55,8 +50,10 @@ export default function VerifyPage() {
       <header className={t.hero}>
         <div className={t.heroText}>
           <h1 className={t.title}>Kiểm chứng 90 giây</h1>
-          <p className={t.hook}>Đừng tin lời chúng tôi. Bấm và tự xem.</p>
-          <p className={t.lead}>AI bịa số bị bắt. Đơn vượt quyền bị chặn. Dữ liệu không lọt sang chuỗi khác.</p>
+          <p className={t.hook}>Kiểm soát, đối chứng, ra quyết định cùng AI.</p>
+          <p className={t.lead}>
+            Chặn số liệu bịa đặt. Chặn phê duyệt vượt thẩm quyền. Cô lập dữ liệu giữa các chuỗi.
+          </p>
           <ul className={t.trust}>
             {TRUST.map((x) => (
               <li key={x}>
@@ -70,7 +67,7 @@ export default function VerifyPage() {
           <ScoreRing passed={passedShown} total={total} settled={settled} />
           <p className={t.scoreSub}>
             {settled && run
-              ? `${run.passed}/${run.total} đạt, chạy trong ${fmtNum(run.duration_ms, 1)} ms lúc ${clock(run.ran_at)}`
+              ? `Hoàn tất trong ${fmtNum(run.duration_ms, 1)} ms`
               : run
                 ? "Đang hiện kết quả"
                 : `${total} quy tắc sẵn sàng`}

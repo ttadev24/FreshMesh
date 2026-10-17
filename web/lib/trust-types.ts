@@ -31,6 +31,8 @@ export interface EvidenceItem {
   /** Repo-relative path of the experiment report. */
   report: string;
   pre_registered: boolean;
+  /** An exploratory check: reported, never counted as a pass or a fail. */
+  exploratory?: boolean;
   verdict: Verdict;
   headline_vi: string;
 }

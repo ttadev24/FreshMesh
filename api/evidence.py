@@ -65,9 +65,14 @@ def _frn_inventory(docs: Path) -> tuple:
     if s is None:
         raise FileNotFoundError("frn_inventory_summary.json")
     main = s["shelf_lives"][str(s["primary_shelf_life"])]
+    def outside(level: float) -> str:  # which frontier does not reach this stockout level
+        fams = [f for f, pts in main["frontiers"].items()
+                if not min(p[0] for p in pts) <= level <= max(p[0] for p in pts)]  # fmt: skip
+        return f"ngoài đường biên {', '.join(fams) or 'một họ'}"
+
     parts = [
         f"hết hàng {pct(r['stockout']).replace(',0%', '%')}: "
-        + ("ngoài đường biên FreshMesh" if r["diff"] is None else f"{_n(r['diff'], 2)} điểm %")
+        + (outside(r["stockout"]) if r["diff"] is None else f"{_n(r['diff'], 2)} điểm %")
         for r in main["levels"]
     ]
     headline = (

@@ -41,7 +41,8 @@ def city_data(data_dir: Path, city_id: int, seed: int, load: Loader = load_city)
     cd_obs, _ = city_chain(rows, "observed")
     n_s = len(cd_rec.store_ids)
     new = np.zeros(n_s, dtype=bool)
-    picked = np.random.default_rng([seed, city_id]).choice(n_s, size=max(1, round(NEW_SHARE * n_s)), replace=False)
+    size = max(1, round(NEW_SHARE * n_s))
+    picked = np.random.default_rng([seed, city_id]).choice(n_s, size=size, replace=False)
     new[picked] = True
 
     def cut(cd: ChainData) -> ChainData:
@@ -89,7 +90,7 @@ class FrnClient:
         return {"feature_mean": self.feature_mean, "feature_std": self.feature_std}
 
     def calibrate(self, model: QuantileMLP, meta: dict) -> tuple[list[float], int]:
-        """Split-CQR offset for h = 1 on observed CAL days (as ``fit_quantile_model``; only h = 1 is scored)."""
+        """Split-CQR offset for h = 1 on observed CAL days, as ``fit_quantile_model`` (only h = 1 is scored)."""
         cd_rec, cd_obs, _ = self._cds = city_data(self.data_dir, self.city_id, self.seed, self.load)
         s, k, o, h = target_rows(cd_rec, SPLIT.train_last + 1, SPLIT.cal_last, horizons=np.array([1]))
         seen = ~np.isnan(cd_obs.units[s, k, o + h])

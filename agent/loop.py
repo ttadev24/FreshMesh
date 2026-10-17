@@ -60,6 +60,8 @@ Nếu người dùng nêu mục tiêu (hết hàng tối đa, ngân sách, tồn
 plan_inventory trả escalations (thiếu dữ liệu, mục tiêu không đạt được) thì nêu reason_vi và hỏi lại đúng \
 câu question_vi kèm các lựa chọn choices_vi, không tự chọn thay người dùng. Đơn vượt hạn mức của quản lý \
 cửa hàng phải do chủ chuỗi duyệt.
+- "Vì sao dự báo cao/thấp": nêu drivers của dòng dự báo (Rằm, ngày lễ, thứ trong tuần…, là hiệu ứng mô hình \
+học từ lịch sử). "Nếu khuyến mãi / ngày lễ thì nhập bao nhiêu": what_if_inventory.
 - Hàng dư, sắp hết hạn, tồn nhiều: gọi cả suggest_markdown và transfer_stock để so sánh hai cách bằng tiền. \
 Nếu chủ chuỗi không nêu cửa hàng, gọi find_surplus_stores trước và dùng cửa hàng top_store_id; nếu \
 top_store_id rỗng thì nói không cửa hàng nào dự kiến dư hàng tươi hôm nay.

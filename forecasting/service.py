@@ -12,13 +12,14 @@ Forecasts read lags up to ``as_of`` (default: last day in the chain DB) and pred
 
 from __future__ import annotations
 
+import dataclasses
 import datetime as dt
 import json
 import os
 import sqlite3
 import tempfile
 import threading
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -33,6 +34,7 @@ from forecasting.confidence import (
     relative_width,
 )
 from forecasting.conformal import TARGET_COVERAGE, apply_offset, cqr_offset
+from forecasting.drivers import apply_scenario, drivers
 from forecasting.features import (
     FEATURE_NAMES,
     MAX_HORIZON,
@@ -79,6 +81,7 @@ class ForecastRow:
     p90: float
     confidence: str
     reason: str
+    drivers: tuple[dict, ...] = ()  # forecasting.drivers, when asked for (explain=True)
 
 
 @dataclass(frozen=True)
@@ -450,8 +453,13 @@ def forecast_demand(
     as_of: dt.date | None = None,
     model: str | None = None,
     auto_train: bool = True,
+    explain: bool = False,
+    scenario: Mapping[str, bool] | None = None,
 ) -> list[ForecastRow]:
     """Calibrated P10/P50/P90 for each store × SKU × day in ``as_of + 1 .. as_of + horizon_days``.
+
+    ``explain``: attach the calendar drivers of each P50; ``scenario``: switch known-ahead covariates on for
+    every day (``forecasting.drivers.SCENARIO_FEATURES``, e.g. a planned promotion).
 
     ``model``: ``"local"`` (default) or ``"fl"`` (federated FedAvg+FedPer artifact ``<chain>.fl.npz``); when
     ``None`` the ``FRESHMESH_FORECAST_MODEL`` environment variable decides. Trains the chain's local model
@@ -474,7 +482,12 @@ def forecast_demand(
     s, k, h = (g.ravel() for g in grid)
     o = np.full_like(s, origin)
     fb = _rows_features(cd, (s, k, o, h), origin, known_rain=False)
+    if scenario:
+        fb = dataclasses.replace(fb, X=apply_scenario(fb.X, scenario))
     q = _predict_units(net, meta, fb, h)
+    why: list[list[dict]] = [[] for _ in range(len(s))]
+    if explain:
+        why = drivers(lambda X: _predict_units(net, meta, dataclasses.replace(fb, X=X), h)[:, 1], fb.X)
 
     hist_counts = cd.history_count(s, k, o)
     store_hist = {si: int(hist_counts[s == si].max()) for si in s_list}
@@ -494,6 +507,7 @@ def forecast_demand(
                 p90=p90,
                 confidence=level,
                 reason=reason,
+                drivers=tuple(why[i]),
             )
         )
     return rows

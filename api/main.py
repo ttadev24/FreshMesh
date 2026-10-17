@@ -36,6 +36,7 @@ from api.network import build_network
 from api.repo import ChainRepo, ensure_store_access, resolve_store_id
 from api.road_path import RoadRouter
 from api.routing_service import RoutingService, make_solver_client
+from api.scenario import compare_scenario
 from api.services import DEFAULT_NOW_HOUR, Services, assumptions_payload, fl_summary_payload
 from api.tools import build_registry, make_edit_applier
 from api.verify import run_all as run_verify
@@ -70,6 +71,15 @@ class InventoryBody(BaseModel):
     min_service_pct: float | None = Field(default=None, ge=0, le=100)
     max_cost_vnd: float | None = Field(default=None, ge=0)
     max_leftover_units: float | None = Field(default=None, ge=0)
+
+
+class ScenarioBody(BaseModel):
+    store_id: str | None = None
+    sku_ids: list[str] | None = None
+    categories: list[str] | None = None
+    horizon_days: int = Field(default=1, ge=1, le=7)
+    promo: bool = False  # a promotion on every selected SKU
+    is_holiday: bool = False  # a holiday / local event day
 
 
 class StockBody(BaseModel):
@@ -329,6 +339,15 @@ def create_app(
             budget_vnd=body.budget_vnd,
             cold_storage_units=body.cold_storage_units,
             goal={k: getattr(body, k) for k in GOAL_LIMITS},
+        )
+
+    @app.post("/api/inventory/scenario")
+    def inventory_scenario(body: ScenarioBody, user: User = Depends(current_user)) -> dict[str, Any]:
+        sid = store_for(user, body.store_id)
+        selected = services.repo(user.chain_id).select_skus(body.sku_ids, body.categories)
+        scenario = {"promo": body.promo, "is_holiday": body.is_holiday}
+        return compare_scenario(
+            services, user.chain_id, sid, selected, horizon_days=body.horizon_days, scenario=scenario
         )
 
     @app.post("/api/markdown/suggest")

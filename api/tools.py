@@ -21,6 +21,7 @@ from agent.tools import Tool, ToolContext, ToolError, ToolRegistry, ToolResult
 from api.drafts import SqlDraftStore
 from api.errors import ApiError
 from api.repo import CATEGORY_ALIASES, ensure_store_access, resolve_store_id
+from api.scenario import compare_scenario
 from api.services import DEFAULT_NOW_HOUR, FRONTIER_PLAN_NAMES, Services, plan_key
 from data_sim import CHAIN_IDS, chain_db_path
 from decision.frontier import GOAL_LIMITS
@@ -136,6 +137,14 @@ def build_registry(services: Services, drafts: SqlDraftStore) -> ToolRegistry:
             goal={k: args.get(k) for k in GOAL_LIMITS},
         )
         return ToolResult(data, [f"plan_inventory:{ctx.chain_id}/{store_id}", "decision.plan_inventory"])
+
+    @_tool_errors
+    def scenario_fn(args: dict, ctx: ToolContext) -> ToolResult:
+        store_id = h.store(args, ctx)
+        scenario = {k: bool(args.get(k)) for k in ("promo", "is_holiday")}
+        data = compare_scenario(services, ctx.chain_id, store_id, h.skus(args, ctx),
+                                horizon_days=int(args.get("horizon_days", 1)), scenario=scenario)  # fmt: skip
+        return ToolResult(data, [f"what_if_inventory:{ctx.chain_id}/{store_id}", "decision.plan_inventory"])
 
     @_tool_errors
     def markdown_fn(args: dict, ctx: ToolContext) -> ToolResult:
@@ -354,6 +363,15 @@ def build_registry(services: Services, drafts: SqlDraftStore) -> ToolRegistry:
             ),
             "read",
             plan_fn,
+        ),
+        Tool(
+            "what_if_inventory",
+            "Nếu… thì…: so sánh phương án nhập hàng khi có khuyến mãi hoặc ngày lễ/sự kiện với khi không có "
+            "(nhu cầu dự báo, số lượng, tiền nhập từng mặt hàng). Không có kịch bản thời tiết.",
+            _obj({**_STORE_ARGS, "horizon_days": _HORIZON, "promo": {"type": "boolean"},
+                  "is_holiday": {"type": "boolean"}}),  # fmt: skip
+            "read",
+            scenario_fn,
         ),
         Tool(
             "suggest_markdown",

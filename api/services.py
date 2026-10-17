@@ -115,7 +115,14 @@ class Services:
     # ------------------------------------------------------------ forecast
 
     def _forecast_rows(
-        self, chain_id: str, store_ids: Sequence[str], skus: Sequence[SkuInfo], horizon_days: int
+        self,
+        chain_id: str,
+        store_ids: Sequence[str],
+        skus: Sequence[SkuInfo],
+        horizon_days: int,
+        *,
+        explain: bool = False,
+        scenario: dict[str, bool] | None = None,
     ) -> list[Any]:
         if not 1 <= horizon_days <= 7:
             raise ApiError(422, "bad_horizon", "Số ngày dự báo phải từ 1 đến 7.")
@@ -127,6 +134,8 @@ class Services:
                 horizon_days,
                 data_dir=self.data_dir,
                 auto_train=self.auto_train,
+                explain=explain,
+                scenario=scenario,
             )
         except ModelNotReadyError:
             raise _model_not_ready() from None
@@ -155,6 +164,7 @@ class Services:
             "p90": r.p90,
             "confidence": r.confidence,
             "reason": r.reason,
+            "drivers": list(r.drivers),  # calendar effects on P50 the model learned (forecasting/drivers.py)
         }
 
     def _drift(self, chain_id: str, store_id: str) -> dict[str, Any]:
@@ -176,7 +186,7 @@ class Services:
         repo = self.repo(chain_id)
         store = repo.store(store_id)
         names = {s.sku_id: s.name for s in skus}
-        rows = self._forecast_rows(chain_id, [store_id], skus, horizon_days)
+        rows = self._forecast_rows(chain_id, [store_id], skus, horizon_days, explain=True)
         return {
             "store_id": store_id,
             "store_name": store.name,
@@ -203,13 +213,16 @@ class Services:
         budget_vnd: float | None = None,
         cold_storage_units: float | None = None,
         goal: dict[str, float | None] | None = None,
+        scenario: dict[str, bool] | None = None,
     ) -> dict:
         repo = self.repo(chain_id)
         store = repo.store(store_id)
         if not skus:
             raise ApiError(422, "no_skus", "Cần chọn ít nhất một mặt hàng.")
         names = {s.sku_id: s.name for s in skus}
-        rows = self._forecast_rows(chain_id, [store_id], skus, horizon_days)
+        rows = self._forecast_rows(
+            chain_id, [store_id], skus, horizon_days, explain=True, scenario=scenario
+        )
         drift = self._drift(chain_id, store_id)
         stock = repo.stock([store_id], [s.sku_id for s in skus])
         economics = {s.sku_id: s.economics(price=s.unit_price + self._penalty(s)) for s in skus}
@@ -274,6 +287,7 @@ class Services:
             ],
             "goal": {k: v for k, v in (goal or {}).items() if v is not None} or None,
             "goal_choice": None,
+            "scenario": scenario or None,
             # Questions for a person (api/escalation.py): thin or drifting data, unreachable goals.
             "escalations": data_questions(store.history_days, drift),
             "recommended_plan": recommended,

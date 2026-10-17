@@ -76,8 +76,8 @@ def _drivers(n: dict) -> dict:
 
 def _elasticity(n: dict) -> dict:
     where = "trong" if n["inside_ai_range"] else "ngoài"
-    return {"value_vi": _n(n["median"], 2),
-            "label_vi": f"trung vị co giãn giá, {len(n['categories'])} nhóm hàng, {where} khoảng AI đề xuất"}  # fmt: skip
+    label = f"trung vị co giãn giá, {len(n['categories'])} nhóm hàng, {where} khoảng AI đề xuất"
+    return {"value_vi": _n(n["median"], 2), "label_vi": label}
 
 
 IMPACT: dict[str, Callable[[dict], dict]] = {

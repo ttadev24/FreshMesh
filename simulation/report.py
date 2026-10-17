@@ -418,5 +418,5 @@ def experiment_summary(docs_dir: Path) -> dict[str, Any]:
             "chains": chains,
         }
     if route_rows:
-        out["routing"] = routing_summary(route_rows)
+        out["routing"] = routing_summary(route_rows) | {"r1": routing_r1.verdicts(docs_dir)}
     return out

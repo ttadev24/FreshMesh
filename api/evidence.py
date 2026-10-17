@@ -115,7 +115,17 @@ def _routing(summary: dict | None) -> tuple:
         f"{r['n_batches']} đợt; mỗi đơn một chuyến: {_n(base['total_km'], 1)} km, "
         f"{base['total_vehicles']} xe (giảm {_n(paco['km_saving_vs_baseline_pct'], 1)}% km)."
     )
-    return "measured", headline, {"methods": r["methods"], "orders": r["orders"], "batches": r["n_batches"]}
+    numbers = {"methods": r["methods"], "orders": r["orders"], "batches": r["n_batches"], "r1": r.get("r1")}
+    r1 = (r.get("r1") or {}).get("1.3")
+    if r1 is None:  # dispatcher baseline not run yet: only the weak one-trip comparison exists
+        return "measured", headline, numbers
+    headline += (
+        f" So với điều phối chia vùng (cách làm tay): PACO ngắn hơn ở {r1['paco_shorter_batches']}/"
+        f"{r1['batches']} đợt, {_n(r1['km']['paco'], 1)} so với {_n(r1['km']['zone_sweep'], 1)} km "
+        f"(giảm {_n(r1['km_saving_pct'], 1)}%), điểm trễ {r1['late_stops']['paco']} so với "
+        f"{r1['late_stops']['zone_sweep']}."
+    )
+    return ("pass" if r1["pass"] else "fail"), headline, numbers
 
 
 def _fl(fl: Callable[[], dict]) -> tuple:
@@ -155,8 +165,8 @@ def build_evidence(docs: Path, fl: Callable[[], dict], experiments: Callable[[],
          "frn-inventory.md", True, lambda: _frn_inventory(docs)),
         ("sim30", "30 ngày vận hành: ít hàng bỏ mà không hết hàng thêm?", SIM_VI, "sim30-results.md", True,
          lambda: _sim30(sim)),
-        ("routing", "Gom đơn giao bằng PACO tiết kiệm bao nhiêu km và xe?", SIM_VI, "routing-benchmark.md",
-         False, lambda: _routing(sim)),
+        ("routing", "PACO giao ít km hơn cách điều phối viên chia vùng?", SIM_VI, "routing-benchmark.md",
+         True, lambda: _routing(sim)),
         ("federated", "Học liên kết giữa các chuỗi có giúp cửa hàng mới?", SIM_VI, "fl-results.md", False,
          lambda: _fl(fl)),
         ("drivers", "Lời giải thích dự báo có đúng không?", SIM_VI, "forecast-drivers-check.md", False,

@@ -36,4 +36,4 @@ def test_evidence_endpoint_reads_the_committed_reports(client, owner_a):
     assert r.status_code == 200, r.text
     items = {it["id"]: it for it in r.json()["items"]}
     assert items["sim30"]["verdict"] in ("pass", "fail", "mixed") and items["sim30"]["pre_registered"]
-    assert items["routing"]["verdict"] == "measured" and "PACO" in items["routing"]["headline_vi"]
+    assert items["routing"]["verdict"] in ("measured", "pass", "fail") and "PACO" in items["routing"]["headline_vi"]

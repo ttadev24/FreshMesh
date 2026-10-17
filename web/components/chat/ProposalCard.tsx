@@ -5,7 +5,7 @@ import { DRAFT_KIND_VI, DRAFT_STATUS_VI } from "@/lib/format";
 import type { Draft, Role } from "@/lib/types";
 import type { DraftsApi } from "@/components/workspace/useDrafts";
 import { Badge, Spinner, type Tone } from "@/components/ui/primitives";
-import ApprovalStatus, { canUndo } from "./ApprovalStatus";
+import ApprovalStatus, { canUndo, openEscalation } from "./ApprovalStatus";
 import DraftSummary from "./DraftSummary";
 import { buildChanges, DISCOUNT_LEVELS, editorLines, initialEdit, markdownItems, planOptions, qtyForPlan, type EditState } from "./draftModel";
 import s from "./chat.module.css";
@@ -225,7 +225,7 @@ export default function ProposalCard({ draftId, draft, drafts, role, skuMoq }: P
         <>
           <DraftSummary draft={draft} />
           <ApprovalStatus draft={draft} role={role} />
-          {error?.code === "needs_owner" ? (
+          {error?.code === "needs_owner" && openEscalation(draft) ? null : error?.code === "needs_owner" ? (
             <p className={s.escalationNote} role="status" data-testid="proposal-needs-owner">
               {error.message}
             </p>

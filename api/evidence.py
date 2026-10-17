@@ -66,7 +66,8 @@ def _frn_inventory(docs: Path) -> tuple:
         raise FileNotFoundError("frn_inventory_summary.json")
     main = s["shelf_lives"][str(s["primary_shelf_life"])]
     parts = [
-        f"hết hàng {pct(r['stockout'])}: {'—' if r['diff'] is None else _n(r['diff'], 2)} điểm %"
+        f"hết hàng {pct(r['stockout']).replace(',0%', '%')}: "
+        + ("ngoài đường biên FreshMesh" if r["diff"] is None else f"{_n(r['diff'], 2)} điểm %")
         for r in main["levels"]
     ]
     headline = (
@@ -92,6 +93,9 @@ def _sim30(summary: dict | None) -> tuple:
         )
         + "."
     )
+    v2 = [v["sim30-v2"]["pass"] for v in chains.values() if "sim30-v2" in v]
+    if v2:
+        headline += f" Bản sửa v2 (giữ lại 20% tồn, viết sau): đạt {sum(v2)}/{len(v2)} chuỗi."
     verdict = "pass" if all(v1.values()) else "fail" if not any(v1.values()) else "mixed"
     return verdict, headline, {"chains": s["chains"]}
 

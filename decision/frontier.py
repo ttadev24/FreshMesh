@@ -127,5 +127,5 @@ def _best_keeping(ordered: Sequence[dict], goals: dict[str, float], keep: str, o
 
 
 def _unmet(reason: str, question: str, choices: list[str]) -> dict:
-    escalation = {"kind": "out_of_scope", "question_vi": question, "choices_vi": choices}
+    escalation = {"kind": "out_of_scope", "reason_vi": reason, "question_vi": question, "choices_vi": choices}
     return {"met": False, "name": None, "label_vi": None, "reason_vi": reason, "escalation": escalation}

@@ -6,6 +6,7 @@ deviations: docs/api-contract-notes.md.
 
 from __future__ import annotations
 
+import dataclasses
 import json
 import logging
 import os
@@ -161,7 +162,7 @@ def create_app(
         if settings.jev_api_key
         else None
     )
-    drafts = SqlDraftStore(settings.data_dir)
+    drafts = SqlDraftStore(settings.data_dir, settings.approval_policy)
     registry = build_registry(services, drafts)
     briefs = BriefService(services)
     chat_quota = ChatQuota(
@@ -250,6 +251,7 @@ def create_app(
             "data": data_ready,
             "jev": jev_client is not None,
             "chat_quota": {"per_ip_daily": chat_quota.per_ip_daily, "global_daily": chat_quota.global_daily},
+            "approval": dataclasses.asdict(settings.approval_policy),
         }
 
     @app.post("/api/auth/login")
@@ -280,7 +282,7 @@ def create_app(
     @app.get("/api/verify/run")
     def verify_run(user: User = Depends(current_user)) -> dict[str, Any]:
         """'Kiểm chứng 90 giây': the safety rules checked live on the real guard code (api/verify.py)."""
-        return run_verify(settings.data_dir)
+        return run_verify(settings.data_dir, settings.approval_policy)
 
     @app.get("/api/network")
     def network(user: User = Depends(current_user)) -> dict[str, Any]:
@@ -384,6 +386,10 @@ def create_app(
     def approve(draft_id: str, user: User = Depends(current_user)) -> dict[str, Any]:
         draft = drafts.approve(user, draft_id)
         return {"draft": draft, "execution": draft["payload"].get("execution")}
+
+    @app.post("/api/drafts/{draft_id}/undo")
+    def undo(draft_id: str, user: User = Depends(current_user)) -> dict[str, Any]:
+        return {"draft": drafts.undo(user, draft_id)}
 
     @app.post("/api/drafts/{draft_id}/reject")
     def reject(draft_id: str, body: DecisionBody | None = None, user: User = Depends(current_user)) -> dict:

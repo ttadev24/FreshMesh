@@ -34,6 +34,7 @@ from typing import Any
 
 from api.config import REPO_ROOT
 from api.errors import ApiError
+from api.escalation import data_questions
 from api.provenance_view import FORECAST_TABLES, STOCK_TABLES
 from api.repo import ChainRepo, SkuInfo, StoreInfo
 from api.routing_service import RoutingService, cache_note_vi
@@ -273,6 +274,8 @@ class Services:
             ],
             "goal": {k: v for k, v in (goal or {}).items() if v is not None} or None,
             "goal_choice": None,
+            # Questions for a person (api/escalation.py): thin or drifting data, unreachable goals.
+            "escalations": data_questions(store.history_days, drift),
             "recommended_plan": recommended,
             "recommended_label_vi": rec_plan["label_vi"],
             "recommended_reason_vi": rec_reason,
@@ -291,6 +294,8 @@ class Services:
         }
         if out["goal"]:
             out["goal_choice"] = choose_for_goal(out["frontier"], out["goal"])
+            if out["goal_choice"]["escalation"]:
+                out["escalations"].append(out["goal_choice"]["escalation"])
         return out
 
     def purchase_order_lines(self, chain_id: str, lines: Sequence[dict[str, Any]]) -> list[dict[str, Any]]:

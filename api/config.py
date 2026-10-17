@@ -7,6 +7,8 @@ import os
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from api.escalation import ApprovalPolicy
+
 log = logging.getLogger(__name__)
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -93,12 +95,24 @@ class Settings:
     # Daily chat turns per client address and for the whole site (api/chat_quota.py); 0 disables a cap.
     chat_per_ip_daily: int = field(default_factory=lambda: _env_count("FRESHMESH_CHAT_PER_IP_DAILY", 20))
     chat_global_daily: int = field(default_factory=lambda: _env_count("FRESHMESH_CHAT_GLOBAL_DAILY", 300))
+    # Human-in-the-loop limits (api/escalation.py): above them a store manager's approval goes to the owner.
+    manager_order_limit_vnd: int = field(
+        default_factory=lambda: _env_count("FRESHMESH_MANAGER_APPROVAL_LIMIT_VND", 5_000_000)
+    )
+    manager_max_discount_pct: int = field(
+        default_factory=lambda: _env_count("FRESHMESH_MANAGER_MAX_DISCOUNT_PCT", 50)
+    )
+    undo_window_min: int = field(default_factory=lambda: _env_count("FRESHMESH_UNDO_WINDOW_MIN", 30))
 
     cache_root: Path | None = field(
         default_factory=lambda: (
             Path(os.environ["FRESHMESH_CACHE_DIR"]) if os.environ.get("FRESHMESH_CACHE_DIR") else None
         )
     )
+
+    @property
+    def approval_policy(self) -> ApprovalPolicy:
+        return ApprovalPolicy(self.manager_order_limit_vnd, self.manager_max_discount_pct, self.undo_window_min)
 
     @property
     def cache_dir(self) -> Path:

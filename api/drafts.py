@@ -9,8 +9,12 @@
 * Only ``draft`` rows can be approved, rejected or edited (409 otherwise).
 * Role rule: a store manager may list/edit/approve/reject only drafts whose ``payload.store_id`` is their
   store; the owner may act on every draft of the chain.
+* Authority (``api.escalation``): a manager's approval above their limit is not executed; the draft stays
+  pending with ``payload.escalation`` for the owner and the call answers 403 ``needs_owner``.
+* Undo: an approved draft goes back to pending within the undo window (approver or owner); its execution
+  record moves to ``payload.undone``.
 * Audit entries are inserted into ``audit_log`` in the same transaction (events ``draft_created``,
-  ``draft_edited``, ``approval``, ``rejection``).
+  ``draft_edited``, ``approval``, ``escalation``, ``undo``, ``rejection``).
 """
 
 from __future__ import annotations
@@ -28,6 +32,7 @@ from agent.template import UNKNOWN_SOURCE_ID
 from api import provenance_view
 from api.auth import User
 from api.errors import ApiError
+from api.escalation import ApprovalPolicy, approval_escalation, undo_refusal
 from data_sim import chain_db_path
 
 DRAFT_KINDS = ("create_purchase_order", "apply_markdown", "create_transfer", "dispatch_routes")
@@ -79,8 +84,9 @@ def _draft_provenance(payload: dict[str, Any], column: str | None, data_dir: Pat
 class SqlDraftStore:
     """Drafts of one data root; every call is scoped to a chain DB (tenant)."""
 
-    def __init__(self, data_dir: Path):
+    def __init__(self, data_dir: Path, policy: ApprovalPolicy | None = None):
         self.data_dir = Path(data_dir)
+        self.policy = policy or ApprovalPolicy()
 
     def _connect(self, chain_id: str) -> sqlite3.Connection:
         path = chain_db_path(self.data_dir, chain_id)
@@ -191,8 +197,9 @@ class SqlDraftStore:
         user: User,
         draft_id: str,
         mutate: Callable[[dict[str, Any]], tuple[str, dict[str, Any], str, dict[str, Any]]],
+        from_status: tuple[str, ...] = ("draft",),
     ) -> dict[str, Any]:
-        """Load (scoped) → check pending → mutate → write row + audit atomically."""
+        """Load (scoped) → check status → mutate → write row + audit atomically."""
         con = self._connect(user.chain_id)
         try:
             with con:
@@ -204,7 +211,7 @@ class SqlDraftStore:
                     raise ApiError(404, "draft_not_found", "Không tìm thấy bản nháp.")
                 draft = _row_to_dict(row, self.data_dir)
                 self._check_scope(user, draft)
-                if draft["status"] != "draft":
+                if draft["status"] not in from_status:
                     raise ApiError(
                         409,
                         "draft_not_pending",
@@ -229,21 +236,54 @@ class SqlDraftStore:
             con.close()
 
     def approve(self, user: User, draft_id: str) -> dict[str, Any]:
+        escalated: dict[str, Any] = {}
+
         def mutate(draft: dict[str, Any]) -> tuple[str, dict[str, Any], str, dict[str, Any]]:
             payload = dict(draft["payload"])
+            ref = {"draft_id": draft["draft_id"], "kind": draft["kind"], "store_id": draft["store_id"]}
+            esc = approval_escalation(draft["kind"], payload, is_owner=user.is_owner, policy=self.policy)
+            if esc:  # not executed: stays pending for the owner
+                payload["escalation"] = {**esc, "requested_by": user.username, "requested_at": _now()}
+                escalated.update(payload["escalation"])
+                return "draft", payload, "escalation", {**ref, "escalation": payload["escalation"]}
             record, status = execution_record(draft, user)
             payload["execution"] = record
+            if payload.get("escalation"):
+                payload["escalation"] = {
+                    **payload["escalation"], "resolved_by": user.username, "resolved_at": record["executed_at"]
+                }
+            audit = {**ref, "decision": "approved", "status": status, "execution": record}
+            return status, payload, "approval", audit
+
+        draft = self._transition(user, draft_id, mutate)
+        if escalated:
+            raise ApiError(403, "needs_owner", f"{escalated['reason_vi']} Đã chuyển chủ chuỗi duyệt; "
+                           "bản nháp vẫn chờ, chưa có gì được thực thi.")  # fmt: skip
+        return draft
+
+    def undo(self, user: User, draft_id: str) -> dict[str, Any]:
+        def mutate(draft: dict[str, Any]) -> tuple[str, dict[str, Any], str, dict[str, Any]]:
+            now = dt.datetime.now(dt.UTC)
+            refusal = undo_refusal(
+                draft, username=user.username, is_owner=user.is_owner, now=now, policy=self.policy
+            )
+            if refusal:
+                raise ApiError(*refusal)
+            payload = dict(draft["payload"])
+            record = payload.pop("execution", None) or {}
+            undone = {**record, "undone_by": user.username, "undone_at": now.isoformat(timespec="seconds")}
+            payload["undone"] = [*payload.get("undone", []), undone]
             audit = {
                 "draft_id": draft["draft_id"],
                 "kind": draft["kind"],
                 "store_id": draft["store_id"],
-                "decision": "approved",
-                "status": status,
-                "execution": record,
+                "decision": "undone",
+                "from_status": draft["status"],
+                "record": record.get("po_number") or record.get("record_id"),
             }
-            return status, payload, "approval", audit
+            return "draft", payload, "undo", audit
 
-        return self._transition(user, draft_id, mutate)
+        return self._transition(user, draft_id, mutate, from_status=("approved", "dispatched"))
 
     def reject(self, user: User, draft_id: str, note: str = "") -> dict[str, Any]:
         def mutate(draft: dict[str, Any]) -> tuple[str, dict[str, Any], str, dict[str, Any]]:

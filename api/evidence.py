@@ -195,7 +195,7 @@ def _elasticity(docs: Path) -> tuple:
         "tham khảo."
     )
     numbers = {"median": s["median_elasticity"], "categories": s["categories"], "inside_ai_range": inside}
-    return "measured", headline, numbers  # frn-v1 §4 is exploratory: the range check is reported, not a verdict
+    return "measured", headline, numbers  # frn-v1 §4 is exploratory: the range check is not a verdict
 
 
 def _drivers(docs: Path) -> tuple:

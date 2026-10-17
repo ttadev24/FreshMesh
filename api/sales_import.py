@@ -4,9 +4,9 @@ for days after the data, how FreshMesh's own forecast did against the real sales
 an import would be a draft a person approves (not offered yet).
 
 Quantities follow the file's own convention: when any quantity uses a decimal comma (``0,5``,
-``1.234,5``) dots are thousands separators, otherwise dots are decimal points (``0.500`` = 0,5). Non-finite
-values are rejected. Columns are found by name, accent- and case-insensitive (``Ngày``, ``Mã hàng``, ``Tên hàng``,
-``Số lượng``…);
+``1.234,5``) dots are thousands separators, otherwise dots are decimal points (``0.500`` = 0,5).
+Non-finite values are rejected. Columns are found by name, accent- and case-insensitive (``Ngày``,
+``Mã hàng``, ``Tên hàng``, ``Số lượng``…);
 dates ``dd/mm/yyyy`` (optional time), ``yyyy-mm-dd`` or ``dd-mm-yyyy``. Products are matched by FreshMesh
 code, else by name."""
 
@@ -87,8 +87,8 @@ def parse_sales(text: str, skus: dict[str, str]) -> Parsed:
     try:  # newline="" lets the csv module read CR-only (classic Mac) line endings too
         rows = list(csv.reader(io.StringIO(text.lstrip("﻿"), newline=""), dialect))
     except csv.Error:
-        raise ApiError(422, "bad_sales_file", "File CSV bị lỗi định dạng (dấu ngoặc kép không đóng hoặc ô quá "
-                       "dài); hãy xuất lại file từ máy bán hàng.") from None  # fmt: skip
+        msg = "File CSV bị lỗi định dạng (ô quá dài hoặc ngoặc kép lệch); hãy xuất lại file từ máy bán hàng."
+        raise ApiError(422, "bad_sales_file", msg) from None
     if len(rows) > MAX_ROWS + 1:
         raise ApiError(413, "sales_file_too_large", f"File bán hàng tối đa {MAX_ROWS} dòng.")
     header = rows[0] if rows else []
@@ -102,7 +102,8 @@ def parse_sales(text: str, skus: dict[str, str]) -> Parsed:
     totals: dict[tuple[str, dt.date], float] = defaultdict(float)
     issues: list[str] = []
     unknown: set[str] = set()
-    cells = [{k: row[c] if c is not None and c < len(row) else "" for k, c in cols.items()} for row in rows[1:]]
+    cells = [{k: row[c] if c is not None and c < len(row) else "" for k, c in cols.items()}
+             for row in rows[1:]]  # fmt: skip
     comma_decimal = any(_COMMA_DECIMAL.fullmatch(_clean(c["qty"])) for c in cells)
     n = 0
     for n, cell in enumerate(cells, start=1):

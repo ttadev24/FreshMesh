@@ -61,10 +61,10 @@ def test_quantities_follow_the_files_decimal_convention_and_reject_non_finite_va
 def test_broken_csv_is_a_422_not_a_crash():
     unclosed = 'Ngày,Mã hàng,Số lượng\n30/09/2026,"SKU_CA_CHUA,1\n'
     too_long = "Ngày,Mã hàng,Số lượng\n30/09/2026,SKU_CA_CHUA," + "1" * 200_000 + "\n"
-    for text in (unclosed, too_long):
-        with pytest.raises(ApiError) as exc:
-            parse_sales(text, SKUS)
-        assert exc.value.status in (413, 422) and exc.value.code in ("bad_sales_file", "sales_file_too_large")
+    assert parse_sales(unclosed, SKUS).totals == {}  # the rest of the file is one cell: flagged, no crash
+    with pytest.raises(ApiError) as exc:
+        parse_sales(too_long, SKUS)
+    assert exc.value.status == 422 and exc.value.code == "bad_sales_file"
 
 
 def test_classic_mac_line_endings_are_read():

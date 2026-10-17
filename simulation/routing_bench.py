@@ -14,8 +14,8 @@
 * Dispatcher baseline = ``routing.dispatch_baseline.zone_sweep`` (protocol frn-v1 §6, R1): bearing zones,
   nearest-neighbour trips, the batch's fleet reused trip after trip; "vehicles" are its trips.
 * ``detour_factor`` 1,3 is the primary setting (``routing_benchmark.csv``); other values are sensitivity runs
-  written to ``routing_benchmark_detour<factor×100>.csv``. A ``tag`` (``_v12``: frn-v1.2, the solver with the stop
-  service time) names a separate result set. Every row records the solver build it was solved with.
+  written to ``routing_benchmark_detour<factor digits>.csv``. A ``tag`` (``_v12``: frn-v1.2, the solver with
+  the stop service time) names a separate result set. Every row records the solver build it was solved with.
 * Result sets that hold a pre-registered verdict (R1: dispatcher rows present) are frozen: a run refuses to
   rewrite them unless ``overwrite_frozen`` is set.
 * Solves run sequentially (the solver container is shared with the API).

@@ -10,6 +10,7 @@ import {
   type TurnEvent,
 } from "./normalize";
 import type { Brief, NetworkView } from "./brief-types";
+import type { Evidence, VerifyRun } from "./trust-types";
 import { normalizePromptEvidence, normalizeProvenance } from "./provenance";
 import type {
   Assumptions,
@@ -317,4 +318,18 @@ export async function getBrief(storeId: string | null, signal?: AbortSignal): Pr
 export async function getNetwork(signal?: AbortSignal): Promise<NetworkView> {
   const raw = await request<NetworkView>("/api/network", { signal });
   return { ...raw, stores: raw.stores ?? [], flows_today: raw.flows_today ?? [] };
+}
+
+// ---------------------------------------------------------------- verify + evidence (api/verify.py, api/evidence.py)
+
+/** "Kiểm chứng 90 giây": the safety rules run live on the real guard code. */
+export async function getVerifyRun(signal?: AbortSignal): Promise<VerifyRun> {
+  const raw = await request<VerifyRun>("/api/verify/run", { signal });
+  return { ...raw, cases: raw.cases ?? [] };
+}
+
+/** Every claim with its measured result, PASS and FAIL alike. */
+export async function getEvidence(signal?: AbortSignal): Promise<Evidence> {
+  const raw = await request<Evidence>("/api/evidence", { signal });
+  return { ...raw, items: raw.items ?? [], counts: raw.counts ?? {} };
 }

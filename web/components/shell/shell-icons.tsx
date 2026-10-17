@@ -107,3 +107,24 @@ export const SendIcon = (p: IconProps) => (
     <path d="m21 3-7 18-4-7-7-4Z" />
   </Svg>
 );
+
+export const ShieldCheckIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M12 3 4.5 6v5.5c0 4.6 3.1 8.2 7.5 9.5 4.4-1.3 7.5-4.9 7.5-9.5V6Z" />
+    <path d="m8.8 12.2 2.3 2.3 4.3-4.6" />
+  </Svg>
+);
+
+export const EvidenceIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M9 3h6v3H9z" />
+    <path d="M15 4.5h2.5a1.5 1.5 0 0 1 1.5 1.5v13.5a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 5 19.5V6a1.5 1.5 0 0 1 1.5-1.5H9" />
+    <path d="M8.5 11.5h7M8.5 15h4.5" />
+  </Svg>
+);
+
+export const PlayIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M7 4.5v15l12-7.5Z" />
+  </Svg>
+);

@@ -3,10 +3,9 @@ import Image from "next/image";
 import LoginScreen from "@/components/auth/LoginScreen";
 import { HelpIcon } from "@/components/auth/login-icons";
 import s from "@/components/auth/login.module.css";
+import { REPO_URL } from "@/lib/repo";
 
 export const metadata: Metadata = { title: "Đăng nhập · FreshMesh" };
-
-const REPO_URL = "https://github.com/ttadev24/FreshMesh";
 
 export default function LoginPage() {
   return (

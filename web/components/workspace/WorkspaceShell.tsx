@@ -13,6 +13,8 @@ import DashboardOverview from "@/components/dashboard/DashboardOverview";
 import RightPane, { type TabId } from "@/components/dashboard/RightPane";
 import OverviewPage from "@/components/overview/OverviewPage";
 import NetworkPage from "@/components/network/NetworkPage";
+import EvidencePage from "@/components/trust/EvidencePage";
+import VerifyPage from "@/components/trust/VerifyPage";
 import { NAV_BY_ID, navForTab, PAGE_NAVS, type NavId } from "@/components/shell/nav";
 import PageHeader from "@/components/shell/PageHeader";
 import Sidebar from "@/components/shell/Sidebar";
@@ -243,6 +245,14 @@ function WorkspaceReady({ data, onLogout }: { data: WorkspaceData; onLogout: () 
             ) : nav === "network" ? (
               <main className={sh.scroll}>
                 <NetworkPage storeNames={storeNames} />
+              </main>
+            ) : nav === "verify" ? (
+              <main className={sh.scroll}>
+                <VerifyPage />
+              </main>
+            ) : nav === "evidence" ? (
+              <main className={sh.scroll}>
+                <EvidencePage />
               </main>
             ) : (
               <div className={s.work}>

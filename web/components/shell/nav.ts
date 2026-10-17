@@ -1,9 +1,19 @@
 import type { TabId } from "@/components/dashboard/RightPane";
 import type { ToolSlot } from "@/components/workspace/useDirectTools";
 
-// Sidebar destinations. The overview and the network are pages of their own; everything else opens the two-pane
-// workspace (chat + dashboard) on the matching right-pane tab, and the operations items bring their tool into view.
-export type NavId = "overview" | "import" | "stock" | "delivery" | "network" | "history" | "sources";
+// Sidebar destinations. The overview, the network and the two trust pages (verify, evidence) are pages of their own;
+// everything else opens the two-pane workspace (chat + dashboard) on the matching right-pane tab, and the operations
+// items bring their tool into view.
+export type NavId =
+  | "overview"
+  | "import"
+  | "stock"
+  | "delivery"
+  | "network"
+  | "history"
+  | "verify"
+  | "evidence"
+  | "sources";
 
 export interface NavItem {
   id: NavId;
@@ -23,9 +33,18 @@ export const NAV_MAIN: NavItem[] = [
   { id: "history", label: "Lịch sử", title: "Lịch sử quyết định", tab: "audit" },
 ];
 
+/** How a judge or a new owner checks FreshMesh: the safety rules run live, and every claim with its result. */
+export const NAV_TRUST: NavItem[] = [
+  { id: "verify", label: "Kiểm chứng", title: "Kiểm chứng 90 giây" },
+  { id: "evidence", label: "Bằng chứng", title: "Bằng chứng" },
+];
+
 export const NAV_SOURCES: NavItem = { id: "sources", label: "Nguồn dữ liệu", title: "Nguồn và giả định dữ liệu", tab: "sources" };
 
-export const NAV_BY_ID = Object.fromEntries([...NAV_MAIN, NAV_SOURCES].map((n) => [n.id, n])) as Record<NavId, NavItem>;
+export const NAV_BY_ID = Object.fromEntries([...NAV_MAIN, ...NAV_TRUST, NAV_SOURCES].map((n) => [n.id, n])) as Record<
+  NavId,
+  NavItem
+>;
 
 /** Which sidebar item a right-pane tab belongs to (keeps the highlight in sync when tabs are switched inside). */
 export function navForTab(tab: TabId, current: NavId): NavId {
@@ -36,4 +55,4 @@ export function navForTab(tab: TabId, current: NavId): NavId {
 }
 
 /** Destinations rendered as full pages (own large title) instead of the chat + dashboard workspace. */
-export const PAGE_NAVS: readonly NavId[] = ["overview", "network"];
+export const PAGE_NAVS: readonly NavId[] = ["overview", "network", "verify", "evidence"];

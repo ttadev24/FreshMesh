@@ -4,8 +4,19 @@ import Image from "next/image";
 import type { ComponentType } from "react";
 import { ROLE_VI } from "@/lib/format";
 import type { User } from "@/lib/types";
-import { NAV_MAIN, NAV_SOURCES, type NavId } from "./nav";
-import { BasketIcon, BoxIcon, HistoryIcon, HomeIcon, LogoutIcon, MeshIcon, SourcesIcon, TruckIcon } from "./shell-icons";
+import { NAV_MAIN, NAV_SOURCES, NAV_TRUST, type NavId } from "./nav";
+import {
+  BasketIcon,
+  BoxIcon,
+  EvidenceIcon,
+  HistoryIcon,
+  HomeIcon,
+  LogoutIcon,
+  MeshIcon,
+  ShieldCheckIcon,
+  SourcesIcon,
+  TruckIcon,
+} from "./shell-icons";
 import s from "./shell.module.css";
 
 const ICONS: Record<NavId, ComponentType<{ size?: number }>> = {
@@ -15,6 +26,8 @@ const ICONS: Record<NavId, ComponentType<{ size?: number }>> = {
   delivery: TruckIcon,
   network: MeshIcon,
   history: HistoryIcon,
+  verify: ShieldCheckIcon,
+  evidence: EvidenceIcon,
   sources: SourcesIcon,
 };
 
@@ -56,6 +69,9 @@ export default function Sidebar({ nav, onNav, user, onLogout }: Props) {
       </div>
 
       <nav className={s.nav}>{NAV_MAIN.map((n) => item(n.id, n.label))}</nav>
+      <nav className={`${s.nav} ${s.navTrust}`} aria-label="Kiểm chứng và bằng chứng">
+        {NAV_TRUST.map((n) => item(n.id, n.label))}
+      </nav>
 
       <div className={s.sideFoot}>
         {item(NAV_SOURCES.id, NAV_SOURCES.label)}

@@ -35,6 +35,13 @@
   gap: 4px;
 }
 
+/* Verify + evidence: a second group under a hairline, so "check us" reads apart from daily operations. */
+.navTrust {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
 .navItem {
   position: relative;
   display: flex;
@@ -314,6 +321,13 @@
   .nav {
     display: flex;
     gap: 2px;
+  }
+
+  .navTrust {
+    margin: 0;
+    padding: 0 0 0 8px;
+    border-top: 0;
+    border-left: 1px solid var(--line);
   }
 
   .navItem {

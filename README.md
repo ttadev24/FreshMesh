@@ -237,11 +237,11 @@ The repository reports unsuccessful outcomes as well as improvements. These are 
 
 | Experiment | Recorded finding | Evidence |
 | --- | --- | --- |
-| Federated forecasting | FL did not outperform local forecasting overall: WAPE 0.4432 vs 0.4408. The deployed FL configuration does not enable DP. | [FL results](docs/experiments/fl-results.md) |
+| Federated forecasting | With the configuration chosen on the validation window (20 rounds, lr 5e-4), FL beat local forecasting: WAPE 0.4551 vs 0.4694 (3.0% better), and 0.5236 vs 0.5377 for new stores with 14 days of history. Mean of 3 seeds, rerun and reproduced exactly. An earlier run on the previous data generation was 0.54% worse than local. The deployed FL configuration does not enable DP. | [FL results](docs/experiments/fl-results.md) |
 | 30-day inventory simulation | The original policy missed waste targets for all three chains. The revised policy met them for A and C, but not B; it was adjusted after seeing results. | [Simulation results](docs/experiments/sim30-results.md) |
 | Delivery routing | PACO used 320.8 km vs 985.7 km for one-trip-per-order, but still had 29 projected late stops. | [Routing benchmark](docs/experiments/routing-benchmark.md) |
 | Assistant evaluation | The recorded 32-question run reached 90.6% tool selection accuracy; later prompt changes were not re-evaluated in that report. | [Agent evaluation](docs/experiments/agent-eval-haiku55.md) |
-| Real retail data | FreshRetailNet-50K has a separate audit and pre-registered protocol. It represents Chinese retail demand, not Vietnamese mini-mart transactions. | [Audit](docs/experiments/frn-data-audit.md) · [Protocol](docs/experiments/frn-protocol.md) |
+| Real retail data | FreshRetailNet-50K has a separate audit and pre-registered protocol. It represents Chinese retail demand, not Vietnamese mini-mart transactions. Forecasting: the 28-day quantile baseline beat the FreshMesh MLP (WAPE 0.314 vs 0.327), so F1 and F2 failed; the P10–P90 coverage check F3 passed (78.7%). Inventory (688 stores, 2-day shelf life): I1 failed. FreshMesh needed 1.42 and 1.10 points more waste than the best tuned baseline at 10% and 15% stockout. | [Audit](docs/experiments/frn-data-audit.md) · [Protocol](docs/experiments/frn-protocol.md) · [Forecast](docs/experiments/frn-forecast.md) · [Inventory](docs/experiments/frn-inventory.md) |
 
 <details>
 <summary><strong>View the recorded routing benchmark</strong></summary>

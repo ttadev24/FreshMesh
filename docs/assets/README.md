@@ -27,6 +27,14 @@ Final generation prompt:
 
 Existing experiment SVGs remain in `docs/experiments/` and are referenced directly by the README.
 
+## `freshmesh-tour.gif`, `freshmesh-tour.mp4`
+
+- Purpose: README walkthrough of one complete decision in the deployed app.
+- Created: 2026-10-17 with HyperFrames 0.8.166 from Playwright screenshots of https://freshmesh.ailoviec.tech (1920 × 1080 at 2×), signed in as `owner_a`. The markdown draft was created and approved with the app's own buttons; no database was edited.
+- The screens and numbers are the app's own. Camera moves, the cursor, the click ripple, the captions and the closing logo card were added in the video. The KPI count-up is redrawn over the screenshot and settles on its exact pixels.
+- Files: GIF 960 × 540, 15 fps, 16.2 s (ffmpeg palette + gifsicle); MP4 1920 × 1080, 60 fps, H.264.
+- Released with the project's original materials under GPL-3.0-only to the extent applicable rights exist.
+
 ## `freshmesh-solutions-banner.png`
 
 - Purpose: previous README banner, showing four FreshMesh solution areas in a single infographic.

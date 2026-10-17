@@ -68,6 +68,12 @@ Built around a Ho Chi Minh City demo, it combines a **Vietnamese-language interf
 
 **[Open FreshMesh →](https://freshmesh.ailoviec.tech/login)** · Demo account: `owner_a` / `demo123`
 
+### One decision, end to end
+
+[![16-second tour of the deployed app: the morning brief, the surplus card, the cash comparison of markdown and transfer, and the owner's approval](docs/assets/freshmesh-tour.gif)](docs/assets/freshmesh-tour.mp4)
+
+The morning brief counts up, the surplus card opens the cash comparison of markdown and transfer, and the owner approves the draft. Recorded on the deployed app; click the animation for the 1080p60 MP4.
+
 Actual screenshots from the deployed demo, captured at 1440 × 1000. The interface is in Vietnamese and displays illustrative business data. Click any image to view it at full size.
 
 ### Operations at a glance

@@ -23,11 +23,12 @@ def verdict(rows: list[dict[str, Any]]) -> dict[str, Any] | None:
     late = {m: sum(int(ok[(s, m)]["late_stops"]) for s in stores) for m in ("paco", "zone_sweep")}
     better = sum(p < z for p, z in zip(km["paco"], km["zone_sweep"], strict=True))
     total = {m: round(sum(v), 1) for m, v in km.items()}
+    saving = round(100 * (1 - total["paco"] / total["zone_sweep"]), 1) if total["zone_sweep"] else None
     return {
         "batches": len(stores),
         "paco_shorter_batches": better,
         "km": total,
-        "km_saving_pct": round(100 * (1 - total["paco"] / total["zone_sweep"]), 1) if total["zone_sweep"] else None,
+        "km_saving_pct": saving,
         "late_stops": late,
         "pass": better >= MIN_BATCHES and late["paco"] <= late["zone_sweep"],
     }
@@ -64,8 +65,8 @@ def markdown(r1: dict[str, Any]) -> str:
             f"{v['late_stops']['zone_sweep']} |"
         )
     result = "ĐẠT / PASS" if primary["pass"] else "KHÔNG ĐẠT / FAIL"
-    lines += ["", f"**R1 {result}** — tiêu chí: PACO ngắn hơn ở ≥ {MIN_BATCHES}/18 đợt và tổng điểm trễ không "
-              "nhiều hơn, ở hệ số 1,3. Chia vùng = cách điều phối viên làm tay: quét theo hướng quanh cửa hàng, "
-              "đầy xe hoặc sắp trễ thì sang chuyến mới, xe về trước nhận chuyến sau "
+    lines += ["", f"**R1 {result}** — tiêu chí: PACO ngắn hơn ở ≥ {MIN_BATCHES}/18 đợt và tổng điểm trễ "
+              "không nhiều hơn, ở hệ số 1,3. Chia vùng = cách điều phối viên làm tay: quét theo hướng quanh "
+              "cửa hàng, đầy xe hoặc sắp trễ thì sang chuyến mới, xe về trước nhận chuyến sau "
               "(`routing/dispatch_baseline.py`).", ""]  # fmt: skip
     return "\n".join(lines)

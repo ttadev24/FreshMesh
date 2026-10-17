@@ -17,14 +17,18 @@ from data_frn.sums_io import open_text, write_summary
 from decision.frontier import pareto, waste_at
 
 LEVELS = (5.0, 10.0, 15.0)
-FAMILY = {"freshmesh": "FreshMesh", "mean7": "baseline", "seasonal_naive": "baseline"}
+FAMILY = {"freshmesh": "FreshMesh", "freshmesh_q28": "FreshMesh + q28", "mean7": "baseline",
+          "seasonal_naive": "baseline"}  # fmt: skip
 STATS = ("opening", "received", "wasted", "lost", "demand")
 
 
-def load(path: Path) -> tuple[dict[str, dict[str, np.ndarray]], dict[str, str]]:
-    """``{variant: {stat: (n_stores,)}}`` on one sorted store list, plus the stamp."""
-    with open_text(path) as fh:
-        rows = list(csv.DictReader(fh))
+def load(path: Path, *more: Path) -> tuple[dict[str, dict[str, np.ndarray]], dict[str, str]]:
+    """``{variant: {stat: (n_stores,)}}`` on one sorted store list (union of the files), plus the stamp of the
+    first file."""
+    rows = []
+    for p in (path, *more):
+        with open_text(p) as fh:
+            rows += list(csv.DictReader(fh))
     stores = sorted({r["store"] for r in rows})
     pos = {s: i for i, s in enumerate(stores)}
     out: dict = defaultdict(lambda: {st: np.zeros(len(stores)) for st in STATS})
@@ -45,17 +49,18 @@ def frontiers(totals: dict[str, dict[str, float]]) -> dict[str, list[tuple[float
     return {fam: pareto(p) for fam, p in points.items()}
 
 
-def _diffs(fr: dict[str, list]) -> list[float]:
-    return [waste_at(fr["FreshMesh"], lv) - waste_at(fr["baseline"], lv) for lv in LEVELS]
+def _diffs(fr: dict[str, list], a: str = "FreshMesh", b: str = "baseline") -> list[float]:
+    return [waste_at(fr[a], lv) - waste_at(fr[b], lv) for lv in LEVELS]
 
 
-def verdict(sums: dict[str, dict[str, np.ndarray]]) -> dict[str, Any]:
+def verdict(sums: dict[str, dict[str, np.ndarray]], a: str = "FreshMesh", b: str = "baseline") -> dict[str, Any]:
+    """Waste of family ``a`` minus family ``b`` at the stockout ``LEVELS``, with bootstrap CIs over stores."""
     pooled = {v: {st: float(a.sum()) for st, a in s.items()} for v, s in sums.items()}
     fr = frontiers(pooled)
     n_stores = len(next(iter(sums.values()))["demand"])
     idx = np.random.default_rng(SEED).integers(0, n_stores, size=(N_RESAMPLES, n_stores))
     boot = np.array([
-        _diffs(frontiers({v: {st: float(a[ix].sum()) for st, a in s.items()} for v, s in sums.items()}))
+        _diffs(frontiers({v: {st: float(x[ix].sum()) for st, x in s.items()} for v, s in sums.items()}), a, b)
         for ix in idx
     ])  # fmt: skip
     per_level = []
@@ -63,7 +68,7 @@ def verdict(sums: dict[str, dict[str, np.ndarray]]) -> dict[str, Any]:
         col = boot[:, j]
         ok = col[~np.isnan(col)]
         lo, hi = (np.percentile(ok, [2.5, 97.5]) if ok.size else (math.nan, math.nan))
-        per_level.append({"stockout": lv, "diff": _diffs(fr)[j], "ci_low": float(lo), "ci_high": float(hi),
+        per_level.append({"stockout": lv, "diff": _diffs(fr, a, b)[j], "ci_low": float(lo), "ci_high": float(hi),
                           "undefined_share": float(np.isnan(col).mean())})  # fmt: skip
     passed = all(r["ci_high"] < 0 and r["undefined_share"] == 0 for r in per_level)
     return {"frontiers": fr, "levels": per_level, "pass": passed, "stores": n_stores, "pooled": pooled}
@@ -81,7 +86,7 @@ def _svg(fr: dict[str, list], path: Path) -> None:
     def xy(p):
         return pad + (w - 2 * pad) * p[0] / xmax, h - pad - (h - 2 * pad) * p[1] / ymax
 
-    colors = {"FreshMesh": "#14714C", "baseline": "#F7A11F"}
+    colors = {"FreshMesh": "#14714C", "FreshMesh + q28": "#2F6DB5", "baseline": "#F7A11F"}
     mid = h / 2
     body = [
         f'<line x1="{pad}" y1="{h - pad}" x2="{w - pad}" y2="{h - pad}" stroke="#555"/>',

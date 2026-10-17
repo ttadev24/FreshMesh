@@ -1,4 +1,5 @@
 import datetime as dt
+import json
 
 import numpy as np
 
@@ -70,18 +71,45 @@ def test_i1_passes_only_when_the_freshmesh_frontier_is_lower_at_all_levels(tmp_p
     assert not verdict(_sums(3.0))["pass"]  # at 5% stockout FreshMesh would waste 31,5% vs the baseline's 19,6%
 
 
-def test_report_writes_the_primary_verdict_and_chart(tmp_path):
+def _write_sums(path, sums, protocol="frn-v1"):
     import csv
 
-    path = tmp_path / "sums.csv"
     with open(path, "w", newline="", encoding="utf-8") as fh:
         w = csv.DictWriter(fh, fieldnames=["protocol", "protocol_sha256", "shelf_life", "seed", "city_id", "store",
                                            "variant", "opening", "received", "wasted", "lost", "demand"])
         w.writeheader()
-        for key, s in _sums(0.5).items():
+        for key, s in sums.items():
             for i in range(len(s["demand"])):
-                w.writerow({"protocol": "frn-v1", "protocol_sha256": "b" * 64, "shelf_life": 2, "seed": 0,
+                w.writerow({"protocol": protocol, "protocol_sha256": "b" * 64, "shelf_life": 2, "seed": 0,
                             "city_id": 1, "store": f"C01:S{i}", "variant": key,
                             **{st: s[st][i] for st in ("opening", "received", "wasted", "lost", "demand")}})
+    return path
+
+
+def test_report_writes_the_primary_verdict_and_chart(tmp_path):
+    path = _write_sums(tmp_path / "sums.csv", _sums(0.5))
     text = write_report({2: path}, tmp_path).read_text(encoding="utf-8")
     assert "I1 ĐẠT" in text and (tmp_path / "frn_inventory_frontier.svg").exists()
+
+
+def test_v11_report_compares_the_q28_family_with_both_frontiers(tmp_path):
+    from data_frn.inventory_report_v11 import write_report as write_v11
+
+    v1 = _write_sums(tmp_path / "v1.csv", _sums(3.0))  # the MLP family loses to the baselines
+    q28 = {k.replace("freshmesh:", "freshmesh_q28:"): s for k, s in _sums(0.5).items() if k.startswith("freshmesh:")}
+    v11 = _write_sums(tmp_path / "v11.csv", q28, protocol="frn-v1.1")
+    text = write_v11({2: v1}, {2: v11}, tmp_path).read_text(encoding="utf-8")
+    assert "I1′ ĐẠT" in text and "frn-v1.1" in text and "sau khi" in text
+    summary = json.loads((tmp_path / "frn_inventory_v11_summary.json").read_text(encoding="utf-8"))
+    main = summary["shelf_lives"]["2"]
+    assert main["pass"] and all(r["diff"] < 0 for r in main["vs_mlp_levels"])
+
+
+def test_q28_family_uses_its_own_quantiles():
+    from data_frn.inventory_sim import V11_VARIANTS
+
+    dem = np.full(N, 10)
+    mlp, q28 = np.tile([30.0, 40.0, 50.0], (N, 1)), np.tile([9.0, 10.0, 11.0], (N, 1))
+    out = simulate_series(dem, mlp, {}, 1, START, variants=V11_VARIANTS, family_quantiles={"freshmesh_q28": q28})
+    assert set(out) == {v.key for v in V11_VARIANTS}
+    assert out["freshmesh_q28:0.5:gross"]["wasted"] < 10  # ordered near 10/day, not the MLP's 40

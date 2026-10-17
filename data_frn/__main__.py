@@ -15,6 +15,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--docs", type=Path, default=Path("docs/experiments"))
     parser.add_argument("--history", choices=["recovered", "observed"], default="recovered")
     parser.add_argument("--cities", type=int, nargs="+", default=None)
+    parser.add_argument("--protocol", choices=["frn-v1", "frn-v1.1"], default="frn-v1")
     args = parser.parse_args(argv)
     if args.command == "download":
         from data_frn.download import ensure_files
@@ -38,13 +39,21 @@ def main(argv: list[str] | None = None) -> int:
     elif args.command == "inventory":
         from data_frn.inventory_bench import run as inventory_run
 
-        print(inventory_run(args.data, args.docs, shelf_life=args.shelf_life, cities=args.cities))
+        print(inventory_run(args.data, args.docs, shelf_life=args.shelf_life, cities=args.cities,
+                            version=args.protocol))  # fmt: skip
     else:
         from data_frn.inventory_report import write_report as inventory_report
         from data_frn.sums_io import sums_path
 
-        paths = {life: sums_path(args.docs / f"frn_inventory_sums_L{life}.csv") for life in (1, 2, 3)}
-        print(inventory_report({life: p for life, p in paths.items() if p}, args.docs))
+        from data_frn.inventory_report_v11 import write_report as inventory_report_v11
+
+        found = {
+            tag: {life: p for life in (1, 2, 3) if (p := sums_path(args.docs / f"frn_inventory_{tag}L{life}.csv"))}
+            for tag in ("sums_", "v11_sums_")
+        }
+        print(inventory_report(found["sums_"], args.docs))
+        if found["v11_sums_"]:  # amendment frn-v1.1, reported after (never instead of) frn-v1
+            print(inventory_report_v11(found["sums_"], found["v11_sums_"], args.docs))
     return 0
 
 

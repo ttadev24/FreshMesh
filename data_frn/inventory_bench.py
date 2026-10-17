@@ -76,7 +76,8 @@ def city_rows(data_dir: Path, city_id: int, shelf_life: int, seed: int = 0, tag:
             res = simulate_series(dem, quant[j], series_point, shelf_life, start, seed=seed,
                                   variants=V11_VARIANTS, family_quantiles=q28)  # fmt: skip
         elif v13:
-            res = simulate_series(dem, quant[j], series_point, shelf_life, start, seed=seed, variants=V13_VARIANTS)
+            res = simulate_series(dem, quant[j], series_point, shelf_life, start, seed=seed,
+                                  variants=V13_VARIANTS)  # fmt: skip
         else:
             res = simulate_series(dem, quant[j], series_point, shelf_life, start, seed=seed)
         store = f"C{city_id:02d}:{cd_rec.store_ids[si]}"

@@ -106,7 +106,8 @@ def _authority_needs_owner(policy: ApprovalPolicy) -> tuple[str, bool]:
     po = {"lines": [{"sku_id": "SKU_RAU_MUONG", "qty": 300, "cost_vnd": value}]}
     esc = approval_escalation("create_purchase_order", po, is_owner=False, policy=policy)
     owner = approval_escalation("create_purchase_order", po, is_owner=True, policy=policy)
-    actual = f"Quản lý: {esc['reason_vi'] if esc else 'được tự duyệt'} Chủ chuỗi: {'bị chặn' if owner else 'duyệt được'}."
+    manager = esc["reason_vi"] if esc else "được tự duyệt."
+    actual = f"Quản lý: {manager} Chủ chuỗi: {'bị chặn' if owner else 'duyệt được'}."
     return actual, bool(esc) and esc["needs_role"] == "owner" and owner is None
 
 
@@ -177,7 +178,7 @@ def cases(data_dir: Path, policy: ApprovalPolicy | None = None) -> list[tuple[st
          _goal_conflict_asks),
         ("thin_data_asks", "Thiếu dữ liệu thì hỏi đúng thứ còn thiếu", "Cửa hàng mới 14 ngày lịch sử",
          "Hỏi số bán gần nhất thay vì giả vờ chắc chắn", _thin_data_asks),
-        ("undo_window", "Hoàn tác có giới hạn và đúng người", "Hoàn tác sau 5 phút, quá hạn, và bởi người khác",
+        ("undo_window", "Hoàn tác có giới hạn và đúng người", "Hoàn tác sau 5 phút, quá hạn, bởi người khác",
          "Chỉ người duyệt (hoặc chủ chuỗi) trong thời hạn", lambda: _undo_window(policy)),
     ]  # fmt: skip
 

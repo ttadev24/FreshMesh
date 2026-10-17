@@ -38,7 +38,8 @@ class ApprovalPolicy:
 def escalation(kind: str, reason_vi: str, question_vi: str, choices_vi: list[str], **extra: Any) -> dict:
     if kind not in ESCALATION_KINDS:
         raise ValueError(f"unknown escalation kind {kind!r}")
-    return {"kind": kind, "reason_vi": reason_vi, "question_vi": question_vi, "choices_vi": choices_vi, **extra}
+    base = {"kind": kind, "reason_vi": reason_vi, "question_vi": question_vi, "choices_vi": choices_vi}
+    return base | extra
 
 
 # ---------------------------------------------------------------- missing_data (inventory plans)

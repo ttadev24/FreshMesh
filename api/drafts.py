@@ -249,9 +249,8 @@ class SqlDraftStore:
             record, status = execution_record(draft, user)
             payload["execution"] = record
             if payload.get("escalation"):
-                payload["escalation"] = {
-                    **payload["escalation"], "resolved_by": user.username, "resolved_at": record["executed_at"]
-                }
+                resolved = {"resolved_by": user.username, "resolved_at": record["executed_at"]}
+                payload["escalation"] = {**payload["escalation"], **resolved}
             audit = {**ref, "decision": "approved", "status": status, "execution": record}
             return status, payload, "approval", audit
 

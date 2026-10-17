@@ -112,7 +112,9 @@ class Settings:
 
     @property
     def approval_policy(self) -> ApprovalPolicy:
-        return ApprovalPolicy(self.manager_order_limit_vnd, self.manager_max_discount_pct, self.undo_window_min)
+        return ApprovalPolicy(
+            self.manager_order_limit_vnd, self.manager_max_discount_pct, self.undo_window_min
+        )
 
     @property
     def cache_dir(self) -> Path:

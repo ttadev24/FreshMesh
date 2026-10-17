@@ -71,7 +71,7 @@ def test_escalated_draft_waits_for_the_owner_then_can_be_undone(client, manager_
     path = f"/api/drafts/{draft['draft_id']}"
 
     err = assert_error(client.post(f"{path}/approve", headers=manager_a), 403, "needs_owner")
-    assert "chưa có gì được thực thi" in err["error"]["message_vi"]
+    assert "chưa có gì được thực thi" in err["message_vi"]
     pending = client.get(path, headers=owner_a).json()["draft"]
     assert pending["status"] == "draft" and "execution" not in pending["payload"]
     esc = pending["payload"]["escalation"]

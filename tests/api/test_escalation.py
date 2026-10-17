@@ -121,7 +121,9 @@ def test_owner_approves_only_the_version_they_saw(client, manager_a, owner_a, mo
 
     # The manager changes the order after escalating: the escalation no longer describes it.
     patch = {"payload": {"lines": [{"sku_id": "SKU_RAU_MUONG", "qty": 2}]}}
-    edited = client.patch(path, json=patch, headers=manager_a).json()["draft"]["payload"]
+    r = client.patch(path, json=patch, headers=manager_a)
+    assert r.status_code == 200, r.text
+    edited = r.json()["draft"]["payload"]
     assert edited["revision"] == 1 and "escalation" not in edited
     assert_error(client.post(f"{path}/approve", json={"revision": 0}, headers=owner_a), 409, "draft_changed")
     ok = client.post(f"{path}/approve", json={"revision": 1}, headers=owner_a)

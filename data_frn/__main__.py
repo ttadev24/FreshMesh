@@ -16,7 +16,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--docs", type=Path, default=Path("docs/experiments"))
     parser.add_argument("--history", choices=["recovered", "observed"], default="recovered")
     parser.add_argument("--cities", type=int, nargs="+", default=None)
-    parser.add_argument("--protocol", choices=["frn-v1", "frn-v1.1"], default="frn-v1")
+    parser.add_argument("--protocol", choices=["frn-v1", "frn-v1.1", "frn-v1.3"], default="frn-v1")
     args = parser.parse_args(argv)
     if args.command == "download":
         from data_frn.download import ensure_files
@@ -69,13 +69,14 @@ def main(argv: list[str] | None = None) -> int:
         from data_frn.inventory_report_v11 import write_report as inventory_report_v11
         from data_frn.sums_io import sums_path
 
-        found: dict[str, dict] = {"sums_": {}, "v11_sums_": {}}
+        found: dict[str, dict] = {"sums_": {}, "v11_sums_": {}, "v13_sums_": {}}
         for tag, life in ((t, n) for t in found for n in (1, 2, 3)):
             if p := sums_path(args.docs / f"frn_inventory_{tag}L{life}.csv"):
                 found[tag][life] = p
         print(inventory_report(found["sums_"], args.docs))
-        if found["v11_sums_"]:  # amendment frn-v1.1, reported after (never instead of) frn-v1
-            print(inventory_report_v11(found["sums_"], found["v11_sums_"], args.docs))
+        for amendment in ("v11", "v13"):  # amendments, reported after (never instead of) frn-v1
+            if found[f"{amendment}_sums_"]:
+                print(inventory_report_v11(found["sums_"], found[f"{amendment}_sums_"], args.docs, amendment))
     return 0
 
 

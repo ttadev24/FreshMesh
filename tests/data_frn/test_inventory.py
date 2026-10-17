@@ -113,3 +113,14 @@ def test_q28_family_uses_its_own_quantiles():
     out = simulate_series(dem, mlp, {}, 1, START, variants=V11_VARIANTS, family_quantiles={"freshmesh_q28": q28})
     assert set(out) == {v.key for v in V11_VARIANTS}
     assert out["freshmesh_q28:0.5:gross"]["wasted"] < 10  # ordered near 10/day, not the MLP's 40
+
+
+def test_v13_family_orders_a_multiple_of_the_mlp_median_net_of_stock():
+    from data_frn.inventory_sim import V13_VARIANTS
+
+    dem = np.full(N, 10)
+    quant = np.tile([5.0, 10.0, 20.0], (N, 1))
+    out = simulate_series(dem, quant, {"freshmesh_p50": quant[:, 1]}, 1, START, variants=V13_VARIANTS)
+    exact = out["freshmesh_p50:1:net"]
+    assert exact["wasted"] == 0 and exact["lost"] == 0  # m = 1 on a perfect median orders exactly demand
+    assert out["freshmesh_p50:1.6:net"]["wasted"] > 0 and out["freshmesh_p50:0.6:net"]["lost"] > 0

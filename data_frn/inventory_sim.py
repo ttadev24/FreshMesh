@@ -23,7 +23,7 @@ WARMUP_DAYS = 3
 
 @dataclass(frozen=True)
 class Variant:
-    family: str  # "freshmesh" | "freshmesh_q28" (frn-v1.1) | "mean7" | "seasonal_naive"
+    family: str  # "freshmesh" | "freshmesh_q28" (v1.1) | "freshmesh_p50" (v1.3) | "mean7" | "seasonal_naive"
     param: float  # service target (freshmesh) or multiplier of the baseline forecast
     net: bool = False  # baselines: order up to the target net of stock on hand
 
@@ -38,6 +38,8 @@ VARIANTS: tuple[Variant, ...] = (
 )
 # frn-v1.1: the same ordering rule fed with the empirical 28-day quantiles instead of the MLP.
 V11_VARIANTS: tuple[Variant, ...] = tuple(Variant("freshmesh_q28", t) for t in SERVICE_TARGETS)
+# frn-v1.3: the MLP median in the order-up-to rule (m × P50 net of stock), the baselines' multipliers.
+V13_VARIANTS: tuple[Variant, ...] = tuple(Variant("freshmesh_p50", m, True) for m in MULTIPLIERS)
 STATS = ("opening", "received", "wasted", "lost", "demand")
 
 

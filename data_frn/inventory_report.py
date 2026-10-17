@@ -17,8 +17,8 @@ from data_frn.sums_io import open_text, write_summary
 from decision.frontier import pareto, waste_at
 
 LEVELS = (5.0, 10.0, 15.0)
-FAMILY = {"freshmesh": "FreshMesh", "freshmesh_q28": "FreshMesh + q28", "mean7": "baseline",
-          "seasonal_naive": "baseline"}  # fmt: skip
+FAMILY = {"freshmesh": "FreshMesh", "freshmesh_q28": "FreshMesh + q28", "freshmesh_p50": "FreshMesh P50 × k",
+          "mean7": "baseline", "seasonal_naive": "baseline"}  # fmt: skip
 STATS = ("opening", "received", "wasted", "lost", "demand")
 
 
@@ -98,7 +98,8 @@ def _svg(fr: dict[str, list], path: Path) -> None:
     def xy(p):
         return pad + (w - 2 * pad) * p[0] / xmax, h - pad - (h - 2 * pad) * p[1] / ymax
 
-    colors = {"FreshMesh": "#14714C", "FreshMesh + q28": "#2F6DB5", "baseline": "#F7A11F"}
+    colors = {"FreshMesh": "#14714C", "FreshMesh + q28": "#2F6DB5", "FreshMesh P50 × k": "#8E44AD",
+              "baseline": "#F7A11F"}  # fmt: skip
     mid = h / 2
     body = [
         f'<line x1="{pad}" y1="{h - pad}" x2="{w - pad}" y2="{h - pad}" stroke="#555"/>',

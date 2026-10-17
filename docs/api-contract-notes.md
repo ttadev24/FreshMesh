@@ -4,6 +4,81 @@ Additions and precisions on top of the master-plan "API contract". Base URL `htt
 (`FRESHMESH_API_PORT`). Errors are always `{"error": {"code": "...", "message_vi": "..."}}` with the HTTP
 status below.
 
+## 2026-10-17 — Human in the loop, goals, what-if, forecast drivers
+Status: implemented on `main` (`api/escalation.py`, `api/drafts.py`, `api/scenario.py`, `decision/frontier.py`,
+`forecasting/drivers.py`). Older sections below are updated where they changed.
+
+**Escalation** (one shape everywhere): `{kind: "missing_data"|"out_of_scope"|"authority", reason_vi, question_vi,
+choices_vi: [str, str], ...kind-specific}`. The UI shows it as a question card: `reason_vi`, `question_vi`, and the two
+`choices_vi` as buttons. Nothing is ever chosen for the person.
+
+**Goals and escalations on `POST /api/inventory/plan`**
+- Optional body fields (owner goals): `max_stockout_pct`, `min_service_pct` (0–100), `max_cost_vnd`,
+  `max_leftover_units` (≥ 0).
+- The response adds:
+  - `frontier[]`, one point per service target: `{name, label_vi, target_service_pct, total_cost_vnd,
+    expected_waste_pct, expected_stockout_pct, service_level_pct, expected_leftover_units, quantities{sku_id: qty}}`.
+    `expected_leftover_units` (units carried to tomorrow) is the cost side of ordering more. On a 1-day horizon
+    waste % alone falls as the order grows, so the slider shows leftover next to waste.
+  - `goal`: `null`, or the goals that were given.
+  - `goal_choice`: `null` when there is no goal, otherwise `{met, name, label_vi, reason_vi, escalation}`. When
+    `met` is false, `name`/`label_vi` are `null` and `escalation` is an `out_of_scope` question.
+  - `escalations[]`: `missing_data` questions (e.g. a new store with 14 days of history asks for recent sales) plus
+    the unreachable-goal question, when there is one.
+
+**Authority (approve above the limit)**
+- Limits are on `GET /api/me` → `approval{manager_order_limit_vnd (5.000.000), manager_max_discount_pct (30),
+  undo_window_min (30)}`; they are no longer on `/api/health`. A limit of 0 switches its rule off.
+- A store manager's approve is refused with **403 `needs_owner`** when:
+  - purchase orders of one store and delivery day add up above the limit (splitting an order does not get around it), or
+  - a markdown goes deeper than the cap (the 50% level).
+- Nothing is executed and the draft stays `draft`, with
+  `payload.escalation{kind: "authority", needs_role: "owner", value_vnd, approved_same_day_vnd, limit_vnd, revision,
+  requested_by, requested_at}`.
+- UI: after the 403, refetch the draft and show "Đang chờ chủ chuỗi duyệt". The owner sees `payload.escalation` on
+  pending drafts ("Cần bạn quyết định").
+- When the owner approves, the escalation gets `resolved_by`/`resolved_at`.
+
+**Revision**
+- Every `PATCH` bumps `payload.revision` (starts at 0).
+- `POST /api/drafts/{id}/approve` accepts an optional `{"revision": n}`, the revision the approver saw. A draft edited
+  since then → **409 `draft_changed`**; refetch and show the new numbers.
+
+**Undo** `POST /api/drafts/{id}/undo`
+- Who and when: the approver or the owner, within `undo_window_min`.
+- Effect: status goes back to `draft`, and `payload.execution` moves to `payload.undone[]` (with `undone_by`,
+  `undone_at`). A re-approval gets a new number (`PO-…-R1`).
+- Errors:
+  - **403 `forbidden_undo`**: not the approver or the owner.
+  - **409 `undo_window_passed`**: the window has passed.
+  - **409 `undo_disabled`**: window set to 0.
+  - **409 `undo_not_supported`**: `dispatch_routes`, since routes already sent to shippers are not undone.
+  - **409 `draft_not_pending`**.
+
+**What-if** `POST /api/inventory/scenario {store_id?, sku_ids?, categories?, horizon_days (1–7), promo: bool,
+is_holiday: bool}`
+- Returns `{store_id, store_name, order_date, horizon_days, scenario, scenario_label_vi, plan_name, plan_label_vi,
+  base, with_scenario, lines[], summary_vi, assumptions_vi, sources, source_labels_vi}`.
+- `base` and `with_scenario` are each `{total_cost_vnd, expected_waste_pct, expected_stockout_pct,
+  expected_leftover_units, demand_p50_units}`.
+- `lines[]` items are `{sku_id, sku_name, base_p50, scenario_p50, base_qty, scenario_qty, delta_qty, delta_cost_vnd}`.
+- Both flags false → **422 `empty_scenario`**.
+- There is no rain scenario on purpose: the model only knows monthly rain climatology.
+- The chat agent has a matching `what_if_inventory` tool.
+
+**Forecast drivers**
+- Every forecast row (`GET /api/forecast`, `plan.forecast`) has
+  `drivers[{key, label_vi, delta_units, delta_pct}]`, e.g. "Chủ nhật +24%".
+- Drivers are calendar effects on P50 that the model learned from history, sorted by size, `|effect| ≥ 3%` only.
+- Label them in the UI as "hiệu ứng mô hình học từ lịch sử", not as causes.
+- Check against the simulator's truth: `docs/experiments/forecast-drivers-check.md`.
+
+**Audit and safety checks**
+- New audit events: `escalation`, `undo` (payload has `draft_id`, `store_id`). A `draft_edited` entry may carry
+  `escalation_cleared`.
+- `GET /api/verify/run` runs 12 cases. The 4 new ones are `authority_needs_owner` (split orders included),
+  `goal_conflict_asks`, `thin_data_asks` and `undo_window`.
+
 ## 2026-10-13 — LLM-only agent + data provenance (supersedes older notes below)
 Status: implemented; shapes are final. API/decision tests pass on the seed-42 chain DBs; the official run waits for
 the Data agent's `data_real` snapshots (test fixtures call `data_sim.generate_all`). Older sections below are updated.
@@ -96,15 +171,19 @@ was reused from cache and when it was solved. `/api/transfer/plan` → `transfer
 ## Endpoints (shapes)
 - `GET /api/health` → `{status: "ok"|"degraded", solver, llm, llm_required, llm_model, data}` (no auth). `solver` = routing-PL `/health`
   (2 s timeout, cached 10 s; `true` while one of our solves is running, because the solver does not answer `/health` while busy).
-- `GET /api/me` → user fields + `chain_name`, `store_name`.
+- `GET /api/me` → user fields + `chain_name`, `store_name`, `approval{manager_order_limit_vnd, manager_max_discount_pct,
+  undo_window_min}`.
 - `GET /api/stores` → array (contract shape); each item also has `opened_date`, `sources`, `source_labels_vi`.
 - `GET /api/skus` → array; each item has all SKU economics (`unit_cost`, `unit_price`, `salvage_price`, `moq`, `supplier_id`, `cold_storage_units`) + `sources`, `source_labels_vi`.
 - `GET /api/forecast?store_id&sku_ids=a,b&categories=rau,thit&horizon_days=1` → `{store_id, store_name, as_of, horizon_days, rows[], drift, sources, source_labels_vi}`.
-  Rows add `sku_name`. Without `sku_ids`/`categories` all fresh SKUs are returned. `drift` adds `coverage_7d_pct`.
+  Rows add `sku_name` and `drivers[]` (see 2026-10-17). Without `sku_ids`/`categories` all fresh SKUs are returned.
+  `drift` adds `coverage_7d_pct`.
   Categories accept aliases: `rau, thit, ca, trung, sua, dau_hu` or `vegetable, meat, seafood, egg, dairy, tofu`.
-- `POST /api/inventory/plan {store_id, sku_ids?, categories?, horizon_days, budget_vnd?, cold_storage_units?}` →
+- `POST /api/inventory/plan {store_id, sku_ids?, categories?, horizon_days, budget_vnd?, cold_storage_units?,
+  max_stockout_pct?, min_service_pct?, max_cost_vnd?, max_leftover_units?}` →
   `{plans[], recommended_plan, recommended_label_vi, recommended_reason_vi, confidence, confidence_reason, forecast[], drift,
-  stock_on_hand[], assumptions_vi[], order_date, sources, source_labels_vi}`. Plan lines add `sku_name`; plans keep every field of
+  stock_on_hand[], assumptions_vi[], order_date, frontier[], goal, goal_choice, scenario, escalations[], sources,
+  source_labels_vi}` (goal fields and the last four keys: see 2026-10-17). Plan lines add `sku_name`; plans keep every field of
   `decision.types.InventoryPlan` (`service_level_pct`, `expected_loss_vnd`, …). `confidence` = the lowest card among the SKUs.
 - `POST /api/markdown/suggest {store_id, sku_ids?, categories?, now_hour=14}` → `{store_id, now, plans[MarkdownPlan + sku_name,
   start_of_day_units, expected_sold_before_now, unit_price, forecast_confidence, forecast_confidence_reason], skipped[],
@@ -156,7 +235,8 @@ was reused from cache and when it was solved. `/api/transfer/plan` → `transfer
   (e.g. `{store_id, plan_name: "Cân bằng", lines?: [{sku_id, qty}]}`); the server recomputes / re-prices everything from the DB.
 - `GET /api/drafts?status=` → `{drafts: [...], sources, source_labels_vi}`. `GET /api/drafts/{id}` → `{draft}`.
 - Draft object: `{draft_id, chain_id, kind, kind_label_vi, store_id, payload, status, created_by, created_at, decided_at, decided_by, sources, source_labels_vi}`.
-- `POST /api/drafts/{id}/approve` (no body) → `{draft, execution, sources, source_labels_vi}`; status → `approved` (`dispatched` for
+- `POST /api/drafts/{id}/approve` (optional body `{revision}`; 403 `needs_owner`, 409 `draft_changed`: see 2026-10-17)
+  → `{draft, execution, sources, source_labels_vi}`; status → `approved` (`dispatched` for
   `dispatch_routes`). `payload.execution` holds the execution record (not connected to real suppliers/POS/shippers yet): purchase order (`title_vi: "Đơn đặt hàng"`, `po_number`,
   `suppliers[{supplier_id, lines, subtotal_vnd}]`, `total_cost_vnd`), price change, transfer order, or dispatch.
 - `POST /api/drafts/{id}/reject` (optional body `{note}`) → `{draft, sources, source_labels_vi}`.
@@ -166,7 +246,8 @@ was reused from cache and when it was solved. `/api/transfer/plan` → `transfer
   - `apply_markdown`: `items: [{sku_id, schedule: [{discount_pct}, ...]}]` (same slots, discounts in {0,10,20,30,50}, non-decreasing), `note`.
   - `create_transfer`: `lines: [{to_store_id, sku_id, qty}]` (qty can only decrease), `note`.
   - `dispatch_routes`: `note`.
-- Approve/reject/PATCH on a non-`draft` status → **409 `draft_not_pending`**.
+- `POST /api/drafts/{id}/undo` → back to `draft` within the undo window (see 2026-10-17).
+- Approve/reject/PATCH/undo on the wrong status → **409 `draft_not_pending`**.
 
 ## Agent
 - `POST /api/agent/chat {message, store_id?}` → SSE, real LLM only; see the 2026-10-13 section at the top.
@@ -178,7 +259,8 @@ was reused from cache and when it was solved. `/api/transfer/plan` → `transfer
 
 ## Tabs
 - `GET /api/audit?limit=200&event=` → `{entries[{audit_id, chain_id, ts, actor, event, payload}]}`, newest first.
-  Events: `command, plan, tool_call, answer` (agent), `draft_created, draft_edited, approval, rejection` (drafts).
+  Events: `command, plan, tool_call, answer` (agent), `draft_created, draft_edited, approval, escalation, undo,
+  rejection` (drafts).
 - `GET /api/network/fl` → `forecasting.fl.fl_summary(data_dir, docs_dir=docs/experiments)` output (+ `sources`, `source_labels_vi` of the participating chains' training data), except
   `chains_participating` is a **count** (contract) and the chain ids are in `chains`. **503 `fl_not_ready`** while the FL
   experiment CSVs are missing or partial (run `scripts/bootstrap.sh` / `scripts/run_fl_experiments.sh`).
@@ -194,7 +276,8 @@ was reused from cache and when it was solved. `/api/transfer/plan` → `transfer
 ## Deviations from the master-plan contract (summary)
 1. Extra draft kind `create_transfer` (flow 2).
 2. SSE data is the StepEvent's inner `data` under a named `event:` (not `{type,data}`); final event `final`.
-3. No scenario endpoints and no offline chat mode: chat needs `ANTHROPIC_API_KEY` (else 503 `llm_unavailable`).
+3. No canned agent scenario endpoints and no offline chat mode: chat needs `ANTHROPIC_API_KEY` (else 503
+   `llm_unavailable`). `POST /api/inventory/scenario` is a computed what-if (2026-10-17), not a canned answer.
 4. `/api/stores` and `/api/skus` are arrays (as in the contract) with `sources`/`source_labels_vi` on every item.
 5. `/api/network/fl`: `chains_participating` is a count, ids in `chains`.
 6. `/api/transfer/plan` adds `summary{markdown_gain_vnd, transfer_gain_vnd, difference_vnd, recommended, recommendation_vi}` (totals over SKUs).

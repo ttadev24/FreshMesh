@@ -37,9 +37,6 @@ Fresh groceries create a daily balancing act: order too much and stock expires; 
 
 Built around a Ho Chi Minh City demo, it combines a **Vietnamese-language interface and AI assistant** with explicit data provenance and human approval. This repository contains the working prototype, reproducible data pipeline, and research reports.
 
-> [!NOTE]
-> **Research prototype · v0.1.0.** Demo sales, inventory, and orders are generated from AI-proposed parameters and public contextual data. They are not real store transactions. Approved actions are recorded locally; external purchasing and dispatch systems are not connected.
-
 <table>
   <tr>
     <td width="33%" valign="top"><strong>01 / Anticipate demand</strong><br /><br />Explore forecast ranges and replenishment needs across stores.</td>
@@ -66,7 +63,7 @@ Built around a Ho Chi Minh City demo, it combines a **Vietnamese-language interf
 
 ## Live demo
 
-**[Open FreshMesh →](https://freshmesh.ailoviec.tech/login)** · Demo account: `owner_a` / `demo123`
+**[Open FreshMesh →](https://freshmesh.ailoviec.tech/login)**
 
 ### One decision, end to end
 
@@ -153,14 +150,14 @@ cd web
 npm run dev
 ```
 
-Open **[http://localhost:3100](http://localhost:3100)** and sign in with **`owner_a` / `demo123`**.
+Open **[http://localhost:3100](http://localhost:3100)** and sign in with one of the accounts the bootstrap creates (see `data_sim/generate.py`).
 
 The API listens on `127.0.0.1:8100`. The development script permits a local development signing key when `FRESHMESH_SECRET` is absent. For a persistent installation, set a random secret of at least 32 characters in the root `.env.local`; see [configuration](docs/configuration.md).
 
-| Role | Demo usernames | Password | Scope |
-| --- | --- | --- | --- |
-| Chain owner | `owner_a`, `owner_b`, `owner_c` | `demo123` | All stores within the respective chain |
-| Store manager | `manager_a1`, `manager_b1`, `manager_c1` | `demo123` | Store CH1 within the respective chain |
+| Role | Scope |
+| --- | --- |
+| Chain owner | All stores within the respective chain |
+| Store manager | Store CH1 within the respective chain |
 
 ### 5. Enable optional services
 

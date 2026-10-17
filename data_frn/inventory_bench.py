@@ -55,9 +55,8 @@ def city_rows(data_dir: Path, city_id: int, shelf_life: int, seed: int = 0, v11:
         point = {}
     else:
         cd_obs, _ = city_chain(rows, "observed")
-        model, fit = fit_quantile_model(
-            cd_rec, train_last=FIT_LAST, cal_first=FIT_LAST + 1, cal_last=CAL_LAST, seed=seed, target_cd=cd_obs
-        )
+        model, fit = fit_quantile_model(cd_rec, train_last=FIT_LAST, cal_first=FIT_LAST + 1, cal_last=CAL_LAST,
+                                        seed=seed, target_cd=cd_obs)  # fmt: skip
         clim = cd_rec.rain_climatology(CAL_LAST)
         fb = build_features(cd_rec, s, k, o, h, known_rain=False, rain_clim=clim)
         quant = _predict_units(model, fit, fb, h).reshape(len(pairs), n_days, 3)
@@ -69,8 +68,9 @@ def city_rows(data_dir: Path, city_id: int, shelf_life: int, seed: int = 0, v11:
         dem = np.rint(np.maximum(demand[si, ki], 0.0)).astype(int)
         series_point = {b: v[j] for b, v in point.items()}
         if v11:
+            q28 = {"freshmesh_q28": quant[j]}
             res = simulate_series(dem, quant[j], series_point, shelf_life, start, seed=seed,
-                                  variants=V11_VARIANTS, family_quantiles={"freshmesh_q28": quant[j]})  # fmt: skip
+                                  variants=V11_VARIANTS, family_quantiles=q28)  # fmt: skip
         else:
             res = simulate_series(dem, quant[j], series_point, shelf_life, start, seed=seed)
         store = f"C{city_id:02d}:{cd_rec.store_ids[si]}"

@@ -1,7 +1,7 @@
-"""Amendment ``frn-v1.1`` (exploratory, written after the frn-v1 results): the FreshMesh ordering rule fed with
-the empirical 28-day quantiles (``frn_inventory_v11_sums_L*.csv``) against the frn-v1 baseline frontier of the
-same stores (``frn_inventory_sums_L*.csv``) → ``frn-inventory-v1.1.md``, ``frn_inventory_v11_frontier.svg`` and
-``frn_inventory_v11_summary.json`` (generated)."""
+"""Amendment ``frn-v1.1`` (exploratory, written after the frn-v1 results): the FreshMesh ordering rule fed
+with the empirical 28-day quantiles (``frn_inventory_v11_sums_L*.csv``) against the frn-v1 baseline frontier
+of the same stores (``frn_inventory_sums_L*.csv``) → ``frn-inventory-v1.1.md``,
+``frn_inventory_v11_frontier.svg`` and ``frn_inventory_v11_summary.json`` (generated)."""
 
 from __future__ import annotations
 
@@ -18,7 +18,8 @@ def _table(levels: list[dict]) -> list[str]:
     rows = ["| Hết hàng | Chênh lệch hàng bỏ (điểm %) | 95% CI | Không xác định |", "|---|---|---|---|"]
     for r in levels:
         ci = f"[{_n(r['ci_low'])}; {_n(r['ci_high'])}]"
-        rows.append(f"| {_n(r['stockout'], 0)}% | {_n(r['diff'])} | {ci} | {_n(100 * r['undefined_share'], 1)}% |")
+        undefined = _n(100 * r["undefined_share"], 1)
+        rows.append(f"| {_n(r['stockout'], 0)}% | {_n(r['diff'])} | {ci} | {undefined}% |")
     return rows
 
 
@@ -43,16 +44,18 @@ def write_report(v1_paths: dict[int, Path], v11_paths: dict[int, Path], docs_dir
             "levels": main["levels"], "pass": main["pass"], "stores": main["stores"],
             "frontiers": main["frontiers"], "vs_mlp_levels": vs_mlp["levels"],
         }  # fmt: skip
+        sha = st["protocol_sha256"][:12]
         lines += [f"## Hạn dùng {life} ngày — {role}", "",
-                  f"Giao thức `{st['protocol']}` (sha256 `{st['protocol_sha256'][:12]}…`), {main['stores']} cửa hàng.",
-                  "", "FreshMesh + q28 − baseline (âm là FreshMesh tốt hơn):", "", *_table(main["levels"]), "",
+                  f"Giao thức `{st['protocol']}` (sha256 `{sha}…`), {main['stores']} cửa hàng.", "",
+                  "FreshMesh + q28 − baseline (âm là FreshMesh tốt hơn):", "", *_table(main["levels"]), "",
                   "FreshMesh + q28 − FreshMesh MLP (không có tiêu chí đạt/không đạt):", "",
                   *_table(vs_mlp["levels"]), ""]  # fmt: skip
         if life == 2:
             verdict_vi = "ĐẠT / PASS" if main["pass"] else "KHÔNG ĐẠT / FAIL"
             lines += [f"**I1′ {verdict_vi}** (thăm dò, sau khi xem kết quả).", ""]
             _svg(main["frontiers"], Path(docs_dir) / "frn_inventory_v11_frontier.svg")
-            lines += ["![Đường biên: FreshMesh MLP, FreshMesh + q28, baseline](frn_inventory_v11_frontier.svg)", ""]
+            chart = "![Đường biên: FreshMesh MLP, FreshMesh + q28, baseline](frn_inventory_v11_frontier.svg)"
+            lines += [chart, ""]
     out = Path(docs_dir) / "frn-inventory-v1.1.md"
     out.write_text("\n".join(lines), encoding="utf-8", newline="\n")
     write_summary(Path(docs_dir) / "frn_inventory_v11_summary.json", summary)

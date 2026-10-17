@@ -53,7 +53,9 @@ def _diffs(fr: dict[str, list], a: str = "FreshMesh", b: str = "baseline") -> li
     return [waste_at(fr[a], lv) - waste_at(fr[b], lv) for lv in LEVELS]
 
 
-def verdict(sums: dict[str, dict[str, np.ndarray]], a: str = "FreshMesh", b: str = "baseline") -> dict[str, Any]:
+def verdict(
+    sums: dict[str, dict[str, np.ndarray]], a: str = "FreshMesh", b: str = "baseline"
+) -> dict[str, Any]:
     """Waste of family ``a`` minus family ``b`` at the stockout ``LEVELS``, with bootstrap CIs over stores."""
     pooled = {v: {st: float(a.sum()) for st, a in s.items()} for v, s in sums.items()}
     fr = frontiers(pooled)
@@ -68,8 +70,8 @@ def verdict(sums: dict[str, dict[str, np.ndarray]], a: str = "FreshMesh", b: str
         col = boot[:, j]
         ok = col[~np.isnan(col)]
         lo, hi = (np.percentile(ok, [2.5, 97.5]) if ok.size else (math.nan, math.nan))
-        per_level.append({"stockout": lv, "diff": _diffs(fr, a, b)[j], "ci_low": float(lo), "ci_high": float(hi),
-                          "undefined_share": float(np.isnan(col).mean())})  # fmt: skip
+        per_level.append({"stockout": lv, "diff": _diffs(fr, a, b)[j], "ci_low": float(lo),
+                          "ci_high": float(hi), "undefined_share": float(np.isnan(col).mean())})  # fmt: skip
     passed = all(r["ci_high"] < 0 and r["undefined_share"] == 0 for r in per_level)
     return {"frontiers": fr, "levels": per_level, "pass": passed, "stores": n_stores, "pooled": pooled}
 

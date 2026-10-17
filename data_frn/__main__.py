@@ -43,14 +43,13 @@ def main(argv: list[str] | None = None) -> int:
                             version=args.protocol))  # fmt: skip
     else:
         from data_frn.inventory_report import write_report as inventory_report
+        from data_frn.inventory_report_v11 import write_report as inventory_report_v11
         from data_frn.sums_io import sums_path
 
-        from data_frn.inventory_report_v11 import write_report as inventory_report_v11
-
-        found = {
-            tag: {life: p for life in (1, 2, 3) if (p := sums_path(args.docs / f"frn_inventory_{tag}L{life}.csv"))}
-            for tag in ("sums_", "v11_sums_")
-        }
+        found: dict[str, dict] = {"sums_": {}, "v11_sums_": {}}
+        for tag, life in ((t, n) for t in found for n in (1, 2, 3)):
+            if p := sums_path(args.docs / f"frn_inventory_{tag}L{life}.csv"):
+                found[tag][life] = p
         print(inventory_report(found["sums_"], args.docs))
         if found["v11_sums_"]:  # amendment frn-v1.1, reported after (never instead of) frn-v1
             print(inventory_report_v11(found["sums_"], found["v11_sums_"], args.docs))

@@ -31,7 +31,6 @@ def main(argv: list[str] | None = None) -> int:
         print(run(args.data, args.docs, history=args.history, cities=args.cities))
     elif args.command == "forecast-report":
         from data_frn.forecast_report import write_report as forecast_report
-
         from data_frn.sums_io import sums_path
 
         paths = {h: sums_path(args.docs / f"frn_forecast_sums_{h}.csv") for h in ("recovered", "observed")}
@@ -42,7 +41,6 @@ def main(argv: list[str] | None = None) -> int:
         print(inventory_run(args.data, args.docs, shelf_life=args.shelf_life, cities=args.cities))
     else:
         from data_frn.inventory_report import write_report as inventory_report
-
         from data_frn.sums_io import sums_path
 
         paths = {life: sums_path(args.docs / f"frn_inventory_sums_L{life}.csv") for life in (1, 2, 3)}

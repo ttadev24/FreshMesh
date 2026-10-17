@@ -1,5 +1,5 @@
 """Verdict I1 of protocol frn-v1 (§3) from ``frn_inventory_sums_L*.csv`` → ``frn-inventory.md`` and
-``frn_inventory_frontier.svg`` in ``docs/experiments`` (generated). Waste % = wasted ÷ (opening + received);
+``frn_inventory_frontier.svg`` in ``docs/experiments`` (generated). Waste % = wasted ÷ received (§3);
 stockout % = lost ÷ demand; frontiers are recomputed on every bootstrap resample of stores."""
 
 from __future__ import annotations
@@ -35,8 +35,7 @@ def load(path: Path) -> tuple[dict[str, dict[str, np.ndarray]], dict[str, str]]:
 
 
 def _point(t: dict[str, Any]) -> tuple[float, float]:
-    stock = t["opening"] + t["received"]
-    return 100.0 * t["lost"] / max(t["demand"], 1e-9), 100.0 * t["wasted"] / max(stock, 1e-9)
+    return 100.0 * t["lost"] / max(t["demand"], 1e-9), 100.0 * t["wasted"] / max(t["received"], 1e-9)
 
 
 def frontiers(totals: dict[str, dict[str, float]]) -> dict[str, list[tuple[float, float]]]:

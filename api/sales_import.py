@@ -4,8 +4,8 @@ for days after the data, how FreshMesh's own forecast did against the real sales
 an import would be a draft a person approves (not offered yet).
 
 Columns are found by name, accent- and case-insensitive (``Ngày``, ``Mã hàng``, ``Tên hàng``, ``Số lượng``…);
-dates ``dd/mm/yyyy`` (optional time), ``yyyy-mm-dd`` or ``dd-mm-yyyy``. Products are matched by FreshMesh code,
-else by name."""
+dates ``dd/mm/yyyy`` (optional time), ``yyyy-mm-dd`` or ``dd-mm-yyyy``. Products are matched by FreshMesh
+code, else by name."""
 
 from __future__ import annotations
 
@@ -77,7 +77,8 @@ def parse_sales(text: str, skus: dict[str, str]) -> Parsed:
         dialect = csv.excel
     reader = csv.reader(io.StringIO(text.lstrip("﻿")), dialect)
     header = next(reader, [])
-    cols = {k: next((i for i, h in enumerate(header) if key(h) in names), None) for k, names in ALIASES.items()}
+    keys = [key(h) for h in header]
+    cols = {k: next((i for i, h in enumerate(keys) if h in names), None) for k, names in ALIASES.items()}
     if cols["date"] is None or cols["qty"] is None or (cols["sku"] is None and cols["name"] is None):
         raise ApiError(422, "bad_sales_file", "Không nhận ra cột của file. Cần cột Ngày, Số lượng và Mã hàng "
                        "hoặc Tên hàng (ví dụ file xuất 'Hàng hóa bán ra' của KiotViet/Sapo).")  # fmt: skip

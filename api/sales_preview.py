@@ -1,5 +1,6 @@
-"""``POST /api/sales/import/preview`` and the sample POS file (``GET /api/sales/import/sample``): what a store's
-sales file would add, checked against the chain DB and against FreshMesh's own forecast; nothing is written.
+"""``POST /api/sales/import/preview`` and the sample POS file (``GET /api/sales/import/sample``): what a
+store's sales file would add, checked against the chain DB and against FreshMesh's own forecast; nothing is
+written.
 The sample is labelled simulated: the store's last 6 days from the chain DB plus the next day drawn from the
 same demand process the data came from (``simulation.demand.future_demand``, seed 1001)."""
 
@@ -52,9 +53,10 @@ def preview(services: Any, chain_id: str, store_id: str, text: str) -> dict[str,
     parts = [
         f"Đọc {parsed.rows_read} dòng: {len(parsed.totals)} cặp mặt hàng × ngày, "
         f"{days[0].strftime('%d/%m')}–{days[-1].strftime('%d/%m/%Y')}.",
-        f"Khớp {len(compared) - len(differ)}/{len(compared)} với số bán FreshMesh đang có." if compared else "",
-        f"{len(before)} ngày trước ngày đầu tiên FreshMesh có: cửa hàng sẽ có {store.history_days + len(before)} "
-        "ngày lịch sử nếu được duyệt nhập." if before else "",
+        f"Khớp {len(compared) - len(differ)}/{len(compared)} với số bán FreshMesh đang có."
+        if compared else "",
+        f"{len(before)} ngày trước ngày đầu tiên FreshMesh có: cửa hàng sẽ có "
+        f"{store.history_days + len(before)} ngày lịch sử nếu được duyệt nhập." if before else "",
         f"Ngày sau dữ liệu: số bán thật nằm trong khoảng dự báo P10–P90 ở {inside}/{len(check)} dòng "
         f"({pct(100 * inside / len(check))})." if check else "",
     ]  # fmt: skip
@@ -100,7 +102,8 @@ def _tomorrow(chain_id: str) -> dict[tuple[str, str], int]:
     from simulation.demand import future_demand, recover_chain_process
 
     fd = future_demand(recover_chain_process(chain_id), SAMPLE_SEED, n_days=1)
-    return {(s, k): int(fd.units[i, j, 0]) for i, s in enumerate(fd.store_ids) for j, k in enumerate(fd.sku_ids)}
+    pairs = ((i, s, j, k) for i, s in enumerate(fd.store_ids) for j, k in enumerate(fd.sku_ids))
+    return {(s, k): int(fd.units[i, j, 0]) for i, s, j, k in pairs}
 
 
 def sample_csv(services: Any, chain_id: str, store_id: str) -> str:
@@ -110,11 +113,13 @@ def sample_csv(services: Any, chain_id: str, store_id: str) -> str:
     first = (SIM_AS_OF - dt.timedelta(days=5)).isoformat()
     with repo.read() as con:
         rows = con.execute(
-            "SELECT date, sku_id, units FROM daily_sales WHERE store_id = ? AND date >= ? ORDER BY date, sku_id",
+            "SELECT date, sku_id, units FROM daily_sales WHERE store_id = ? AND date >= ? "
+            "ORDER BY date, sku_id",
             (store_id, first),
         ).fetchall()
     tomorrow = (SIM_AS_OF + dt.timedelta(days=1)).isoformat()
-    rows += [(tomorrow, k, u) for (s, k), u in sorted(_tomorrow(chain_id).items()) if s == store_id and k in skus]
+    nxt = sorted(_tomorrow(chain_id).items())
+    rows += [(tomorrow, k, u) for (s, k), u in nxt if s == store_id and k in skus]
     codes = {k: f"SP{i + 1:04d}" for i, k in enumerate(sorted(skus))}  # POS codes differ from FreshMesh's
     lines = ["Ngày,Mã hàng,Tên hàng,Số lượng"]
     for day, sku, units in rows:

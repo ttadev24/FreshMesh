@@ -30,7 +30,7 @@ def test_new_stores_lose_their_history_before_the_cut():
 def test_local_and_federated_are_scored_on_the_same_stores(tmp_path):
     (tmp_path / "frn-protocol.md").write_text("Protocol version: `frn-v1`\n", encoding="utf-8")
     cfg = FLConfig(rounds=2, max_train_rows=3000, finetune_epochs=1)
-    path = run(None, tmp_path, seeds=(0,), cities=[1, 2], cfg=cfg, load=lambda _d, c: _city(c))
+    path = run(tmp_path, tmp_path, seeds=(0,), cities=[1, 2], cfg=cfg, load=lambda _d, c: _city(c))
     units, stamp = load(path)
     assert stamp["protocol"] == "frn-v1" and all({"local", "fl"} <= set(u) for u in units.values())
     v = verdict(units)

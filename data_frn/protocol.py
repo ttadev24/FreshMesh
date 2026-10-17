@@ -13,6 +13,7 @@ PROTOCOL_FILES = {
     PROTOCOL_ID: PROTOCOL_FILE,
     "frn-v1.1": "frn-protocol-v1.1.md",  # inventory: the ordering rule on empirical quantiles
     "frn-v1.2": "frn-protocol-v1.2.md",  # routing: routing-PL with the stop service time
+    "frn-v1.3": "frn-protocol-v1.3.md",  # inventory: the MLP median in the order-up-to rule
 }
 
 

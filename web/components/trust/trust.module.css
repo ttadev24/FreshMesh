@@ -367,8 +367,8 @@
   --bar: var(--ink-3);
   --tint: var(--surface-2);
   position: relative;
-  display: grid;
-  grid-template-rows: auto auto 1fr auto auto;
+  display: flex;
+  flex-direction: column;
   gap: 12px;
   padding: 22px 22px 20px 28px;
   overflow: hidden;
@@ -454,7 +454,59 @@
   line-height: 1.55;
 }
 
+/* The one number a judge remembers: big, in the verdict's colour, before → after under it. */
+.impact {
+  display: grid;
+  gap: 6px;
+}
+
+.impactValue {
+  color: var(--accent);
+  font-size: 46px;
+  font-weight: 300;
+  line-height: 1;
+  letter-spacing: -0.04em;
+  font-variant-numeric: tabular-nums;
+}
+
+.impactMove {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  color: var(--ink-2);
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+}
+
+.impactMove b {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.impactLabel {
+  font-size: 14.5px;
+  line-height: 1.5;
+}
+
+.impactSecond {
+  color: var(--ink-2);
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+
+.details summary {
+  color: var(--ink-2);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.details[open] summary {
+  margin-bottom: 6px;
+}
+
 .data {
+  margin-top: auto;
   color: var(--ink-3);
   font-size: 13px;
   line-height: 1.5;

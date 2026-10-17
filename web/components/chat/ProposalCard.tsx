@@ -5,6 +5,7 @@ import { DRAFT_KIND_VI, DRAFT_STATUS_VI } from "@/lib/format";
 import type { Draft, Role } from "@/lib/types";
 import type { DraftsApi } from "@/components/workspace/useDrafts";
 import { Badge, Spinner, type Tone } from "@/components/ui/primitives";
+import ApprovalStatus, { canUndo } from "./ApprovalStatus";
 import DraftSummary from "./DraftSummary";
 import { buildChanges, DISCOUNT_LEVELS, editorLines, initialEdit, markdownItems, planOptions, qtyForPlan, type EditState } from "./draftModel";
 import s from "./chat.module.css";
@@ -20,8 +21,8 @@ interface Props {
 }
 
 export default function ProposalCard({ draftId, draft, drafts, role, skuMoq }: Props) {
-  const [busy, setBusy] = useState<null | "approve" | "reject" | "edit">(null);
-  const [error, setError] = useState<{ message: string; forbidden: boolean } | null>(null);
+  const [busy, setBusy] = useState<null | "approve" | "reject" | "edit" | "undo">(null);
+  const [error, setError] = useState<{ message: string; forbidden: boolean; code?: string } | null>(null);
   const [edit, setEdit] = useState<EditState | null>(null);
 
   if (!draft) {
@@ -51,7 +52,7 @@ export default function ProposalCard({ draftId, draft, drafts, role, skuMoq }: P
   const options = draft.kind === "create_purchase_order" ? planOptions(draft.payload) : [];
   const qtyEditable = draft.kind === "create_purchase_order" || draft.kind === "create_transfer";
 
-  async function run(action: "approve" | "reject" | "edit") {
+  async function run(action: "approve" | "reject" | "edit" | "undo") {
     let changes: Record<string, unknown> | undefined;
     if (action === "edit") {
       if (!edit || !draft) return;
@@ -69,7 +70,7 @@ export default function ProposalCard({ draftId, draft, drafts, role, skuMoq }: P
     if (res.ok) {
       if (action === "edit") setEdit(null);
     } else {
-      setError({ message: res.message, forbidden: res.forbidden });
+      setError({ message: res.message, forbidden: res.forbidden, code: res.code });
     }
   }
 
@@ -223,7 +224,12 @@ export default function ProposalCard({ draftId, draft, drafts, role, skuMoq }: P
       ) : (
         <>
           <DraftSummary draft={draft} />
-          {error ? (
+          <ApprovalStatus draft={draft} role={role} />
+          {error?.code === "needs_owner" ? (
+            <p className={s.escalationNote} role="status" data-testid="proposal-needs-owner">
+              {error.message}
+            </p>
+          ) : error ? (
             <p className={s.proposalError} role="alert" data-testid="proposal-error">
               {error.forbidden ? <b>Không đủ quyền ({role === "store_manager" ? "quản lý cửa hàng" : "chủ chuỗi"}): </b> : null}
               {error.message}
@@ -253,7 +259,15 @@ export default function ProposalCard({ draftId, draft, drafts, role, skuMoq }: P
               </button>
             </div>
           ) : (
-            <p className={s.muted}>{draft.decided_by ? `Quyết định bởi ${draft.decided_by}.` : "Đã có quyết định."}</p>
+            <div className={s.proposalActions}>
+              <p className={s.muted}>{draft.decided_by ? `Quyết định bởi ${draft.decided_by}.` : "Đã có quyết định."}</p>
+              {canUndo(draft) ? (
+                <button type="button" className="btn btn-sm" disabled={busy !== null} onClick={() => run("undo")} data-testid="proposal-undo">
+                  {busy === "undo" ? <Spinner /> : null}
+                  Hoàn tác
+                </button>
+              ) : null}
+            </div>
           )}
         </>
       )}

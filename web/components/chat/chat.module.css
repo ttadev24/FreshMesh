@@ -486,7 +486,47 @@
 .proposalActions {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 8px;
+}
+
+/* Above the manager's limit: the draft waits for the owner. Amber, not red: nothing failed, a person decides. */
+.escalation {
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+  border-left: 4px solid var(--amber-fill);
+  border-radius: var(--radius);
+  background: var(--amber-tint);
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+
+.escalationTitle {
+  color: var(--amber);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.escalationMeta {
+  color: var(--ink-2);
+  font-size: 12.5px;
+}
+
+.escalationNote {
+  padding: 8px 10px;
+  border-radius: var(--radius);
+  background: var(--amber-tint);
+  color: var(--amber);
+  font-size: 13px;
+}
+
+.undoNote {
+  padding: 8px 10px;
+  border-radius: var(--radius);
+  background: var(--blue-tint);
+  color: var(--blue);
+  font-size: 13px;
 }
 
 .proposalError {

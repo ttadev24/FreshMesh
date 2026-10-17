@@ -323,6 +323,18 @@
   font-weight: 500;
 }
 
+/* A manager's order above the limit waits for the owner. */
+.qEscalated {
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--amber-tint);
+  color: var(--amber);
+  font-size: 12px;
+  font-weight: 700;
+  vertical-align: 2px;
+}
+
 .qDetail {
   margin-top: 3px;
   color: var(--ink-3);

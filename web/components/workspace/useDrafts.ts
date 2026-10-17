@@ -1,17 +1,21 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { approveDraft, createDraft, editDraft, errorMessage, listDrafts, rejectDraft } from "@/lib/api";
+import { ApiError, approveDraft, createDraft, editDraft, errorMessage, listDrafts, rejectDraft, undoDraft } from "@/lib/api";
 import type { Draft } from "@/lib/types";
 
-export type DraftAction = "approve" | "reject" | "edit";
+export type DraftAction = "approve" | "reject" | "edit" | "undo";
 
 export interface DraftsApi {
   byId: ReadonlyMap<string, Draft>;
   loading: boolean;
   loadError: string | null;
   refresh: () => void;
-  act: (id: string, action: DraftAction, payload?: Record<string, unknown>) => Promise<{ ok: true } | { ok: false; message: string; forbidden: boolean }>;
+  act: (
+    id: string,
+    action: DraftAction,
+    payload?: Record<string, unknown>,
+  ) => Promise<{ ok: true } | { ok: false; message: string; forbidden: boolean; code: string }>;
   /** POST /api/drafts from a dashboard tool panel; the server recomputes the payload from the DB. */
   create: (kind: string, payload: Record<string, unknown>) => Promise<{ ok: true; id: string } | { ok: false; message: string }>;
 }
@@ -23,6 +27,10 @@ export function useDrafts(wantedIds: readonly string[]): DraftsApi {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
   const ctrlRef = useRef<AbortController | null>(null);
+  const byIdRef = useRef(byId);
+  useEffect(() => {
+    byIdRef.current = byId;
+  }, [byId]);
 
   // Refetch when a turn references a draft we have not seen yet.
   const missingKey = wantedIds.filter((id) => !byId.has(id)).join(",");
@@ -52,8 +60,15 @@ export function useDrafts(wantedIds: readonly string[]): DraftsApi {
 
   const act = useCallback<DraftsApi["act"]>(async (id, action, payload) => {
     try {
+      const revision = Number(byIdRef.current.get(id)?.payload.revision ?? 0);
       const updated =
-        action === "approve" ? await approveDraft(id) : action === "reject" ? await rejectDraft(id) : await editDraft(id, payload ?? {});
+        action === "approve"
+          ? await approveDraft(id, revision)
+          : action === "reject"
+            ? await rejectDraft(id)
+            : action === "undo"
+              ? await undoDraft(id)
+              : await editDraft(id, payload ?? {});
       setById((prev) => {
         const next = new Map(prev);
         const before = prev.get(id);
@@ -70,8 +85,12 @@ export function useDrafts(wantedIds: readonly string[]): DraftsApi {
       });
       return { ok: true };
     } catch (err) {
+      const code = err instanceof ApiError ? err.code : "";
+      // Above the manager's limit the draft stays pending for the owner; a draft edited since it was shown has new
+      // numbers. Either way the list is refetched so the card shows the server's state.
+      if (code === "needs_owner" || code === "draft_changed") setTick((n) => n + 1);
       const status = (err as { status?: number }).status;
-      return { ok: false, message: errorMessage(err), forbidden: status === 403 };
+      return { ok: false, message: errorMessage(err), forbidden: status === 403 && code !== "needs_owner", code };
     }
   }, []);
 

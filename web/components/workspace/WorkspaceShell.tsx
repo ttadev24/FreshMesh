@@ -13,6 +13,7 @@ import DashboardOverview from "@/components/dashboard/DashboardOverview";
 import RightPane, { type TabId } from "@/components/dashboard/RightPane";
 import OverviewPage from "@/components/overview/OverviewPage";
 import NetworkPage from "@/components/network/NetworkPage";
+import DecisionStudio from "@/components/studio/DecisionStudio";
 import EvidencePage from "@/components/trust/EvidencePage";
 import VerifyPage from "@/components/trust/VerifyPage";
 import { NAV_BY_ID, navForTab, PAGE_NAVS, type NavId } from "@/components/shell/nav";
@@ -87,7 +88,11 @@ function WorkspaceReady({ data, onLogout }: { data: WorkspaceData; onLogout: () 
   const provenanceIndex = useMemo(() => indexProvenance(provenanceData), [provenanceData]);
   const sourcesCount = provenanceData ? provenanceData.datasets.length : null;
 
-  const draftIds = useMemo(() => conversation.entries.flatMap((e) => e.turn.drafts), [conversation.entries]);
+  const pendingDrafts = useMemo(() => (pending.state.status === "ready" ? pending.state.drafts : []), [pending.state]);
+  const draftIds = useMemo(
+    () => [...conversation.entries.flatMap((e) => e.turn.drafts), ...pendingDrafts.map((d) => d.draft_id)],
+    [conversation.entries, pendingDrafts],
+  );
   const drafts = useDrafts(draftIds);
 
   // A chat turn that produces data takes the dashboard over once, when it appears; the user can go back
@@ -165,6 +170,16 @@ function WorkspaceReady({ data, onLogout }: { data: WorkspaceData; onLogout: () 
     [drafts, storeId],
   );
 
+  // Purchase orders under the studio's action: the ones created there, then pending ones for this store (e.g. a
+  // manager's order escalated to the owner).
+  const studioDraftIds = useMemo(() => {
+    const created = storeId ? (panelDrafts[`${storeId}:inventory`] ?? []) : [];
+    const waiting = pendingDrafts
+      .filter((d) => d.kind === "create_purchase_order" && d.payload.store_id === storeId && !created.includes(d.draft_id))
+      .map((d) => d.draft_id);
+    return [...created, ...waiting];
+  }, [panelDrafts, pendingDrafts, storeId]);
+
   const openSources = useCallback(() => go("sources"), [go]);
 
   // Kind chips next to numbers open the sources tab at their dataset.
@@ -179,7 +194,7 @@ function WorkspaceReady({ data, onLogout }: { data: WorkspaceData; onLogout: () 
 
   const ask = useCallback(
     (question: string) => {
-      go("import");
+      go("assistant");
       setPane("chat");
       void conversation.send(question);
     },
@@ -195,6 +210,7 @@ function WorkspaceReady({ data, onLogout }: { data: WorkspaceData; onLogout: () 
       const store = !lockedStore && stores.some((st) => st.store_id === target) ? target : storeId;
       if (store) setStoreId(store);
       go(nav);
+      if (nav === "import") return; // the decision studio computes its own plan for the chosen store
       setFocus("tools");
       if (store) void tools.run(slot, store);
     },
@@ -244,6 +260,18 @@ function WorkspaceReady({ data, onLogout }: { data: WorkspaceData; onLogout: () 
             ) : nav === "network" ? (
               <main className={sh.scroll}>
                 <NetworkPage storeNames={storeNames} />
+              </main>
+            ) : nav === "import" ? (
+              <main className={sh.scroll}>
+                <DecisionStudio
+                  storeId={storeId}
+                  storeName={storeName}
+                  role={me.role}
+                  drafts={drafts}
+                  draftIds={studioDraftIds}
+                  skuMoq={skuMoq}
+                  onCreateDraft={(kind, payload) => createPanelDraft("inventory", kind, payload)}
+                />
               </main>
             ) : nav === "verify" ? (
               <main className={sh.scroll}>

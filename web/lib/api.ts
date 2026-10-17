@@ -11,6 +11,7 @@ import {
 } from "./normalize";
 import type { Brief, NetworkView } from "./brief-types";
 import type { Evidence, VerifyRun } from "./trust-types";
+import type { Goals, SalesPreview, ScenarioResult, StudioPlan } from "./studio-types";
 import { normalizePromptEvidence, normalizeProvenance } from "./provenance";
 import type {
   Assumptions,
@@ -134,6 +135,12 @@ async function throwIfFailed(res: Response, opts: RequestOptions): Promise<void>
   throw error;
 }
 
+async function requestText(path: string, opts: RequestOptions = {}): Promise<string> {
+  const res = await send(path, opts);
+  await throwIfFailed(res, opts);
+  return res.text();
+}
+
 async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
   const res = await send(path, opts);
   await throwIfFailed(res, opts);
@@ -169,8 +176,15 @@ export async function listDrafts(signal?: AbortSignal): Promise<Draft[]> {
   return normalizeDrafts(await request<unknown>("/api/drafts", { signal }));
 }
 
-export async function approveDraft(id: string): Promise<Draft> {
-  return normalizeDraft(await request<unknown>(`/api/drafts/${encodeURIComponent(id)}/approve`, { method: "POST" }));
+/** `revision`: the payload revision the approver saw; a draft edited since answers 409 `draft_changed`. */
+export async function approveDraft(id: string, revision?: number): Promise<Draft> {
+  const body = revision === undefined ? undefined : { revision };
+  return normalizeDraft(await request<unknown>(`/api/drafts/${encodeURIComponent(id)}/approve`, { method: "POST", body }));
+}
+
+/** Back to pending within the undo window (approver or owner); routes already dispatched cannot be undone. */
+export async function undoDraft(id: string): Promise<Draft> {
+  return normalizeDraft(await request<unknown>(`/api/drafts/${encodeURIComponent(id)}/undo`, { method: "POST" }));
 }
 
 export async function rejectDraft(id: string): Promise<Draft> {
@@ -206,6 +220,26 @@ export const planInventory = (
   args: { store_id: string; categories?: string[]; horizon_days?: number },
   signal?: AbortSignal,
 ) => request<unknown>("/api/inventory/plan", { method: "POST", body: args, signal });
+
+/** The decision studio's plan: optional owner goals, the trade-off frontier, and questions for a person. */
+export const decideInventory = (
+  args: { store_id: string; categories: string[]; horizon_days: number } & Goals,
+  signal?: AbortSignal,
+) => request<StudioPlan>("/api/inventory/plan", { method: "POST", body: args, signal });
+
+/** What-if: the same plan with a promotion and/or a holiday tomorrow. */
+export const inventoryScenario = (
+  args: { store_id: string; categories: string[]; horizon_days: number; promo: boolean; is_holiday: boolean },
+  signal?: AbortSignal,
+) => request<ScenarioResult>("/api/inventory/scenario", { method: "POST", body: args, signal });
+
+/** A KiotViet-style sales file for the store, labelled in the UI as a simulated sample. */
+export const getSalesSample = (storeId: string) =>
+  requestText(`/api/sales/import/sample?store_id=${encodeURIComponent(storeId)}`);
+
+/** Reads a POS sales file against FreshMesh's data and forecast. Preview only: nothing is saved. */
+export const previewSales = (storeId: string, csvText: string) =>
+  request<SalesPreview>("/api/sales/import/preview", { method: "POST", body: { store_id: storeId, csv_text: csvText } });
 
 export const planTransfer = (args: StockArgs, signal?: AbortSignal) =>
   request<unknown>("/api/transfer/plan", { method: "POST", body: args, signal });

@@ -8,6 +8,7 @@ import { NAV_MAIN, NAV_SOURCES, NAV_TRUST, type NavId } from "./nav";
 import {
   BasketIcon,
   BoxIcon,
+  ChatIcon,
   EvidenceIcon,
   HistoryIcon,
   HomeIcon,
@@ -24,6 +25,7 @@ const ICONS: Record<NavId, ComponentType<{ size?: number }>> = {
   import: BasketIcon,
   stock: BoxIcon,
   delivery: TruckIcon,
+  assistant: ChatIcon,
   network: MeshIcon,
   history: HistoryIcon,
   verify: ShieldCheckIcon,

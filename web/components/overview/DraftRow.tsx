@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { DRAFT_KIND_VI, fmtTime } from "@/lib/format";
 import type { Draft } from "@/lib/types";
+import { openEscalation } from "@/components/chat/ApprovalStatus";
 import { draftLines } from "@/components/chat/draftModel";
 import type { NavId } from "@/components/shell/nav";
 import { ArrowRightIcon } from "@/components/shell/shell-icons";
@@ -51,7 +52,10 @@ export default function DraftRow({ draft: d, index, storeNames, decide, onNav }:
       <button type="button" className={o.qRow} aria-expanded={open} onClick={() => setOpen((v) => !v)}>
         <span className={o.qNum}>{String(index + 1).padStart(2, "0")}</span>
         <span>
-          <span className={o.qTitle}>{d.kind_label_vi ?? DRAFT_KIND_VI[d.kind] ?? d.kind}</span>
+          <span className={o.qTitle}>
+            {d.kind_label_vi ?? DRAFT_KIND_VI[d.kind] ?? d.kind}
+            {openEscalation(d) ? <span className={o.qEscalated}>Cần bạn quyết định</span> : null}
+          </span>
           <span className={o.qDetail}>{detail(d, storeNames)}</span>
           {d.created_at ? (
             <span className={o.qDue}>

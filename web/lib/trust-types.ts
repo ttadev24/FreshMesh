@@ -23,6 +23,15 @@ export interface VerifyRun {
 
 export type Verdict = "pass" | "fail" | "mixed" | "measured" | "not_run";
 
+/** The one number a card leads with, computed by the API from the same report numbers as the headline. */
+export interface Impact {
+  value_vi: string;
+  label_vi: string;
+  before_vi?: string | null;
+  after_vi?: string | null;
+  second_vi?: string | null;
+}
+
 export interface EvidenceItem {
   id: string;
   /** The claim, asked as a question. */
@@ -35,6 +44,7 @@ export interface EvidenceItem {
   exploratory?: boolean;
   verdict: Verdict;
   headline_vi: string;
+  impact?: Impact | null;
 }
 
 export interface Evidence {

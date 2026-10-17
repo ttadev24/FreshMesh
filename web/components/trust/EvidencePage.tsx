@@ -7,6 +7,8 @@ import { useEvidence } from "./useEvidence";
 import t from "./trust.module.css";
 
 const VERDICT_ORDER: Verdict[] = ["pass", "mixed", "fail", "measured", "not_run"];
+// Cards: what holds first (passed, then measured), what did not after; exploratory checks last. Nothing is hidden.
+const CARD_RANK: Record<Verdict, number> = { pass: 0, measured: 1, mixed: 2, fail: 3, not_run: 4 };
 
 /** "Bằng chứng": every claim FreshMesh makes, next to its measured result, PASS and FAIL alike. */
 export default function EvidencePage() {
@@ -41,7 +43,9 @@ export default function EvidencePage() {
         </p>
       ) : (
         <div className={t.cards}>
-          {evidence.items.map((item) => (
+          {[...evidence.items]
+            .sort((a, b) => Number(Boolean(a.exploratory)) - Number(Boolean(b.exploratory)) || CARD_RANK[a.verdict] - CARD_RANK[b.verdict])
+            .map((item) => (
             <EvidenceCard key={item.id} item={item} />
           ))}
         </div>

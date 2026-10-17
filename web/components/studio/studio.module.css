@@ -1,0 +1,695 @@
+/* "Nhập hàng" decision studio: goals on the left, the money trade-off as the hero, then the draft to approve. */
+.page {
+  display: grid;
+  gap: 24px;
+  max-width: 1480px;
+  padding: 4px 32px 48px;
+}
+
+.head {
+  display: grid;
+  gap: 8px;
+}
+
+.title {
+  font-size: clamp(38px, 3.8vw, 60px);
+  font-weight: 300;
+  line-height: 1.05;
+  letter-spacing: -0.035em;
+}
+
+.sub,
+.lead {
+  color: var(--ink-2);
+  font-size: 17px;
+  line-height: 1.6;
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--ink-2);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 360px minmax(0, 1fr);
+  align-items: start;
+  gap: 24px;
+}
+
+.main {
+  display: grid;
+  gap: 20px;
+  min-width: 0;
+}
+
+.sheet,
+.goals,
+.scenario,
+.drivers,
+.action {
+  display: grid;
+  gap: 16px;
+  padding: 22px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+.sheetTitle {
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.note {
+  color: var(--ink-3);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.error {
+  padding: 8px 10px;
+  border-radius: var(--radius);
+  background: var(--red-tint);
+  color: var(--red);
+  font-size: 13px;
+}
+
+.primary,
+.secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 46px;
+  padding: 0 18px;
+  border-radius: 12px;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.primary {
+  border: 0;
+  background: var(--btn-dark);
+  color: #fff;
+}
+
+.primary:hover {
+  background: #2a3830;
+}
+
+.secondary {
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.primary:disabled,
+.secondary:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.primary:focus-visible,
+.secondary:focus-visible,
+.pick:focus-visible,
+.field input:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+}
+
+/* ---------- goals ---------- */
+
+.goalForm {
+  display: grid;
+  gap: 14px;
+}
+
+.field {
+  display: grid;
+  gap: 6px;
+  color: var(--ink-2);
+  font-size: 14px;
+}
+
+.inputUnit {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+  background: #fff;
+  overflow: hidden;
+}
+
+.inputUnit input {
+  flex: 1;
+  min-width: 0;
+  height: 46px;
+  padding: 0 14px;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+}
+
+.inputUnit em {
+  padding: 0 14px;
+  color: var(--ink-3);
+  font-style: normal;
+}
+
+.goalMet,
+.goalMissed {
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+
+.goalMet {
+  background: var(--green-tint);
+  color: var(--green-strong);
+}
+
+.goalMissed {
+  background: var(--amber-tint);
+  color: var(--amber);
+}
+
+.toggles {
+  display: grid;
+  gap: 10px;
+}
+
+.toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  cursor: pointer;
+  font-size: 15px;
+}
+
+.toggle input {
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  accent-color: var(--green);
+}
+
+.toggle:has(input:checked) {
+  border-color: var(--green);
+  background: var(--green-tint);
+}
+
+/* ---------- trade-off ---------- */
+
+.tradeoff {
+  display: grid;
+  gap: 14px;
+}
+
+.chart {
+  width: 100%;
+  height: auto;
+}
+
+.goalZone {
+  fill: var(--green-tint);
+}
+
+.axis {
+  stroke: var(--line-strong);
+  stroke-width: 1;
+}
+
+.axisLabel {
+  fill: var(--ink-3);
+  font-size: 13px;
+}
+
+.curve {
+  fill: none;
+  stroke: var(--leaf);
+  stroke-width: 3;
+  stroke-linejoin: round;
+}
+
+.dot,
+.dotOn {
+  cursor: pointer;
+  transition: r 200ms ease;
+}
+
+.dot {
+  fill: var(--surface);
+  stroke: var(--green);
+  stroke-width: 2;
+}
+
+.dotOn {
+  fill: var(--green);
+  stroke: #fff;
+  stroke-width: 3;
+}
+
+.slider {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  color: var(--ink-2);
+  font-size: 14px;
+}
+
+.slider input {
+  width: 100%;
+  accent-color: var(--green);
+}
+
+.sliderValue {
+  min-width: 150px;
+  color: var(--ink);
+  font-weight: 600;
+  text-align: right;
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0;
+}
+
+.stats div {
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--surface-2);
+}
+
+.stats dt {
+  color: var(--ink-3);
+  font-size: 13px;
+}
+
+.stats dd {
+  margin: 4px 0 0;
+  font-size: 22px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.picks {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.pick {
+  display: grid;
+  gap: 4px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.pick[aria-checked="true"] {
+  border-color: var(--green);
+  box-shadow: inset 0 0 0 1px var(--green);
+  background: var(--green-tint);
+}
+
+.pickHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.recommended {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--green);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.pickCost {
+  font-size: 20px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.pickMeta {
+  color: var(--ink-2);
+  font-size: 13px;
+}
+
+/* ---------- questions (FreshMesh asks instead of guessing) ---------- */
+
+.question {
+  display: grid;
+  gap: 8px;
+  padding: 18px 22px;
+  border-left: 5px solid var(--amber-fill);
+  border-radius: var(--radius-lg);
+  background: var(--amber-tint);
+}
+
+.questionKind {
+  color: var(--amber);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.questionText {
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 1.45;
+}
+
+.questionWhy {
+  color: var(--ink-2);
+  font-size: 14px;
+}
+
+.questionChoices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.answered {
+  color: var(--green-strong);
+  font-weight: 600;
+}
+
+/* ---------- what-if ---------- */
+
+.scenarioHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.scenarioBig {
+  color: var(--green);
+  font-size: 34px;
+  font-weight: 300;
+  letter-spacing: -0.03em;
+}
+
+.compare {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 16px;
+}
+
+.compare > div {
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: var(--surface-2);
+}
+
+.compareLabel {
+  color: var(--ink-3);
+  font-size: 13px;
+}
+
+.compareValue {
+  font-size: 26px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.compareMeta {
+  color: var(--ink-2);
+  font-size: 13px;
+}
+
+.compareArrow {
+  color: var(--ink-3);
+  font-size: 22px;
+}
+
+.deltaList {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 20px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 14px;
+}
+
+.deltaList li {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+/* ---------- drivers ---------- */
+
+.drivers ul {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.drivers li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 90px auto;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+}
+
+.driverRange {
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.chipUp,
+.chipDown {
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.chipUp {
+  background: var(--green-tint);
+  color: var(--green);
+}
+
+.chipDown {
+  background: var(--surface-3);
+  color: var(--ink-2);
+}
+
+.action {
+  justify-items: start;
+}
+
+/* ---------- POS dialog ---------- */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgb(23 34 28 / 0.35);
+}
+
+.dialog {
+  display: grid;
+  gap: 16px;
+  width: min(760px, 100%);
+  max-height: calc(100dvh - 48px);
+  overflow: auto;
+  padding: 26px;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: 0 24px 60px rgb(23 34 28 / 0.25);
+}
+
+.dialogHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.dialogHead h2 {
+  font-size: 24px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+
+.drop {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  padding: 28px;
+  border: 2px dashed var(--line-strong);
+  border-radius: 16px;
+  color: var(--ink-2);
+  text-align: center;
+  cursor: pointer;
+}
+
+.drop input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.drop b {
+  color: var(--ink);
+  font-size: 16px;
+}
+
+.drop:focus-within {
+  box-shadow: var(--focus);
+}
+
+.posResult {
+  display: grid;
+  gap: 14px;
+}
+
+.sampleTag {
+  justify-self: start;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--amber-tint);
+  color: var(--amber);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.posStats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.posStats div {
+  display: grid;
+  gap: 2px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--surface-2);
+}
+
+.posStats b {
+  font-size: 26px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.posStats span {
+  color: var(--ink-2);
+  font-size: 13px;
+}
+
+.checkList {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.checkList li {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: var(--green-tint);
+  font-size: 14px;
+}
+
+.checkList li[data-inside="false"] {
+  background: var(--amber-tint);
+}
+
+.checkMark {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--green);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.checkList li[data-inside="false"] .checkMark {
+  background: var(--amber-fill);
+}
+
+.checkNums {
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 1100px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .page {
+    padding: 4px 16px 32px;
+  }
+
+  .stats,
+  .picks,
+  .posStats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .deltaList {
+    grid-template-columns: 1fr;
+  }
+}

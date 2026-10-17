@@ -1,0 +1,61 @@
+# routing-PL service time (FreshMesh patch, see docs/experiments/frn-protocol-v1.2.md)
+# Apply inside routing/routing-PL: git apply ../solver-patches/0001-routing-pl-service-time.patch
+diff --git a/src/src/solvers/ACO.cpp b/src/src/solvers/ACO.cpp
+index 1c1ad65..5c46b22 100644
+--- a/src/src/solvers/ACO.cpp
++++ b/src/src/solvers/ACO.cpp
+@@ -159,6 +159,7 @@ static std::vector<int> aco_construct_permutation(const VRPInstance& instance, c
+         } else {
+             time = std::max(arr_time, (double)instance.lockers[delivery_node-1-instance.num_customers]->early_time);
+         }
++        time += instance.customers[next_cust-1]->service_time;  // service time at the stop
+         curr_node = delivery_node;
+         
+         // Remove from unvisited
+diff --git a/src/src/solvers/ACO_TS.cpp b/src/src/solvers/ACO_TS.cpp
+index f047d39..a0ff1ac 100644
+--- a/src/src/solvers/ACO_TS.cpp
++++ b/src/src/solvers/ACO_TS.cpp
+@@ -169,6 +169,7 @@ static std::vector<int> aco_construct_permutation(const VRPInstance& instance, c
+         } else {
+             time = std::max(arr_time, (double)instance.lockers[delivery_node-1-instance.num_customers]->early_time);
+         }
++        time += instance.customers[next_cust-1]->service_time;  // service time at the stop
+         curr_node = delivery_node;
+         // Remove from unvisited
+         unvisited.erase(std::remove(unvisited.begin(), unvisited.end(), next_cust), unvisited.end());
+diff --git a/src/src/solvers/Solver.cpp b/src/src/solvers/Solver.cpp
+index 59f6aa0..1742f83 100644
+--- a/src/src/solvers/Solver.cpp
++++ b/src/src/solvers/Solver.cpp
+@@ -78,7 +78,7 @@ static RouteResult construct_routes(const VRPInstance& instance, const std::vect
+         // Add distance from current node to delivery node
+         total_distance += instance.distance_matrix[curr_node][delivery_node];
+         // Update state
+-        time = std::max(arr_time, early);
++        time = std::max(arr_time, early) + instance.customers[cust_id-1]->service_time;  // + service time at the stop
+         load += demand;
+         route.push_back(delivery_node);
+         curr_node = delivery_node;
+@@ -173,7 +173,7 @@ static RouteResult construct_routes_delimiter(const VRPInstance& instance, const
+             break;
+         }
+         total_distance += instance.distance_matrix[curr_node][delivery_node];
+-        time = std::max(arr_time, early);
++        time = std::max(arr_time, early) + instance.customers[cust_id-1]->service_time;  // + service time at the stop
+         load += demand;
+         route.push_back(delivery_node);
+         curr_node = delivery_node;
+diff --git a/src/src/utils.cpp b/src/src/utils.cpp
+index 31865a7..af84a52 100644
+--- a/src/src/utils.cpp
++++ b/src/src/utils.cpp
+@@ -110,7 +110,7 @@ void random_init(const VRPInstance& instance, std::vector<int>& customer_perm, s
+                 remaining[best_idx] = 0; --remaining_count;
+                 customer_perm.push_back(cust_id);
+                 int arr_time = time + (int)instance.distance_matrix[curr_node][best_delivery_node];
+-                time = std::max(arr_time, best_early);
++                time = std::max(arr_time, best_early) + instance.customers[cust_id-1]->service_time;
+                 load += best_demand;
+                 curr_node = best_delivery_node;
+                 if (best_is_locker) visited_lockers.insert(best_delivery_node);

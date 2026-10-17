@@ -25,8 +25,9 @@ export default function TradeoffChart({ plan, selected, goals, onSelect }: Props
   const yMax = Math.max(1, ...all.map((p) => p.expected_stockout_pct)) * 1.2;
   const x = (v: number) => PAD.l + ((v - xMin) / (xMax - xMin)) * (W - PAD.l - PAD.r);
   const y = (v: number) => PAD.t + (1 - v / yMax) * (H - PAD.t - PAD.b);
-  const rest = nearestPoint(plan, selected);
-  const idx = Math.max(0, pts.findIndex((p) => p.name === rest?.name));
+  // A frontier pick rests on its own stop (two stops can cost the same); a named plan rests on the nearest one.
+  const own = pts.findIndex((p) => p.name === selected?.name);
+  const idx = own >= 0 ? own : Math.max(0, pts.findIndex((p) => p.name === nearestPoint(plan, selected)?.name));
   const goalX = goals.max_cost_vnd ? x(Math.min(goals.max_cost_vnd, xMax)) : null;
   const goalY = goals.max_stockout_pct !== undefined ? y(Math.min(goals.max_stockout_pct, yMax)) : null;
 

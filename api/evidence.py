@@ -12,6 +12,7 @@ import json
 import logging
 from collections.abc import Callable
 from pathlib import Path
+
 from decision.text import pct
 
 log = logging.getLogger(__name__)

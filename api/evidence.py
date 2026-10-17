@@ -172,8 +172,8 @@ def _frn_fl(docs: Path) -> tuple:
     headline = (
         f"WAPE cửa hàng mới ({new['fl']['stores']} cửa hàng, {len(s['seeds'])} seed): tự học "
         f"{_n(new['local']['wape'], 4)} → liên kết {_n(new['fl']['wape'], 4)}; chênh lệch {_n(r['diff'], 4)} "
-        f"[{_n(r['ci_low'], 4)}; {_n(r['ci_high'], 4)}]. Tất cả cửa hàng: {_n(s['metrics']['all']['local']['wape'], 4)}"
-        f" → {_n(s['metrics']['all']['fl']['wape'], 4)}."
+        f"[{_n(r['ci_low'], 4)}; {_n(r['ci_high'], 4)}]. Tất cả cửa hàng: "
+        f"{_n(s['metrics']['all']['local']['wape'], 4)} → {_n(s['metrics']['all']['fl']['wape'], 4)}."
     )
     return ("pass" if r["pass"] else "fail"), headline, {"metrics": s["metrics"], "L1": r}
 
@@ -221,8 +221,8 @@ def build_evidence(docs: Path, fl: Callable[[], dict], experiments: Callable[[],
          True, lambda: _routing(sim)),
         ("federated", "Học liên kết giữa các chuỗi có giúp cửa hàng mới?", SIM_VI, "fl-results.md", False,
          lambda: _fl(fl)),
-        ("frn_federated", "Học liên kết giữa 18 thành phố thật có giúp cửa hàng mới?", REAL_VI, "frn-fl.md", True,
-         lambda: _frn_fl(docs)),
+        ("frn_federated", "Học liên kết giữa 18 thành phố thật có giúp cửa hàng mới?", REAL_VI, "frn-fl.md",
+         True, lambda: _frn_fl(docs)),
         ("drivers", "Lời giải thích dự báo có đúng không?", SIM_VI, "forecast-drivers-check.md", False,
          lambda: _drivers(docs)),
         ("elasticity", "Độ co giãn giá mà động cơ giảm giá dùng có hợp lý trên dữ liệu thật?", REAL_VI,

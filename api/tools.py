@@ -45,11 +45,12 @@ _STORE_ARGS = {"store_id": _STORE, "sku_ids": _SKUS, "categories": _CATS}
 # Goals the owner states in words ("hết hàng không quá 5%", "tối đa 3 triệu"): plan_inventory picks the
 # cheapest frontier point meeting them (goal_choice) or returns the conflict as a question.
 _PCT = {"type": "number", "minimum": 0, "maximum": 100}
+_AMOUNT = {"type": "number", "minimum": 0}
 _GOAL_ARGS = {
     "max_stockout_pct": {**_PCT, "description": "Hết hàng tối đa (%)."},
     "min_service_pct": {**_PCT, "description": "Xác suất không hết hàng tối thiểu (%)."},
-    "max_cost_vnd": {"type": "number", "minimum": 0, "description": "Tiền nhập tối đa (đ)."},
-    "max_leftover_units": {"type": "number", "minimum": 0, "description": "Tồn mang sang hôm sau tối đa (đơn vị)."},
+    "max_cost_vnd": {**_AMOUNT, "description": "Tiền nhập tối đa (đ)."},
+    "max_leftover_units": {**_AMOUNT, "description": "Tồn mang sang hôm sau tối đa (đơn vị)."},
 }
 PLAN_NAMES = ["An toàn", "Cân bằng", "Tiết kiệm", "safe", "balanced", "lean", *FRONTIER_PLAN_NAMES]
 

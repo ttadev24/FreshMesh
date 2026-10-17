@@ -65,6 +65,7 @@ def _frn_inventory(docs: Path) -> tuple:
     if s is None:
         raise FileNotFoundError("frn_inventory_summary.json")
     main = s["shelf_lives"][str(s["primary_shelf_life"])]
+
     def outside(level: float) -> str:  # which frontier does not reach this stockout level
         fams = [f for f, pts in main["frontiers"].items()
                 if not min(p[0] for p in pts) <= level <= max(p[0] for p in pts)]  # fmt: skip
@@ -79,7 +80,21 @@ def _frn_inventory(docs: Path) -> tuple:
         f"Hàng bỏ của FreshMesh trừ baseline tốt nhất, cùng mức hết hàng ({main['stores']} cửa hàng, "
         f"hạn dùng {s['primary_shelf_life']} ngày): {'; '.join(parts)}. Âm là FreshMesh tốt hơn."
     )
-    return ("pass" if main["pass"] else "fail"), headline, {"shelf_lives": s["shelf_lives"]}
+    numbers = {"shelf_lives": s["shelf_lives"]}
+    v11 = _read(docs, "frn_inventory_v11_summary.json")
+    if v11:  # frn-v1.1, written after the v1 result: the same ordering rule on the 28-day quantiles
+        q = v11["shelf_lives"][str(v11["primary_shelf_life"])]
+        diffs = "; ".join(
+            f"{pct(r['stockout']).replace(',0%', '%')}: {'—' if r['diff'] is None else _n(r['diff'], 2)}"
+            for r in q["levels"]
+        )
+        verdict = "đạt" if q["pass"] else "không đạt"
+        headline += (
+            f" Thăm dò sau khi xem kết quả (frn-v1.1): cùng quy tắc đặt hàng với dự báo phân vị 28 ngày, "
+            f"chênh lệch {diffs} điểm % — {verdict}."
+        )
+        numbers["v11"] = v11["shelf_lives"]
+    return ("pass" if main["pass"] else "fail"), headline, numbers
 
 
 def _sim30(summary: dict | None) -> tuple:
@@ -149,6 +164,19 @@ def _fl(fl: Callable[[], dict]) -> tuple:
     return "measured", headline, {"metrics": m, "improvement_vs_local": gain, "better_than_local": better}
 
 
+def _elasticity(docs: Path) -> tuple:
+    s = _read(docs, "frn_elasticity_summary.json")
+    if s is None:
+        raise FileNotFoundError("frn_elasticity_summary.json")
+    lo, hi = s["ai_range"]
+    where = "nằm trong" if s["inside_ai_range"] else "nằm ngoài"
+    headline = (
+        f"Trung vị hệ số co giãn giá trên {len(s['categories'])} nhóm hàng: {_n(s['median_elasticity'], 2)}, "
+        f"{where} khoảng AI đề xuất ({_n(lo, 1)} … {_n(hi, 1)}). Giảm giá có thể nội sinh nên chỉ để tham khảo."
+    )
+    return "measured", headline, {"median": s["median_elasticity"], "categories": s["categories"]}
+
+
 def _drivers(docs: Path) -> tuple:
     s = _read(docs, "forecast_drivers_check.json")
     if s is None:
@@ -179,6 +207,8 @@ def build_evidence(docs: Path, fl: Callable[[], dict], experiments: Callable[[],
          lambda: _fl(fl)),
         ("drivers", "Lời giải thích dự báo có đúng không?", SIM_VI, "forecast-drivers-check.md", False,
          lambda: _drivers(docs)),
+        ("elasticity", "Độ co giãn giá mà động cơ giảm giá dùng có hợp lý trên dữ liệu thật?", REAL_VI,
+         "frn-elasticity.md", True, lambda: _elasticity(docs)),
     ]  # fmt: skip
     items = [_item(*c) for c in claims]
     counts: dict[str, int] = {}

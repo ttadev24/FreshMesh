@@ -22,12 +22,12 @@ def test_evidence_lists_every_claim_with_fail_next_to_pass(tmp_path):
     (tmp_path / "frn_inventory_summary.json").write_text(json.dumps(inv), encoding="utf-8")
     out = build_evidence(tmp_path, fl=_fl, experiments=lambda: None)
     by_id = {it["id"]: it for it in out["items"]}
-    assert list(by_id) == ["frn_forecast", "frn_inventory", "sim30", "routing", "federated", "drivers"]
+    assert list(by_id) == ["frn_forecast", "frn_inventory", "sim30", "routing", "federated", "drivers", "elasticity"]
     assert by_id["frn_inventory"]["verdict"] == "fail" and "1,38" in by_id["frn_inventory"]["headline_vi"]
     assert "5%: ngoài đường biên FreshMesh" in by_id["frn_inventory"]["headline_vi"]
     assert by_id["frn_forecast"]["verdict"] == "not_run"  # missing report: listed, never dropped
     assert by_id["federated"]["verdict"] == "measured" and "0,4550" in by_id["federated"]["headline_vi"]
-    assert out["counts"] == {"not_run": 4, "fail": 1, "measured": 1}
+    assert out["counts"] == {"not_run": 5, "fail": 1, "measured": 1}
     assert all(it["report"].startswith("docs/experiments/") and it["data_vi"] for it in out["items"])
 
 

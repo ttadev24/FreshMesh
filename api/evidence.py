@@ -172,7 +172,8 @@ def _elasticity(docs: Path) -> tuple:
     where = "nằm trong" if s["inside_ai_range"] else "nằm ngoài"
     headline = (
         f"Trung vị hệ số co giãn giá trên {len(s['categories'])} nhóm hàng: {_n(s['median_elasticity'], 2)}, "
-        f"{where} khoảng AI đề xuất ({_n(lo, 1)} … {_n(hi, 1)}). Giảm giá có thể nội sinh nên chỉ để tham khảo."
+        f"{where} khoảng AI đề xuất ({_n(lo, 1)} … {_n(hi, 1)}). Giảm giá có thể nội sinh nên chỉ để "
+        "tham khảo."
     )
     return "measured", headline, {"median": s["median_elasticity"], "categories": s["categories"]}
 

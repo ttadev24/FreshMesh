@@ -3,7 +3,11 @@ import type { VerifyCase } from "@/lib/trust-types";
 // The live safety checks grouped by what they protect. Case ids come from api/verify.py; a case added there later
 // lands in "Kiểm chứng khác" until it is placed here, so nothing the API runs is ever hidden.
 const GROUPS: { id: string; title: string; cases: string[] }[] = [
-  { id: "ai", title: "AI không được bịa", cases: ["fabricated_number", "true_numbers_pass", "execution_claim_flagged"] },
+  {
+    id: "ai",
+    title: "AI không bịa, không tự quyết",
+    cases: ["fabricated_number", "true_numbers_pass", "execution_claim_flagged", "draft_not_executed"],
+  },
   {
     id: "data",
     title: "Dữ liệu đúng người, đúng chỗ",
@@ -12,7 +16,7 @@ const GROUPS: { id: string; title: string; cases: string[] }[] = [
   {
     id: "human",
     title: "Con người quyết định",
-    cases: ["draft_not_executed", "authority_needs_owner", "goal_conflict_asks", "thin_data_asks", "undo_window"],
+    cases: ["authority_needs_owner", "goal_conflict_asks", "thin_data_asks", "undo_window"],
   },
 ];
 

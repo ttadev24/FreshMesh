@@ -11,7 +11,7 @@ from typing import Any
 import numpy as np
 
 from data_frn.bootstrap import paired_ci
-from data_frn.sums_io import open_text
+from data_frn.sums_io import open_text, write_summary
 from forecasting.baselines import BASELINES
 
 METHODS = ("mlp", *BASELINES)
@@ -81,10 +81,13 @@ def write_report(paths: dict[str, Path], docs_dir: Path) -> Path:
         "# FreshRetailNet — dự báo so với baseline / forecasting vs baselines (frn-v1 §2)",
         "",
     ]
+    summary: dict[str, Any] = {"report": "frn-forecast.md", "primary": "recovered", "histories": {}}
     for history, path in paths.items():
         sums, stores, st = load_sums(path)
         v = verdicts(sums)
         primary = history == "recovered"
+        summary |= {"protocol": st["protocol"], "protocol_sha256": st["protocol_sha256"]}
+        summary["histories"][history] = {**v, "stores": len(stores)}
         lines += [
             f"## Lịch sử `{history}` — {'chính / primary' if primary else 'thăm dò / exploratory'}", "",
             f"Giao thức `{st['protocol']}` (sha256 `{st['protocol_sha256'][:12]}…`), seed {st['seed']}; "
@@ -115,4 +118,5 @@ def write_report(paths: dict[str, Path], docs_dir: Path) -> Path:
     ]
     out = Path(docs_dir) / "frn-forecast.md"
     out.write_text("\n".join(lines), encoding="utf-8", newline="\n")
+    write_summary(Path(docs_dir) / "frn_forecast_summary.json", summary)
     return out

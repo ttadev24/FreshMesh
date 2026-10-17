@@ -15,3 +15,18 @@ def test_gzipped_sums_read_like_the_csv(tmp_path):
         assert fh.read() == text
     plain.write_text(text, encoding="utf-8")
     assert sums_path(plain) == plain  # the uncompressed bench output wins when both exist
+
+
+def test_summaries_are_strict_json(tmp_path):
+    import json
+    import math
+
+    import numpy as np
+
+    from data_frn.sums_io import write_summary
+
+    path = tmp_path / "s.json"
+    raw = {"pass": np.bool_(True), "n": np.int64(3), "diff": math.nan, "pts": [(1.5, np.float64(2))]}
+    write_summary(path, raw)
+    expected = {"pass": True, "n": 3, "diff": None, "pts": [[1.5, 2.0]]}
+    assert json.loads(path.read_text(encoding="utf-8")) == expected

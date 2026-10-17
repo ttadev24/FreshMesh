@@ -17,6 +17,7 @@ from pathlib import Path
 import numpy as np
 
 from data_sim import CHAIN_IDS, chain_db_path
+from data_frn.sums_io import write_summary
 from data_sim.catalog import CALENDAR_EFFECTS, DOW_FACTORS, PROMO_UPLIFT
 from forecasting.drivers import WEEKDAY_VI
 from forecasting.service import forecast_demand
@@ -76,16 +77,19 @@ def write_report(data_dir: Path | str, docs_dir: Path | str) -> Path:
         "của từng loại khu vực, 7 ngày sau ngày dữ liệu cuối. Đơn vị: % so với một ngày bình thường.",
         "",
     ]
+    summary: dict = {"report": "forecast-drivers-check.md", "chains": {}}
     for chain_id in CHAIN_IDS:
         head = ["| Khu vực | Yếu tố | Thật | Mô hình | Lệch |", "|---|---|---|---|---|"]
         lines += [f"## {chain_id}", "", *head]
         errors = []
-        for area, res in chain_check(chain_id, data_dir).items():
+        checked = chain_check(chain_id, data_dir)
+        for area, res in checked.items():
             rows = [(WEEKDAY_VI[d], *res["weekday"][d]) for d in range(7)]
             rows += [("Khuyến mãi", *res["promo"]), ("Ngày lễ", *res["holiday"])]
             for label, truth, model in rows:
                 lines.append(f"| {area} | {label} | {_n(truth)} | {_n(model)} | {_n(model - truth)} |")
             errors += [abs(m - t) for t, m in res["weekday"]]
+        summary["chains"][chain_id] = {"areas": checked, "weekday_mae_pp": float(np.mean(errors))}
         mae = _n(float(np.mean(errors)))[1:]
         lines += ["", f"Sai số tuyệt đối trung bình của yếu tố thứ trong tuần: {mae} điểm %.", ""]
     lines += [
@@ -95,4 +99,5 @@ def write_report(data_dir: Path | str, docs_dir: Path | str) -> Path:
     ]
     out = docs_dir / "forecast-drivers-check.md"
     out.write_text("\n".join(lines), encoding="utf-8", newline="\n")
+    write_summary(docs_dir / "forecast_drivers_check.json", summary)
     return out

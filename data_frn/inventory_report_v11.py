@@ -8,7 +8,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from data_frn.inventory_report import _n, _svg, load, verdict
+from data_frn.inventory_report import _n, _svg, load, reach_note, verdict
 from data_frn.sums_io import write_summary
 
 Q28, MLP, BASE = "FreshMesh + q28", "FreshMesh", "baseline"
@@ -49,7 +49,7 @@ def write_report(v1_paths: dict[int, Path], v11_paths: dict[int, Path], docs_dir
                   f"Giao thức `{st['protocol']}` (sha256 `{sha}…`), {main['stores']} cửa hàng.", "",
                   "FreshMesh + q28 − baseline (âm là FreshMesh tốt hơn):", "", *_table(main["levels"]), "",
                   "FreshMesh + q28 − FreshMesh MLP (không có tiêu chí đạt/không đạt):", "",
-                  *_table(vs_mlp["levels"]), ""]  # fmt: skip
+                  *_table(vs_mlp["levels"]), "", reach_note(main["frontiers"]), ""]  # fmt: skip
         if life == 2:
             verdict_vi = "ĐẠT / PASS" if main["pass"] else "KHÔNG ĐẠT / FAIL"
             lines += [f"**I1′ {verdict_vi}** (thăm dò, sau khi xem kết quả).", ""]

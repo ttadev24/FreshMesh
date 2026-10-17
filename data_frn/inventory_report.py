@@ -80,6 +80,13 @@ def _n(x: float, nd: int = 2) -> str:
     return "—" if math.isnan(x) else f"{x:.{nd}f}".replace(".", ",")
 
 
+def reach_note(fr: dict[str, list]) -> str:
+    """Why a cell can be '—': the lowest stockout each family reaches (its most generous policy)."""
+    lows = "; ".join(f"{fam} {_n(min(p[0] for p in f))}%" for fam, f in fr.items())
+    return (f"Hết hàng thấp nhất mỗi họ chính sách đạt được: {lows}. Ô '—' là mức nằm ngoài đường biên của một "
+            "họ; quy tắc tính ô đó là không đạt. 'Không xác định' là tỉ lệ lần lấy mẫu lại rơi vào trường hợp này.")  # fmt: skip
+
+
 def _svg(fr: dict[str, list], path: Path) -> None:
     w, h, pad = 640, 400, 50
     xmax = max(p[0] for f in fr.values() for p in f) * 1.05
@@ -126,6 +133,7 @@ def write_report(paths: dict[int, Path], docs_dir: Path) -> Path:
             ci = f"[{_n(r['ci_low'])}; {_n(r['ci_high'])}]"
             undefined = _n(100 * r["undefined_share"], 1)
             lines.append(f"| {_n(r['stockout'], 0)}% | {_n(r['diff'])} | {ci} | {undefined}% |")
+        lines += ["", reach_note(v["frontiers"])]
         if life == 2:
             lines += ["", f"**I1 {'ĐẠT / PASS' if v['pass'] else 'KHÔNG ĐẠT / FAIL'}**", ""]
             _svg(v["frontiers"], Path(docs_dir) / "frn_inventory_frontier.svg")

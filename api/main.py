@@ -16,7 +16,7 @@ from contextlib import asynccontextmanager
 from typing import Any
 
 from fastapi import Depends, FastAPI, Request
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import JSONResponse, Response, StreamingResponse
 from pydantic import BaseModel, Field
 
 from agent.audit import AuditLog
@@ -37,6 +37,8 @@ from api.network import build_network
 from api.repo import ChainRepo, ensure_store_access, resolve_store_id
 from api.road_path import RoadRouter
 from api.routing_service import RoutingService, make_solver_client
+from api.sales_preview import preview as sales_preview
+from api.sales_preview import sample_csv
 from api.scenario import compare_scenario
 from api.services import DEFAULT_NOW_HOUR, Services, assumptions_payload, fl_summary_payload
 from api.tools import build_registry, make_edit_applier
@@ -81,6 +83,11 @@ class ScenarioBody(BaseModel):
     horizon_days: int = Field(default=1, ge=1, le=7)
     promo: bool = False  # a promotion on every selected SKU
     is_holiday: bool = False  # a holiday / local event day
+
+
+class SalesImportBody(BaseModel):
+    store_id: str | None = None
+    csv_text: str = Field(min_length=1, max_length=1_000_000)  # a POS export (KiotViet, Sapo, any CSV)
 
 
 class StockBody(BaseModel):
@@ -368,6 +375,20 @@ def create_app(
         scenario = {"promo": body.promo, "is_holiday": body.is_holiday}
         return compare_scenario(
             services, user.chain_id, sid, selected, horizon_days=body.horizon_days, scenario=scenario
+        )
+
+    @app.post("/api/sales/import/preview")
+    def sales_import_preview(body: SalesImportBody, user: User = Depends(current_user)) -> dict[str, Any]:
+        """What a POS sales file would add, checked against the DB and the forecast; nothing is written."""
+        return sales_preview(services, user.chain_id, store_for(user, body.store_id), body.csv_text)
+
+    @app.get("/api/sales/import/sample")
+    def sales_import_sample(store_id: str | None = None, user: User = Depends(current_user)) -> Response:
+        sid = store_for(user, store_id)
+        return Response(
+            sample_csv(services, user.chain_id, sid),
+            media_type="text/csv; charset=utf-8",
+            headers={"Content-Disposition": f'attachment; filename="freshmesh-mau-kiotviet-{sid}.csv"'},
         )
 
     @app.post("/api/markdown/suggest")

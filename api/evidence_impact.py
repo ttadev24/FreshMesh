@@ -56,8 +56,8 @@ def _routing(n: dict) -> dict:
 
 def _federated(n: dict) -> dict:
     m = n["metrics"]
-    return {"value_vi": f"−{_n(n['improvement_vs_local']['new_store'])}%",
-            "before_vi": _n(m["local"]["new_store_wape"], 4), "after_vi": _n(m["fl"]["new_store_wape"], 4),
+    lo, fl = m["local"]["new_store_wape"], m["fl"]["new_store_wape"]
+    return {"value_vi": f"{_signed(100 * (fl - lo) / lo)}%", "before_vi": _n(lo, 4), "after_vi": _n(fl, 4),
             "label_vi": "sai số dự báo cửa hàng mới, dữ liệu mô phỏng 3 chuỗi"}  # fmt: skip
 
 

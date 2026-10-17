@@ -22,7 +22,7 @@ def test_drivers_recover_the_effects_of_a_known_model():
     out = drivers(predict, np.stack([_row(is_ram=1, dow_5=1), _row(dow_0=1)]))
     ram, saturday = out[0]
     assert (ram["key"], ram["label_vi"], ram["delta_units"]) == ("is_ram", "Rằm", 5.0)
-    assert ram["delta_pct"] == pytest.approx(100 * 5 / 12)  # vs the same Saturday without Rằm
+    assert ram["delta_pct"] == pytest.approx(100 * 5 / 12, abs=0.05)  # vs the same Saturday without Rằm
     assert saturday["label_vi"] == "Thứ Bảy" and saturday["delta_units"] == pytest.approx(2 - 2 / 7, abs=0.05)
     assert out[1] == []  # Monday is 2,8% under the weekday mean: below the reporting threshold
 

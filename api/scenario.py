@@ -16,7 +16,8 @@ from forecasting.drivers import SCENARIO_FEATURES
 ASSUMPTIONS_VI = [
     "Mức tăng/giảm nhu cầu là hiệu ứng mô hình học từ lịch sử bán của chính chuỗi (tương quan, không phải "
     "cam kết); cùng quy tắc lập phương án, chỉ đổi dự báo.",
-    "Không có kịch bản mưa: mô hình chỉ biết lượng mưa trung bình theo tháng, nên 'mai mưa to' sẽ là ngoại suy.",
+    "Không có kịch bản mưa: mô hình chỉ biết lượng mưa trung bình theo tháng, nên 'mai mưa to' sẽ là "
+    "ngoại suy.",
 ]
 
 
@@ -44,7 +45,9 @@ def compare_scenario(
 ) -> dict[str, Any]:
     on = {k: True for k, v in scenario.items() if v}
     if not on:
-        raise ApiError(422, "empty_scenario", "Chọn ít nhất một tình huống: khuyến mãi hoặc ngày lễ / sự kiện.")
+        raise ApiError(
+            422, "empty_scenario", "Chọn ít nhất một tình huống: khuyến mãi hoặc ngày lễ / sự kiện."
+        )
     base = services.inventory_plan(chain_id, store_id, skus, horizon_days=horizon_days)
     alt = services.inventory_plan(chain_id, store_id, skus, horizon_days=horizon_days, scenario=on)
     name = base["recommended_plan"]  # same plan rule on both sides, so only the forecast differs

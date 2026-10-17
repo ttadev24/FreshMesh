@@ -44,12 +44,19 @@ def city_stats(rows: CityRows) -> Stats:
     y = y - (np.bincount(series, y, n_series) / count)[series]
     for j in range(K):
         Z[:, j] -= (np.bincount(series, Z[:, j], n_series) / count)[series]
-    cat, store = rows.first_category_id[ok], rows.store_id[ok]
+    keys, group = np.unique(np.column_stack([rows.first_category_id[ok], rows.store_id[ok]]), axis=0,
+                            return_inverse=True)  # fmt: skip
+    group = group.ravel()
+    g = len(keys)
+    zz = np.empty((g, K, K))
+    for i in range(K):  # one weighted count per cell of Z'Z and Z'y: no per-group masks
+        for j in range(i, K):
+            zz[:, i, j] = zz[:, j, i] = np.bincount(group, Z[:, i] * Z[:, j], g)
+    zy = np.column_stack([np.bincount(group, Z[:, i] * y, g) for i in range(K)])
+    n = np.bincount(group, minlength=g)
     out: Stats = defaultdict(dict)
-    for c in np.unique(cat):
-        for s in np.unique(store[cat == c]):
-            m = (cat == c) & (store == s)
-            out[int(c)][f"C{rows.city_id:02d}:S{int(s)}"] = (Z[m].T @ Z[m], Z[m].T @ y[m], int(m.sum()))
+    for (c, st), a, b, m in zip(keys, zz, zy, n, strict=True):
+        out[int(c)][f"C{rows.city_id:02d}:S{int(st)}"] = (a, b, int(m))
     return dict(out)
 
 

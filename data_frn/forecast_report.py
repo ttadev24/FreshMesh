@@ -11,6 +11,7 @@ from typing import Any
 import numpy as np
 
 from data_frn.bootstrap import paired_ci
+from data_frn.sums_io import open_text
 from forecasting.baselines import BASELINES
 
 METHODS = ("mlp", *BASELINES)
@@ -21,7 +22,7 @@ COVERAGE_BAND = (0.75, 0.85)
 
 def load_sums(path: Path) -> tuple[dict[str, dict[str, dict[str, np.ndarray]]], list[str], dict[str, str]]:
     """``{window: {method: {stat: (n_stores,)}}}`` aligned on one sorted store list, plus the stamp."""
-    with open(path, encoding="utf-8") as fh:
+    with open_text(path) as fh:
         rows = list(csv.DictReader(fh))
     stores = sorted({r["store"] for r in rows})
     pos = {s: i for i, s in enumerate(stores)}

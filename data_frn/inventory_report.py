@@ -13,6 +13,7 @@ from typing import Any
 import numpy as np
 
 from data_frn.bootstrap import N_RESAMPLES, SEED
+from data_frn.sums_io import open_text
 from decision.frontier import pareto, waste_at
 
 LEVELS = (5.0, 10.0, 15.0)
@@ -22,7 +23,7 @@ STATS = ("opening", "received", "wasted", "lost", "demand")
 
 def load(path: Path) -> tuple[dict[str, dict[str, np.ndarray]], dict[str, str]]:
     """``{variant: {stat: (n_stores,)}}`` on one sorted store list, plus the stamp."""
-    with open(path, encoding="utf-8") as fh:
+    with open_text(path) as fh:
         rows = list(csv.DictReader(fh))
     stores = sorted({r["store"] for r in rows})
     pos = {s: i for i, s in enumerate(stores)}

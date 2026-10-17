@@ -32,8 +32,10 @@ def main(argv: list[str] | None = None) -> int:
     elif args.command == "forecast-report":
         from data_frn.forecast_report import write_report as forecast_report
 
-        paths = {h: args.docs / f"frn_forecast_sums_{h}.csv" for h in ("recovered", "observed")}
-        print(forecast_report({h: p for h, p in paths.items() if p.exists()}, args.docs))
+        from data_frn.sums_io import sums_path
+
+        paths = {h: sums_path(args.docs / f"frn_forecast_sums_{h}.csv") for h in ("recovered", "observed")}
+        print(forecast_report({h: p for h, p in paths.items() if p}, args.docs))
     elif args.command == "inventory":
         from data_frn.inventory_bench import run as inventory_run
 
@@ -41,8 +43,10 @@ def main(argv: list[str] | None = None) -> int:
     else:
         from data_frn.inventory_report import write_report as inventory_report
 
-        paths = {life: args.docs / f"frn_inventory_sums_L{life}.csv" for life in (1, 2, 3)}
-        print(inventory_report({life: p for life, p in paths.items() if p.exists()}, args.docs))
+        from data_frn.sums_io import sums_path
+
+        paths = {life: sums_path(args.docs / f"frn_inventory_sums_L{life}.csv") for life in (1, 2, 3)}
+        print(inventory_report({life: p for life, p in paths.items() if p}, args.docs))
     return 0
 
 

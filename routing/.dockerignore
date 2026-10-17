@@ -1,0 +1,5 @@
+# Build context of solver.Dockerfile: only routing-PL/{src,backend,streamlit,start.sh} and solver-patches are copied.
+**/__pycache__
+routing-PL/notebooks
+routing-PL/*.pdf
+routing-PL/assets

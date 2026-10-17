@@ -1,8 +1,10 @@
 services:
   solver:
+    # The pinned routing-PL submodule plus FreshMesh's solver patches (routing/solver.Dockerfile).
     build:
-      context: ./routing/routing-PL
-    image: freshmesh-solver:routing-pl-32488ce
+      context: ./routing
+      dockerfile: solver.Dockerfile
+    image: freshmesh-solver:routing-pl-32488ce-fm1
     container_name: freshmesh-solver
     # Loopback only: Docker-published ports bypass host firewalls such as UFW, and only the local API calls
     # the solver. The *_PORT variables are plain port numbers (e.g. FRESHMESH_SOLVER_PORT=8001).

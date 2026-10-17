@@ -210,10 +210,9 @@ function WorkspaceReady({ data, onLogout }: { data: WorkspaceData; onLogout: () 
     <ProvenanceContext.Provider value={provenanceIndex}>
       <SourcesNavContext.Provider value={openDataset}>
         <div className={sh.app}>
-          <Sidebar nav={nav} onNav={go} user={me} onLogout={onLogout} />
+          <Sidebar nav={nav} onNav={go} user={me} chainName={me.chain_name || me.chain_id} onLogout={onLogout} />
           <div className={sh.main}>
             <PageHeader
-              chainName={me.chain_name || me.chain_id}
               title={PAGE_NAVS.includes(nav) ? null : NAV_BY_ID[nav].title}
               health={health}
               stores={stores}

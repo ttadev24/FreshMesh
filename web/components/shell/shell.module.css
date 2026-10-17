@@ -134,9 +134,13 @@
   white-space: nowrap;
 }
 
-.userRole {
+.userRole,
+.userChain {
+  overflow: hidden;
   color: var(--ink-3);
   font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .logout,
@@ -180,14 +184,6 @@
   display: grid;
   gap: 4px;
   min-width: 0;
-}
-
-.chainName {
-  color: var(--ink-2);
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.24em;
-  text-transform: uppercase;
 }
 
 .pageTitle {

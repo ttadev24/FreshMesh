@@ -6,8 +6,10 @@ import { fmtNum } from "@/lib/format";
 import type { VerifyRun } from "@/lib/trust-types";
 import { PlayIcon } from "@/components/shell/shell-icons";
 import { ErrorState, Spinner } from "@/components/ui/primitives";
-import VerifyCaseRow from "./VerifyCaseRow";
-import { groupCases } from "./verify-groups";
+import ScoreRing from "./ScoreRing";
+import { CheckMark } from "./trust-icons";
+import VerifyGroupSheet from "./VerifyGroupSheet";
+import { GROUP_SHELLS, KNOWN_CHECKS, groupCases } from "./verify-groups";
 import { useReveal } from "./useReveal";
 import t from "./trust.module.css";
 
@@ -16,6 +18,8 @@ type RunState =
   | { status: "running" }
   | { status: "done"; run: VerifyRun; key: number }
   | { status: "error"; message: string };
+
+const TRUST = ["Chạy trên mã thật đang vận hành", "Không gọi AI", "Không ghi vào dữ liệu"];
 
 function clock(iso: string): string {
   const d = new Date(iso);
@@ -27,11 +31,12 @@ export default function VerifyPage() {
   const [state, setState] = useState<RunState>({ status: "idle" });
   const runs = useRef(0);
   const run = state.status === "done" ? state.run : null;
-  const groups = useMemo(() => (run ? groupCases(run.cases) : []), [run]);
+  const groups = useMemo(() => (run ? groupCases(run.cases) : GROUP_SHELLS), [run]);
   const ordered = useMemo(() => groups.flatMap((g) => g.cases), [groups]);
   const shown = useReveal(ordered.length, state.status === "done" ? state.key : -1);
   const visible = new Set(ordered.slice(0, shown).map((c) => c.id));
   const passedShown = ordered.slice(0, shown).filter((c) => c.pass).length;
+  const total = run?.total ?? KNOWN_CHECKS;
   const settled = run !== null && shown >= ordered.length;
 
   async function start() {
@@ -50,25 +55,26 @@ export default function VerifyPage() {
       <header className={t.hero}>
         <div className={t.heroText}>
           <h1 className={t.title}>Kiểm chứng 90 giây</h1>
-          <p className={t.lead}>
-            Chạy thật các quy tắc an toàn trên chính mã đang vận hành: không gọi AI, không giả lập quy tắc được kiểm,
-            không ghi gì vào dữ liệu.
-          </p>
+          <p className={t.hook}>Đừng tin lời chúng tôi. Bấm và tự xem.</p>
+          <p className={t.lead}>AI bịa số bị bắt. Đơn vượt quyền bị chặn. Dữ liệu không lọt sang chuỗi khác.</p>
+          <ul className={t.trust}>
+            {TRUST.map((x) => (
+              <li key={x}>
+                <CheckMark size={14} />
+                {x}
+              </li>
+            ))}
+          </ul>
         </div>
-        <div className={t.scoreBox}>
-          {run ? (
-            <div aria-live="polite" data-testid="verify-score">
-              <p className={t.score} data-settled={settled}>
-                {passedShown}
-                <span>/{run.total}</span>
-              </p>
-              <p className={t.scoreSub}>
-                {settled
-                  ? `ca đạt, chạy trong ${fmtNum(run.duration_ms, 1)} ms lúc ${clock(run.ran_at)}`
-                  : "ca đạt"}
-              </p>
-            </div>
-          ) : null}
+        <div className={t.scoreBox} aria-live="polite" data-testid="verify-score">
+          <ScoreRing passed={passedShown} total={total} settled={settled} />
+          <p className={t.scoreSub}>
+            {settled && run
+              ? `${run.passed}/${run.total} đạt, chạy trong ${fmtNum(run.duration_ms, 1)} ms lúc ${clock(run.ran_at)}`
+              : run
+                ? "Đang hiện kết quả"
+                : `${total} quy tắc sẵn sàng`}
+          </p>
           <button
             type="button"
             className={t.runBtn}
@@ -84,22 +90,11 @@ export default function VerifyPage() {
 
       {state.status === "error" ? <ErrorState title="Không chạy được kiểm chứng" message={state.message} onRetry={start} /> : null}
 
-      {groups.length ? (
-        <div className={t.groups}>
-          {groups.map((g) => (
-            <section key={g.id} className={t.group} aria-labelledby={`verify-${g.id}`}>
-              <h2 id={`verify-${g.id}`} className={t.groupTitle}>
-                {g.title}
-              </h2>
-              <ol className={t.cases}>
-                {g.cases.filter((c) => visible.has(c.id)).map((c) => (
-                  <VerifyCaseRow key={c.id} c={c} />
-                ))}
-              </ol>
-            </section>
-          ))}
-        </div>
-      ) : null}
+      <div className={t.groups}>
+        {groups.map((g) => (
+          <VerifyGroupSheet key={g.id} group={g} visible={visible} />
+        ))}
+      </div>
     </div>
   );
 }

@@ -17,9 +17,10 @@ export default function EvidencePage() {
     <div className={t.page} data-testid="evidence-page">
       <header className={t.heroText}>
         <h1 className={t.title}>Bằng chứng</h1>
+        <p className={t.hook}>Cả chỗ chưa đạt, chúng tôi cũng công bố.</p>
         <p className={t.lead}>
-          {evidence?.note_vi ?? "Kết quả không đạt được công bố cùng kết quả đạt."} Mỗi kết luận dẫn tới báo cáo thí
-          nghiệm đầy đủ.
+          Mỗi kết luận có số đo và báo cáo thí nghiệm đầy đủ. Thí nghiệm nào đăng ký tiêu chí trước khi chạy đều được ghi
+          rõ.
         </p>
         {evidence ? (
           <ul className={t.counts} aria-label="Tổng hợp kết quả">

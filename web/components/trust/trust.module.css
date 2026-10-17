@@ -9,8 +9,8 @@
 .hero {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  align-items: end;
-  gap: 32px;
+  align-items: center;
+  gap: 40px;
 }
 
 .heroText {
@@ -33,36 +33,103 @@
   line-height: 1.6;
 }
 
+/* The invitation: one line, larger than body, the page's call to act. */
+.hook {
+  color: var(--ink);
+  font-size: clamp(22px, 1.9vw, 30px);
+  font-weight: 500;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+}
+
+.trust {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+  color: var(--ink-2);
+  font-size: 14px;
+}
+
+.trust li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.trust svg {
+  color: var(--green);
+}
+
 /* ---------- verify: score + run ---------- */
 
 .scoreBox {
   display: grid;
-  justify-items: end;
-  gap: 14px;
-  text-align: right;
+  justify-items: center;
+  gap: 12px;
+  min-width: 260px;
+  text-align: center;
 }
 
-.score {
-  font-size: clamp(64px, 6vw, 96px);
+/* ---------- verify: score ring ---------- */
+
+.ring {
+  position: relative;
+  width: 168px;
+  height: 168px;
+}
+
+.ring svg {
+  display: block;
+}
+
+.ringTrack,
+.ringFill {
+  fill: none;
+  stroke-width: 10;
+}
+
+.ringTrack {
+  stroke: var(--surface-3);
+}
+
+.ringFill {
+  stroke: var(--leaf);
+  stroke-linecap: round;
+  transition: stroke-dashoffset 360ms cubic-bezier(0.2, 0.7, 0.2, 1), stroke 300ms ease;
+}
+
+.ring[data-settled="true"] .ringFill {
+  stroke: var(--green);
+}
+
+.ringValue {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  grid-auto-flow: column;
+  align-items: baseline;
+  font-size: 56px;
   font-weight: 300;
   line-height: 1;
   letter-spacing: -0.04em;
   font-variant-numeric: tabular-nums;
-  transition: color 300ms ease;
 }
 
-.score span {
+.ringValue span {
   color: var(--ink-3);
-  font-size: 0.5em;
+  font-size: 0.42em;
   letter-spacing: -0.02em;
 }
 
-.score[data-settled="true"] {
+.ring[data-settled="true"] .ringValue {
   color: var(--green);
 }
 
 .scoreSub {
-  margin-top: 6px;
   color: var(--ink-2);
   font-size: 14px;
 }
@@ -116,10 +183,59 @@
   background: var(--surface);
 }
 
+.groupHead {
+  display: grid;
+  gap: 6px;
+}
+
 .groupTitle {
   font-size: 18px;
   font-weight: 600;
   letter-spacing: -0.01em;
+}
+
+.groupDesc {
+  color: var(--ink-2);
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+
+/* A check still to come: same footprint as a short result row, quiet, no motion. */
+.ghost {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  height: 64px;
+  padding: 0 14px;
+  border: 1px dashed var(--line-strong);
+  border-radius: 14px;
+}
+
+.ghostMark {
+  width: 30px;
+  height: 30px;
+  border: 2px solid var(--line-strong);
+  border-radius: 50%;
+}
+
+.ghostLines {
+  display: grid;
+  gap: 8px;
+}
+
+.ghostLines span {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--surface-3);
+}
+
+.ghostLines span:first-child {
+  width: 70%;
+}
+
+.ghostLines span:last-child {
+  width: 45%;
 }
 
 .cases {
@@ -367,6 +483,10 @@
 @media (prefers-reduced-motion: reduce) {
   .case {
     animation: none;
+  }
+
+  .ringFill {
+    transition: none;
   }
 }
 

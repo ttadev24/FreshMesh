@@ -8,7 +8,6 @@ import { BellIcon } from "./shell-icons";
 import s from "./shell.module.css";
 
 interface Props {
-  chainName: string;
   /** Page title for workspace destinations; the overview shows its own large title instead. */
   title: string | null;
   health: Health;
@@ -28,13 +27,10 @@ const today = () =>
     .replaceAll("/", ".");
 
 export default function PageHeader(props: Props) {
-  const { chainName, title, health, stores, storeId, onStoreChange, lockedStore, sourcesCount, pendingCount } = props;
+  const { title, health, stores, storeId, onStoreChange, lockedStore, sourcesCount, pendingCount } = props;
   return (
     <header className={s.header}>
       <div className={s.headTitle}>
-        <span className={s.chainName} data-testid="chain-name">
-          {chainName}
-        </span>
         {title ? <h1 className={s.pageTitle}>{title}</h1> : null}
       </div>
 

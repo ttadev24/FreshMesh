@@ -35,6 +35,8 @@ interface Props {
   nav: NavId;
   onNav: (id: NavId) => void;
   user: User;
+  /** The chain this account manages (shown with the role). */
+  chainName: string;
   onLogout: () => void;
 }
 
@@ -43,7 +45,7 @@ function initials(name: string): string {
   return (parts.length > 1 ? parts[0][0] + parts[1][0] : name.slice(0, 2)).toUpperCase();
 }
 
-export default function Sidebar({ nav, onNav, user, onLogout }: Props) {
+export default function Sidebar({ nav, onNav, user, chainName, onLogout }: Props) {
   const item = (id: NavId, label: string) => {
     const Icon = ICONS[id];
     return (
@@ -82,6 +84,9 @@ export default function Sidebar({ nav, onNav, user, onLogout }: Props) {
           <span className={s.userText} data-testid="user-role">
             <span className={s.userName}>{user.username}</span>
             <span className={s.userRole}>{ROLE_VI[user.role] ?? user.role}</span>
+            <span className={s.userChain} data-testid="chain-name">
+              {chainName}
+            </span>
           </span>
           <button type="button" className={s.logout} onClick={onLogout} data-testid="logout" aria-label="Đăng xuất" title="Đăng xuất">
             <LogoutIcon size={20} />

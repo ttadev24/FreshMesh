@@ -22,6 +22,7 @@ def test_health_is_public_and_reports_llm_requirement(client, monkeypatch):
         "data": True,
         "jev": False,
         "chat_quota": {"per_ip_daily": 0, "global_daily": 0},  # test settings turn quotas off
+        "approval": {"manager_order_limit_vnd": 5_000_000, "manager_max_discount_pct": 50, "undo_window_min": 30},
     }
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
     assert client.get("/api/health").json()["llm"] is True

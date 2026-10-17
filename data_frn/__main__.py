@@ -8,7 +8,7 @@ from pathlib import Path
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="python -m data_frn", description=__doc__)
-    commands = ["download", "audit", "forecast", "forecast-report", "inventory", "inventory-report"]
+    commands = ["download", "audit", "forecast", "forecast-report", "inventory", "inventory-report", "elasticity"]
     parser.add_argument("command", choices=commands)
     parser.add_argument("--shelf-life", type=int, default=2)
     parser.add_argument("--data", type=Path, default=Path("data"))
@@ -36,6 +36,10 @@ def main(argv: list[str] | None = None) -> int:
 
         paths = {h: sums_path(args.docs / f"frn_forecast_sums_{h}.csv") for h in ("recovered", "observed")}
         print(forecast_report({h: p for h, p in paths.items() if p}, args.docs))
+    elif args.command == "elasticity":
+        from data_frn.elasticity import run as elasticity_run
+
+        print(elasticity_run(args.data, args.docs, cities=args.cities))
     elif args.command == "inventory":
         from data_frn.inventory_bench import run as inventory_run
 

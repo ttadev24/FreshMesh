@@ -3,7 +3,9 @@ calendar covariates of the quantile model.
 
 * **Drivers.** For each row, one covariate at a time is switched to its ordinary-day value and the model is
   asked again: ``effect = P50(as forecast) − P50(counterfactual)``. Tết / holiday / Rằm / mùng 1 / promo
-  flags are switched off; the weekday is replaced by the mean over the seven weekdays. These are the effects
+  flags are switched off. The weekday reaches the model twice (its one-hot and the same-weekday lags), so
+  its counterfactual is an "ordinary day": same-weekday lags set to the 7-day mean and the prediction
+  averaged over the seven weekday flags. These are the effects
   the model learned from the chain's history (association, not proven cause); effects under
   ``MIN_EFFECT_PCT`` are dropped.
 * **Scenarios.** The same covariates switched on for every forecast day (a planned promotion, an event day).
@@ -31,6 +33,7 @@ SCENARIO_FEATURES = {"promo": "Khuyến mãi", "is_holiday": "Ngày lễ / sự 
 MIN_EFFECT_PCT = 3.0
 _COL = {name: i for i, name in enumerate(FEATURE_NAMES)}
 _DOW = [_COL[f"dow_{d}"] for d in range(7)]
+_SDOW_LAGS = [_COL["lag_sdow1"], _COL["lag_sdow2"]]
 
 Predict = Callable[[np.ndarray], np.ndarray]  # features (n, N_FEATURES) -> P50 units (n,)
 
@@ -56,9 +59,11 @@ def drivers(predict: Predict, X: np.ndarray) -> list[list[dict]]:
         for i, cf in zip(on, predict(off), strict=True):
             if e := _effect(name, label, float(base[i]), float(cf)):
                 out[i].append(e)
+    ordinary = X.copy()
+    ordinary[:, _SDOW_LAGS] = X[:, [_COL["roll_mean7"]]]
     per_day = []
     for d in range(7):
-        Xd = X.copy()
+        Xd = ordinary.copy()
         Xd[:, _DOW] = 0.0
         Xd[:, _DOW[d]] = 1.0
         per_day.append(predict(Xd))

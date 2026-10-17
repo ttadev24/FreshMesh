@@ -1,0 +1,94 @@
+{
+ "histories": {
+  "observed": {
+   "F1": {
+    "ci_high": 0.006394775801750384,
+    "ci_low": 0.004780926225675119,
+    "diff": 0.0055899125988527,
+    "pass": false
+   },
+   "F2": {
+    "ci_high": 0.03764792025213999,
+    "ci_low": 0.03156978625741542,
+    "diff": 0.034786677743883186,
+    "pass": false
+   },
+   "F3": {
+    "coverage": 0.7389415423070629,
+    "pass": false
+   },
+   "best_baseline_on_cal": "mean7",
+   "rows_test": 134422,
+   "stores": 897,
+   "test": {
+    "empirical_q28": {
+     "coverage": 0.7106649209206827,
+     "pinball": 0.10278847759949263,
+     "wape": 0.3143111022024879
+    },
+    "mean7": {
+     "coverage": 0.02670693785243487,
+     "pinball": 0.1509797744814701,
+     "wape": 0.3019595489629402
+    },
+    "mlp": {
+     "coverage": 0.7389415423070629,
+     "pinball": 0.10837839019834532,
+     "wape": 0.33674622670682336
+    },
+    "seasonal_naive": {
+     "coverage": 0.06776420526401929,
+     "pinball": 0.17054874663984299,
+     "wape": 0.34109749327968597
+    }
+   }
+  },
+  "recovered": {
+   "F1": {
+    "ci_high": 0.002399479835217769,
+    "ci_low": 0.0008628470340156181,
+    "diff": 0.0016507210422731587,
+    "pass": false
+   },
+   "F2": {
+    "ci_high": 0.016196775083966303,
+    "ci_low": 0.01089341153555209,
+    "diff": 0.013583944099213489,
+    "pass": false
+   },
+   "F3": {
+    "coverage": 0.7865582083559495,
+    "pass": true
+   },
+   "best_baseline_on_cal": "empirical_q28",
+   "rows_test": 134491,
+   "stores": 897,
+   "test": {
+    "empirical_q28": {
+     "coverage": 0.7735833624554803,
+     "pinball": 0.10207575416838531,
+     "wape": 0.31385780991092516
+    },
+    "mean7": {
+     "coverage": 0.0008253340372218215,
+     "pinball": 0.17477626852316616,
+     "wape": 0.34955253704633227
+    },
+    "mlp": {
+     "coverage": 0.7865582083559495,
+     "pinball": 0.10372647521065846,
+     "wape": 0.32744175401013864
+    },
+    "seasonal_naive": {
+     "coverage": 0.0031080146626911837,
+     "pinball": 0.22080967604798102,
+     "wape": 0.44161935209596204
+    }
+   }
+  }
+ },
+ "primary": "recovered",
+ "protocol": "frn-v1",
+ "protocol_sha256": "379e4a299d5ba366f15bfcba490872a1a855bc0afe9f8956a53124d502cca4d3",
+ "report": "frn-forecast.md"
+}

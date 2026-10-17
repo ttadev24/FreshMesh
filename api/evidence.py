@@ -175,7 +175,8 @@ def _elasticity(docs: Path) -> tuple:
         f"{where} khoảng AI đề xuất ({_n(lo, 1)} … {_n(hi, 1)}). Giảm giá có thể nội sinh nên chỉ để "
         "tham khảo."
     )
-    return "measured", headline, {"median": s["median_elasticity"], "categories": s["categories"]}
+    verdict = "pass" if s["inside_ai_range"] else "fail"  # the frn-v1 §4 check: is the median inside the range?
+    return verdict, headline, {"median": s["median_elasticity"], "categories": s["categories"]}
 
 
 def _drivers(docs: Path) -> tuple:

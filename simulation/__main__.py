@@ -47,6 +47,8 @@ def main(argv: list[str] | None = None) -> int:
     r.add_argument("--container", default=routing_bench.DEFAULT_CONTAINER, help="solver container (ALNS)")
     r.add_argument("--data-dir", type=Path, default=Path("data"))
     r.add_argument("--docs-dir", type=Path, default=DOCS_DIR)
+    r.add_argument("--detour", type=float, default=routing_bench.PRIMARY_DETOUR,
+                   help="road/straight-line factor; 1.3 primary, 1.58 sensitivity (frn-v1 §6)")  # fmt: skip
 
     sub.add_parser("summary", help="print experiment_summary(docs/experiments) as JSON")
     args = p.parse_args(argv)
@@ -83,6 +85,7 @@ def main(argv: list[str] | None = None) -> int:
             chain_ids=chains,
             container=args.container,
             progress=print,
+            detour_factor=args.detour,
         )
         summary = report.write_routing_report(args.docs_dir)
         print(json.dumps(summary, ensure_ascii=False, indent=2))

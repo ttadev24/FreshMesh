@@ -11,6 +11,10 @@
 * Baseline = ``routing.baseline.one_trip_per_order`` on the same routable orders; its "vehicles" are trips
   (one dispatch per order). Each trip goes straight to its order from minute 0 and screening already removed
   orders unreachable even directly, so the baseline has no late stops by construction.
+* Dispatcher baseline = ``routing.dispatch_baseline.zone_sweep`` (protocol frn-v1 §6, R1): bearing zones,
+  nearest-neighbour trips, the batch's fleet reused trip after trip; "vehicles" are its trips.
+* ``detour_factor`` 1,3 is the primary setting (``routing_benchmark.csv``); other values are sensitivity runs
+  written to ``routing_benchmark_detour<factor×100>.csv``.
 * Solves run sequentially (the solver container is shared with the API).
 """
 
@@ -34,10 +38,13 @@ from forecasting.service import data_sources
 from routing.baseline import one_trip_per_order
 from routing.client import SolverClient, SolverError, SolverResponse
 from routing.config import RoutingConfig
+from routing.dispatch_baseline import zone_sweep
 from routing.models import Batch, RoutePlan
 
 RESULTS_CSV = "routing_benchmark.csv"
 BASELINE = "one_trip_per_order"
+DISPATCHER = "zone_sweep"
+PRIMARY_DETOUR = 1.3
 DEFAULT_CONTAINER = "freshmesh-solver"
 DEFAULT_METHODS = ("paco", "alns")  # SA is opt-in: the routing-PL SA binary crashes on these instances
 ALNS_PARAMS = "/app/src/parameters/alns.param.yaml"
@@ -133,6 +140,18 @@ def benchmark_batch(
             "n_routable": base.trips,
         }
     ]
+    zs = zone_sweep(batch, cfg)
+    rows.append(
+        {
+            "method": DISPATCHER,
+            "status": "ok",
+            **_plan_row(zs),
+            "wall_s": round(zs.runtime_s, 2),
+            "cached": 0,
+            "batch_hash": "",
+            "n_routable": sum(len(r.stops) for r in zs.routes),
+        }
+    )
     for method, svc in services.items():
         t0 = time.perf_counter()
         try:
@@ -169,8 +188,9 @@ def run_routing_benchmark(
     chain_ids: Sequence[str] = CHAIN_IDS,
     container: str = DEFAULT_CONTAINER,
     progress: Callable[[str], None] | None = None,
+    detour_factor: float = PRIMARY_DETOUR,
 ) -> list[dict[str, Any]]:
-    """Benchmark every store of every chain; writes ``docs_dir/routing_benchmark.csv``."""
+    """Benchmark every store of every chain; writes ``docs_dir/<results_name(detour_factor)>``."""
     data_dir = Path(data_dir)
     cache = data_dir / "cache"
     http = SolverClient(solver_url, timeout_s=RoutingConfig().solver_timeout_s)
@@ -180,11 +200,11 @@ def run_routing_benchmark(
         services[m] = RoutingService(
             cache,
             client,
-            cfg=RoutingConfig(solver=m),
+            cfg=RoutingConfig(solver=m, detour_factor=detour_factor),
             fleet_vehicles=FLEET_VEHICLES,
             fleet_capacity=FLEET_CAPACITY,
         )
-    cfg = RoutingConfig()
+    cfg = RoutingConfig(detour_factor=detour_factor)
     builder = RoutingService(
         cache, None, cfg=cfg, fleet_vehicles=FLEET_VEHICLES, fleet_capacity=FLEET_CAPACITY
     )
@@ -210,8 +230,14 @@ def run_routing_benchmark(
                         f"{store.store_id} {r['method']}: {r['status']} km={r.get('road_km')} "
                         f"veh={r.get('vehicles')} wall={r.get('wall_s')}s"
                     )
-            _merge_write(Path(docs_dir) / RESULTS_CSV, out)
+            _merge_write(Path(docs_dir) / results_name(detour_factor), out)
     return out
+
+
+def results_name(detour_factor: float) -> str:
+    if detour_factor == PRIMARY_DETOUR:
+        return RESULTS_CSV
+    return f"routing_benchmark_detour{round(100 * detour_factor)}.csv"
 
 
 def _merge_write(path: Path, rows: Sequence[dict[str, Any]]) -> None:

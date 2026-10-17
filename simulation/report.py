@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Any
 
 from forecasting.service import source_labels_vi
-from simulation import routing_bench, sim30
+from simulation import routing_bench, routing_r1, sim30
 
 BEGIN, END = "<!-- BEGIN GENERATED -->", "<!-- END GENERATED -->"
 SIM30_MD = "sim30-results.md"
@@ -32,12 +32,19 @@ POLICY_LABELS = {
     "freshmesh_safe_h1": "FreshMesh An toàn h=1 (exploratory)",
     "freshmesh_lean_h1": "FreshMesh Tiết kiệm h=1 (exploratory)",
 }
-METHOD_LABELS = {"one_trip_per_order": "Mỗi đơn một chuyến", "paco": "PACO", "sa": "SA", "alns": "ALNS"}
+METHOD_LABELS = {
+    "one_trip_per_order": "Mỗi đơn một chuyến",
+    "zone_sweep": "Điều phối chia vùng",
+    "paco": "PACO",
+    "sa": "SA",
+    "alns": "ALNS",
+}
 COLORS = {
     "baseline_mean7": "#8a8f98",
     "freshmesh_balanced_h1": "#e08a2e",
     "freshmesh_balanced_h1_carry20": "#1f8a70",
     "one_trip_per_order": "#8a8f98",
+    "zone_sweep": "#c9a227",
     "paco": "#1f8a70",
     "sa": "#3b6fb6",
     "alns": "#b5527a",
@@ -232,7 +239,8 @@ def write_sim30_report(docs_dir: Path) -> dict[str, Any]:
 
 def routing_summary(rows: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
     ok = [r for r in rows if r["status"] == "ok"]
-    methods = [m for m in ("one_trip_per_order", "paco", "sa", "alns") if any(r["method"] == m for r in rows)]
+    order = ("one_trip_per_order", "zone_sweep", "paco", "sa", "alns")
+    methods = [m for m in order if any(r["method"] == m for r in rows)]
     batches = sorted({(r["chain_id"], r["store_id"]) for r in rows})
     per: dict[str, dict[tuple[str, str], Mapping[str, Any]]] = defaultdict(dict)
     for r in ok:
@@ -352,7 +360,9 @@ def write_routing_report(docs_dir: Path) -> dict[str, Any]:
             f"{docs_dir / routing_bench.RESULTS_CSV} missing; run routing-benchmark first"
         )
     summary = routing_summary(rows)
-    write_generated(docs_dir / ROUTING_MD, routing_markdown(rows, summary))
+    r1 = routing_r1.verdicts(docs_dir)
+    summary["r1"] = r1
+    write_generated(docs_dir / ROUTING_MD, routing_markdown(rows, summary) + routing_r1.markdown(r1))
     (docs_dir / ROUTING_SVG).write_text(routing_svg(rows, summary), encoding="utf-8")
     return summary
 

@@ -115,6 +115,10 @@ class DecisionBody(BaseModel):
     note: str = Field(default="", max_length=500)
 
 
+class ApproveBody(BaseModel):
+    revision: int | None = Field(default=None, ge=0)  # payload.revision the approver saw (stale -> 409)
+
+
 class ChatBody(BaseModel):
     message: str = Field(min_length=1, max_length=2000)
     store_id: str | None = None
@@ -261,7 +265,6 @@ def create_app(
             "data": data_ready,
             "jev": jev_client is not None,
             "chat_quota": {"per_ip_daily": chat_quota.per_ip_daily, "global_daily": chat_quota.global_daily},
-            "approval": dataclasses.asdict(settings.approval_policy),
         }
 
     @app.post("/api/auth/login")
@@ -281,7 +284,12 @@ def create_app(
     def me(user: User = Depends(current_user)) -> dict[str, Any]:
         repo = services.repo(user.chain_id)
         store_name = repo.store(user.store_id).name if user.store_id else None
-        return {**user.to_dict(), "chain_name": repo.chain_name(), "store_name": store_name}
+        return {
+            **user.to_dict(),
+            "chain_name": repo.chain_name(),
+            "store_name": store_name,
+            "approval": dataclasses.asdict(settings.approval_policy),  # limits after which the owner decides
+        }
 
     @app.get("/api/brief")
     def brief(store_id: str | None = None, user: User = Depends(current_user)) -> dict[str, Any]:
@@ -402,8 +410,10 @@ def create_app(
         return {"draft": drafts.get(user, draft_id)}
 
     @app.post("/api/drafts/{draft_id}/approve")
-    def approve(draft_id: str, user: User = Depends(current_user)) -> dict[str, Any]:
-        draft = drafts.approve(user, draft_id)
+    def approve(
+        draft_id: str, body: ApproveBody | None = None, user: User = Depends(current_user)
+    ) -> dict[str, Any]:
+        draft = drafts.approve(user, draft_id, body.revision if body else None)
         return {"draft": draft, "execution": draft["payload"].get("execution")}
 
     @app.post("/api/drafts/{draft_id}/undo")

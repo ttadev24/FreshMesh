@@ -196,10 +196,12 @@ class SqlDraftStore:
         self,
         user: User,
         draft_id: str,
-        mutate: Callable[[dict[str, Any]], tuple[str, dict[str, Any], str, dict[str, Any]]],
+        mutate: Callable[
+            [dict[str, Any], sqlite3.Connection], tuple[str, dict[str, Any], str, dict[str, Any]]
+        ],
         from_status: tuple[str, ...] = ("draft",),
     ) -> dict[str, Any]:
-        """Load (scoped) → check status → mutate → write row + audit atomically."""
+        """Load (scoped) → check status → mutate (inside the transaction) → write row + audit atomically."""
         con = self._connect(user.chain_id)
         try:
             with con:
@@ -217,7 +219,7 @@ class SqlDraftStore:
                         "draft_not_pending",
                         f"Bản nháp đã ở trạng thái '{draft['status']}', không thể thay đổi.",
                     )
-                status, payload, event, audit_payload = mutate(draft)
+                status, payload, event, audit_payload = mutate(draft, con)
                 decided = status != "draft"
                 con.execute(
                     "UPDATE drafts SET status = ?, payload_json = ?, decided_at = ?, decided_by = ? "
@@ -235,15 +237,41 @@ class SqlDraftStore:
         finally:
             con.close()
 
-    def approve(self, user: User, draft_id: str) -> dict[str, Any]:
+    @staticmethod
+    def _manager_approved_same_day(con: sqlite3.Connection, draft: dict[str, Any]) -> int:
+        """Purchase orders store managers already approved for this store and delivery day (đ)."""
+        rows = con.execute(
+            "SELECT payload_json FROM drafts WHERE chain_id = ? AND kind = 'create_purchase_order' "
+            "AND status = 'approved' AND draft_id != ? AND json_extract(payload_json, '$.store_id') = ? "
+            "AND json_extract(payload_json, '$.order_date') = ? "
+            "AND json_extract(payload_json, '$.execution.approver_role') = 'store_manager'",
+            (draft["chain_id"], draft["draft_id"], draft["store_id"], draft["payload"].get("order_date")),
+        ).fetchall()
+        return sum(int(json.loads(r[0])["execution"].get("total_cost_vnd") or 0) for r in rows)
+
+    def approve(self, user: User, draft_id: str, revision: int | None = None) -> dict[str, Any]:
+        """``revision``: the payload revision the approver looked at; a draft edited since is refused (409)."""
         escalated: dict[str, Any] = {}
 
-        def mutate(draft: dict[str, Any]) -> tuple[str, dict[str, Any], str, dict[str, Any]]:
+        def mutate(draft: dict[str, Any], con: sqlite3.Connection) -> tuple[str, dict[str, Any], str, dict]:
             payload = dict(draft["payload"])
+            current = int(payload.get("revision", 0))
+            if revision is not None and revision != current:
+                raise ApiError(409, "draft_changed", f"Bản nháp đã được sửa (phiên bản {current}) sau khi bạn "
+                               "xem; hãy mở lại để xem số mới rồi duyệt.")  # fmt: skip
             ref = {"draft_id": draft["draft_id"], "kind": draft["kind"], "store_id": draft["store_id"]}
-            esc = approval_escalation(draft["kind"], payload, is_owner=user.is_owner, policy=self.policy)
+            same_day = 0 if user.is_owner else self._manager_approved_same_day(con, draft)
+            esc = approval_escalation(
+                draft["kind"], payload, is_owner=user.is_owner, policy=self.policy, approved_same_day_vnd=same_day
+            )
             if esc:  # not executed: stays pending for the owner
-                payload["escalation"] = {**esc, "requested_by": user.username, "requested_at": _now()}
+                prev = payload.get("escalation") or {}
+                if not prev.get("resolved_by") and prev.get("revision") == current:
+                    raise ApiError(403, "needs_owner", f"{prev['reason_vi']} Đã chuyển chủ chuỗi duyệt; bản "
+                                   "nháp vẫn chờ, chưa có gì được thực thi.")  # fmt: skip
+                payload["escalation"] = {
+                    **esc, "revision": current, "requested_by": user.username, "requested_at": _now()
+                }
                 escalated.update(payload["escalation"])
                 return "draft", payload, "escalation", {**ref, "escalation": payload["escalation"]}
             record, status = execution_record(draft, user)
@@ -261,7 +289,7 @@ class SqlDraftStore:
         return draft
 
     def undo(self, user: User, draft_id: str) -> dict[str, Any]:
-        def mutate(draft: dict[str, Any]) -> tuple[str, dict[str, Any], str, dict[str, Any]]:
+        def mutate(draft: dict[str, Any], con: sqlite3.Connection) -> tuple[str, dict[str, Any], str, dict]:
             now = dt.datetime.now(dt.UTC)
             refusal = undo_refusal(
                 draft, username=user.username, is_owner=user.is_owner, now=now, policy=self.policy
@@ -271,6 +299,8 @@ class SqlDraftStore:
             payload = dict(draft["payload"])
             record = payload.pop("execution", None) or {}
             undone = {**record, "undone_by": user.username, "undone_at": now.isoformat(timespec="seconds")}
+            if payload.get("escalation"):  # history of this approval; a new approval is checked afresh
+                undone["escalation"] = payload.pop("escalation")
             payload["undone"] = [*payload.get("undone", []), undone]
             audit = {
                 "draft_id": draft["draft_id"],
@@ -285,7 +315,7 @@ class SqlDraftStore:
         return self._transition(user, draft_id, mutate, from_status=("approved", "dispatched"))
 
     def reject(self, user: User, draft_id: str, note: str = "") -> dict[str, Any]:
-        def mutate(draft: dict[str, Any]) -> tuple[str, dict[str, Any], str, dict[str, Any]]:
+        def mutate(draft: dict[str, Any], con: sqlite3.Connection) -> tuple[str, dict[str, Any], str, dict]:
             audit = {
                 "draft_id": draft["draft_id"],
                 "kind": draft["kind"],
@@ -300,7 +330,7 @@ class SqlDraftStore:
     def edit(
         self, user: User, draft_id: str, changes: dict[str, Any], apply: Callable[[dict, dict], dict]
     ) -> dict[str, Any]:
-        def mutate(draft: dict[str, Any]) -> tuple[str, dict[str, Any], str, dict[str, Any]]:
+        def mutate(draft: dict[str, Any], con: sqlite3.Connection) -> tuple[str, dict[str, Any], str, dict]:
             allowed = EDITABLE_FIELDS.get(draft["kind"], {"note"})
             bad = sorted(set(changes) - allowed)
             if bad:
@@ -311,12 +341,18 @@ class SqlDraftStore:
                 )
             payload = apply(draft, changes)
             payload["edited_by"] = user.username
+            payload["revision"] = int(draft["payload"].get("revision", 0)) + 1
             audit = {
                 "draft_id": draft["draft_id"],
                 "kind": draft["kind"],
                 "store_id": draft["store_id"],
                 "changes": changes,
+                "revision": payload["revision"],
             }
+            if set(changes) - {"note"} and payload.get("escalation"):
+                # The owner was asked about the old content: the edited draft must be approved (and, if still
+                # above the limit, escalated) again.
+                audit["escalation_cleared"] = payload.pop("escalation")
             return "draft", payload, "draft_edited", audit
 
         return self._transition(user, draft_id, mutate)
@@ -327,8 +363,10 @@ def execution_record(draft: dict[str, Any], user: User) -> tuple[dict[str, Any],
     p = draft["payload"]
     now = _now()
     kind = draft["kind"]
-    base = {"executed_at": now, "approved_by": user.username, "note_vi": SIM_NOTE_VI}
+    base = {"executed_at": now, "approved_by": user.username, "approver_role": user.role, "note_vi": SIM_NOTE_VI}
     suffix = draft["draft_id"].split("-")[-1][:8].upper()
+    if p.get("undone"):  # re-approval after an undo: a new record number
+        suffix += f"-R{len(p['undone'])}"
     if kind == "create_purchase_order":
         suppliers: dict[str, dict[str, Any]] = {}
         for line in p.get("lines", []):

@@ -27,6 +27,10 @@ def make_settings(data_dir: Path, cache: Path, **kw) -> Settings:
         cache_root=cache,
         chat_per_ip_daily=kw.pop("chat_per_ip_daily", 0),  # quotas off unless a test turns them on
         chat_global_daily=kw.pop("chat_global_daily", 0),
+        # Pinned so an exported FRESHMESH_* variable in the shell cannot change what the tests check.
+        manager_order_limit_vnd=kw.pop("manager_order_limit_vnd", 5_000_000),
+        manager_max_discount_pct=kw.pop("manager_max_discount_pct", 30),
+        undo_window_min=kw.pop("undo_window_min", 30),
         **kw,
     )
 

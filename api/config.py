@@ -95,12 +95,13 @@ class Settings:
     # Daily chat turns per client address and for the whole site (api/chat_quota.py); 0 disables a cap.
     chat_per_ip_daily: int = field(default_factory=lambda: _env_count("FRESHMESH_CHAT_PER_IP_DAILY", 20))
     chat_global_daily: int = field(default_factory=lambda: _env_count("FRESHMESH_CHAT_GLOBAL_DAILY", 300))
-    # Human-in-the-loop limits (api/escalation.py): above them a store manager's approval goes to the owner.
+    # Human-in-the-loop limits (api/escalation.py): above them a store manager's approval goes to the owner
+    # (order limit per store and delivery day). 0 switches a rule off; an undo window of 0 switches undo off.
     manager_order_limit_vnd: int = field(
         default_factory=lambda: _env_count("FRESHMESH_MANAGER_APPROVAL_LIMIT_VND", 5_000_000)
     )
     manager_max_discount_pct: int = field(
-        default_factory=lambda: _env_count("FRESHMESH_MANAGER_MAX_DISCOUNT_PCT", 50)
+        default_factory=lambda: _env_count("FRESHMESH_MANAGER_MAX_DISCOUNT_PCT", 30)
     )
     undo_window_min: int = field(default_factory=lambda: _env_count("FRESHMESH_UNDO_WINDOW_MIN", 30))
 

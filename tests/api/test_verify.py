@@ -45,4 +45,4 @@ def test_escalation_checks_follow_the_live_policy(data_dir, monkeypatch):
 
     out = verify.run_all(data_dir, ApprovalPolicy(manager_order_limit_vnd=0))
     case = next(c for c in out["cases"] if c["id"] == "authority_needs_owner")
-    assert case["pass"] is False and "được tự duyệt" in case["actual_vi"]
+    assert case["pass"] is False and "quản lý tự duyệt" in case["actual_vi"]

@@ -4,12 +4,14 @@
   ask for the fact that would change it and say what is used meanwhile.
 * ``out_of_scope`` — the owner's goals cannot all be met (``decision.frontier.choose_for_goal``): ask which
   goal gives, with the concrete options. Nothing is chosen silently.
-* ``authority`` — a store manager approves above their limit (purchase order value, markdown depth): the
-  draft stays pending and goes to the owner; nothing is executed.
+* ``authority`` — a store manager approves above their limit: purchase orders of one store and delivery
+  day add up (splitting an order does not get around it), and markdowns deeper than the cap. The draft stays
+  pending and goes to the owner; nothing is executed.
 
 Every escalation is ``{kind, reason_vi, question_vi, choices_vi}`` plus kind-specific fields. An approved
 action can be undone within ``undo_window_min`` by its approver or the owner; undo is audited and puts the
-draft back to pending (``api.drafts``). Limits of 0 switch a rule off.
+draft back to pending (``api.drafts``). Routes already sent to shippers are not undone. A limit of 0 switches
+its rule off; an undo window of 0 switches undo off.
 """
 
 from __future__ import annotations
@@ -31,7 +33,7 @@ def _pct(value: float) -> str:  # "50%", "37,5%"
 @dataclass(frozen=True)
 class ApprovalPolicy:
     manager_order_limit_vnd: int = 5_000_000
-    manager_max_discount_pct: int = 50
+    manager_max_discount_pct: int = 30  # markdown levels are 10/20/30/50%: 50% needs the owner
     undo_window_min: int = 30
 
 
@@ -85,22 +87,36 @@ def max_discount_pct(payload: dict[str, Any]) -> float:
 
 
 def approval_escalation(
-    kind: str, payload: dict[str, Any], *, is_owner: bool, policy: ApprovalPolicy
+    kind: str,
+    payload: dict[str, Any],
+    *,
+    is_owner: bool,
+    policy: ApprovalPolicy,
+    approved_same_day_vnd: int = 0,
 ) -> dict | None:
-    """The authority escalation a store manager's approval triggers, or None when they may approve."""
+    """The authority escalation a store manager's approval triggers, or None when they may approve.
+    ``approved_same_day_vnd``: purchase orders the store's managers already approved for the same delivery
+    day (the limit is per store and day)."""
     if is_owner:
         return None
     choices = ["Chuyển chủ chuỗi duyệt", "Sửa bản nháp cho trong hạn mức"]
     limit = policy.manager_order_limit_vnd
     value = order_value_vnd(payload)
-    if kind == "create_purchase_order" and limit and value > limit:
+    if kind == "create_purchase_order" and limit and value + approved_same_day_vnd > limit:
+        already = (
+            f" cộng {vnd(approved_same_day_vnd)} quản lý đã duyệt cho cùng ngày giao"
+            if approved_same_day_vnd
+            else ""
+        )
         return escalation(
             "authority",
-            f"Đơn nhập {vnd(value)} vượt hạn mức duyệt {vnd(limit)} của quản lý cửa hàng.",
-            f"Chủ chuỗi duyệt đơn nhập {vnd(value)} này, hay quản lý giảm đơn xuống dưới {vnd(limit)}?",
+            f"Đơn nhập {vnd(value)}{already} vượt hạn mức duyệt {vnd(limit)}/ngày của quản lý cửa hàng.",
+            f"Chủ chuỗi duyệt đơn nhập {vnd(value)} này, hay quản lý giảm đơn để tổng trong ngày không quá "
+            f"{vnd(limit)}?",
             choices,
             needs_role="owner",
             value_vnd=value,
+            approved_same_day_vnd=approved_same_day_vnd,
             limit_vnd=limit,
         )
     depth, cap = max_discount_pct(payload), policy.manager_max_discount_pct
@@ -126,9 +142,17 @@ def undo_refusal(
     """``(HTTP status, code, Vietnamese reason)`` when the approved draft cannot be undone now, else None."""
     if not is_owner and draft.get("decided_by") != username:
         return 403, "forbidden_undo", "Chỉ người đã duyệt hoặc chủ chuỗi được hoàn tác bản nháp này."
+    if draft.get("kind") == "dispatch_routes":
+        return 409, "undo_not_supported", "Lộ trình đã gửi cho shipper không hoàn tác được; hãy lập lộ trình mới."
+    if not policy.undo_window_min:
+        return 409, "undo_disabled", "Hệ thống này đã tắt chức năng hoàn tác."
+    if not draft.get("decided_at"):
+        return 409, "undo_window_passed", "Không rõ thời điểm duyệt nên không hoàn tác được."
     decided = dt.datetime.fromisoformat(draft["decided_at"])
+    if decided.tzinfo is None:  # written as UTC
+        decided = decided.replace(tzinfo=dt.UTC)
     minutes = (now - decided).total_seconds() / 60
-    if policy.undo_window_min and minutes > policy.undo_window_min:
+    if minutes > policy.undo_window_min:
         return (
             409,
             "undo_window_passed",

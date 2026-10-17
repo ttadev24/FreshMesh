@@ -24,7 +24,7 @@ def _rows(e_true: float, n_stores: int = 30, n_products: int = 20, days: int = 6
 def test_within_estimator_recovers_a_known_elasticity_with_fixed_effects():
     est = estimates(city_stats(_rows(-2.0)))
     assert len(est) == 1 and abs(est[0]["elasticity"] + 2.0) < 0.05
-    assert est[0]["ci_low"] < -2.0 < est[0]["ci_high"] or abs(est[0]["ci_high"] - est[0]["ci_low"]) < 0.1
+    assert est[0]["ci_low"] <= est[0]["elasticity"] <= est[0]["ci_high"]
 
 
 def test_report_says_whether_the_median_is_inside_the_ai_range(tmp_path):

@@ -37,8 +37,8 @@ def city_stats(rows: CityRows) -> Stats:
     wd = np.array([(START + dt.timedelta(days=int(d))).weekday() for d in range(int(rows.day.max()) + 1)])
     dow = wd[rows.day[ok]]
     Z = np.column_stack([x, *((dow == d).astype(float) for d in range(1, 7))])
-    series = np.unique(np.column_stack([rows.store_id[ok], rows.product_id[ok]]), axis=0, return_inverse=True)[1]
-    series = series.ravel()
+    pairs = np.column_stack([rows.store_id[ok], rows.product_id[ok]])
+    series = np.unique(pairs, axis=0, return_inverse=True)[1].ravel()
     n_series = int(series.max()) + 1 if len(series) else 0
     count = np.bincount(series, minlength=n_series)
     y = y - (np.bincount(series, y, n_series) / count)[series]
@@ -80,14 +80,16 @@ def estimates(stats: Stats) -> list[dict[str, Any]]:
         boot = np.array([_beta(xtx[ix].sum(axis=0), xty[ix].sum(axis=0)) for ix in idx])
         boot = boot[~np.isnan(boot)]
         lo, hi = np.percentile(boot, [2.5, 97.5]) if boot.size else (np.nan, np.nan)
-        out.append({"category": c, "n": n, "stores": len(stores), "elasticity": e, "ci_low": lo, "ci_high": hi})
+        out.append({"category": c, "n": n, "stores": len(stores), "elasticity": e,
+                    "ci_low": lo, "ci_high": hi})  # fmt: skip
     return out
 
 
 def summary(est: list[dict[str, Any]]) -> dict[str, Any]:
     med = float(np.median([r["elasticity"] for r in est])) if est else float("nan")
     inside = AI_RANGE[0] <= med <= AI_RANGE[1]
-    return {"median_elasticity": med, "inside_ai_range": inside, "ai_range": list(AI_RANGE), "categories": est}
+    return {"median_elasticity": med, "inside_ai_range": inside, "ai_range": list(AI_RANGE),
+            "categories": est}  # fmt: skip
 
 
 def run(data_dir: Path | str, docs_dir: Path | str, cities: list[int] | None = None) -> Path:

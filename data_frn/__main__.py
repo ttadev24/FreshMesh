@@ -8,7 +8,8 @@ from pathlib import Path
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="python -m data_frn", description=__doc__)
-    commands = ["download", "audit", "forecast", "forecast-report", "inventory", "inventory-report", "elasticity"]
+    commands = ["download", "audit", "forecast", "forecast-report", "inventory", "inventory-report",
+                "elasticity"]  # fmt: skip
     parser.add_argument("command", choices=commands)
     parser.add_argument("--shelf-life", type=int, default=2)
     parser.add_argument("--data", type=Path, default=Path("data"))
